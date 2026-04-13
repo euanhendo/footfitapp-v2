@@ -33,6 +33,6 @@ Array of boot objects. All measurements in mm. Every entry must include:
 
 ### sockDatabase.json
 
-Map of sock key → `{ brand, thickness }`. Thickness is in mm, added to both length and width before filtering. Key format: `snake_case` matching the Picker value in SockSelectionScreen.
+Map of sock key → `{ brand, thickness, sport }`. Thickness is in mm, added to both length and width before filtering. Key format: `snake_case`. The `sport` field (`"football"` or `"running"`) controls which socks appear in the picker — SockSelectionScreen renders dynamically from this file.
 
-When adding a new sock, also add a `<Picker.Item>` in `SockSelectionScreen.tsx` under the correct sport section.
+When adding a new sock, just add the entry here with the correct `sport` value. No screen changes needed.

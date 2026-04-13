@@ -64,7 +64,7 @@ export type Boot = {
   imageUrl: string;
 };
 
-export type SockEntry = { brand: string; thickness: number };
+export type SockEntry = { brand: string; thickness: number; sport: string };
 
 export function filterBoots(
   boots: Boot[],
@@ -80,6 +80,15 @@ export function filterBoots(
     const widthMatch = adjustedWidth >= boot.minWidth && adjustedWidth <= boot.maxWidth;
     return sportMatch && genderMatch && lengthMatch && widthMatch;
   });
+}
+
+export function getSocksForSport(
+  sockDb: Record<string, SockEntry>,
+  sport: string,
+): { key: string; brand: string; thickness: number }[] {
+  return Object.entries(sockDb)
+    .filter(([, entry]) => entry.sport === sport)
+    .map(([key, entry]) => ({ key, brand: entry.brand, thickness: entry.thickness }));
 }
 
 export function applySocketAdjustment(

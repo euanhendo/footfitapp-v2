@@ -3,7 +3,9 @@ import {
   getEstimatedLengthMm,
   filterBoots,
   applySocketAdjustment,
+  getSocksForSport,
   Boot,
+  SockEntry,
 } from '../fitting';
 
 describe('getEstimatedLengthMm', () => {
@@ -68,6 +70,44 @@ describe('applySocketAdjustment', () => {
     const result = applySocketAdjustment(265, 99, 0);
     expect(result.adjustedLength).toBe(265);
     expect(result.adjustedWidth).toBe(99);
+  });
+});
+
+describe('getSocksForSport', () => {
+  const testSockDb: Record<string, SockEntry> = {
+    nike_grip: { brand: 'Nike Grip Socks', thickness: 0.3, sport: 'football' },
+    trusox_mid: { brand: 'Trusox Midweight', thickness: 0.6, sport: 'football' },
+    darn_tough: { brand: 'Darn Tough Element Micro Crew', thickness: 0.3, sport: 'running' },
+    smartwool_run: { brand: 'Smartwool Run Cold Weather', thickness: 0.5, sport: 'running' },
+    injinji_ultra: { brand: 'Injinji Ultra Run No-Show', thickness: 0.5, sport: 'running' },
+  };
+
+  it('returns only football socks for football', () => {
+    const result = getSocksForSport(testSockDb, 'football');
+    expect(result).toHaveLength(2);
+    expect(result.every((s) => s.key === 'nike_grip' || s.key === 'trusox_mid')).toBe(true);
+  });
+
+  it('returns only running socks for running', () => {
+    const result = getSocksForSport(testSockDb, 'running');
+    expect(result).toHaveLength(3);
+  });
+
+  it('returns empty array for unknown sport', () => {
+    const result = getSocksForSport(testSockDb, 'rugby');
+    expect(result).toEqual([]);
+  });
+
+  it('returns items with correct shape', () => {
+    const result = getSocksForSport(testSockDb, 'football');
+    for (const sock of result) {
+      expect(sock).toHaveProperty('key');
+      expect(sock).toHaveProperty('brand');
+      expect(sock).toHaveProperty('thickness');
+      expect(typeof sock.key).toBe('string');
+      expect(typeof sock.brand).toBe('string');
+      expect(typeof sock.thickness).toBe('number');
+    }
   });
 });
 
