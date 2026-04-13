@@ -1,7 +1,10 @@
 import { useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FlatList, Image, Linking, Pressable, Text, View } from 'react-native';
-import { filterBoots, applySocketAdjustment, Boot, SockEntry } from '../../lib/fitting';
+import * as SecureStore from 'expo-secure-store';
+import { applySocketAdjustment, Boot, SockEntry } from '../../lib/fitting';
+import { scoreAndRankBoots, ScoredBoot } from '../../lib/fitScore';
+import { createFitProfileStore, StorageAdapter } from '../../lib/fitProfile';
 import bootDatabase from '../../bootDatabase.json';
 import sockDatabase from '../../sockDatabase.json';
 
@@ -9,6 +12,14 @@ type SockDb = Record<string, SockEntry>;
 
 const socks = sockDatabase as SockDb;
 const boots = bootDatabase as Boot[];
+
+const storage: StorageAdapter = {
+  getItem: (key) => SecureStore.getItemAsync(key),
+  setItem: (key, value) => SecureStore.setItemAsync(key, value),
+  deleteItem: (key) => SecureStore.deleteItemAsync(key),
+};
+
+const profileStore = createFitProfileStore(storage);
 
 const WIDTH_COLOUR: Record<string, string> = {
   narrow: '#1a6bb5',
@@ -35,6 +46,77 @@ function BootImage({ uri, label }: { uri: string; label: string }) {
   );
 }
 
+function BootCard({ item, muted }: { item: ScoredBoot; muted?: boolean }) {
+  const boot = item.boot;
+  return (
+    <View style={{
+      backgroundColor: '#fff',
+      borderRadius: 14,
+      marginBottom: 14,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: '#ebebeb',
+      opacity: muted ? 0.85 : 1,
+    }}>
+      <View>
+        <BootImage uri={boot.imageUrl} label={`${boot.brand} ${boot.model}`} />
+        <View style={{
+          position: 'absolute',
+          top: 8,
+          right: 8,
+          backgroundColor: 'rgba(0,0,0,0.65)',
+          borderRadius: 8,
+          paddingHorizontal: 8,
+          paddingVertical: 4,
+        }}>
+          <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>
+            {item.score}% fit
+          </Text>
+        </View>
+      </View>
+      <View style={{ padding: 14 }}>
+        <Text style={{ fontSize: 16, fontWeight: '800', color: '#111', marginBottom: 4 }}>
+          {boot.brand} {boot.model}
+        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 10 }}>
+          <Text style={{ fontSize: 18, fontWeight: '700', color: '#111' }}>
+            £{boot.price}
+          </Text>
+          <View style={{
+            backgroundColor: WIDTH_COLOUR[boot.width] + '18',
+            borderRadius: 6,
+            paddingHorizontal: 8,
+            paddingVertical: 3,
+          }}>
+            <Text style={{ fontSize: 12, fontWeight: '700', color: WIDTH_COLOUR[boot.width], textTransform: 'capitalize' }}>
+              {boot.width} fit
+            </Text>
+          </View>
+        </View>
+        <Text style={{ color: '#666', fontSize: 13, lineHeight: 18, marginBottom: 4 }}>
+          {boot.notes}
+        </Text>
+        <Text style={{ color: muted ? '#b55a1a' : '#999', fontSize: 12, lineHeight: 16, marginBottom: 12 }}>
+          {item.explanation}
+        </Text>
+        <Pressable
+          onPress={() => Linking.openURL(boot.purchaseUrl)}
+          style={{
+            backgroundColor: '#111',
+            borderRadius: 10,
+            paddingVertical: 10,
+            alignItems: 'center',
+          }}
+        >
+          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>
+            Buy now
+          </Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
 export default function ResultScreen() {
   const { footLength, footWidth, sockType, sport, gender } = useLocalSearchParams<{
     footLength: string;
@@ -57,9 +139,27 @@ export default function ResultScreen() {
 
   const { adjustedLength, adjustedWidth } = applySocketAdjustment(safeLength, safeWidth, sockAdjustment);
 
-  const recommendedBoots = filterBoots(boots, adjustedLength, adjustedWidth, sport ?? '', gender ?? '');
+  const { matches, nearMisses } = scoreAndRankBoots(boots, adjustedLength, adjustedWidth, sport ?? '', gender ?? '');
+
+  useEffect(() => {
+    if (sport && gender && safeLength > 0 && safeWidth > 0 && safeSockType) {
+      profileStore.save({
+        sport,
+        gender,
+        footLength: safeLength,
+        footWidth: safeWidth,
+        sockType: safeSockType,
+      });
+    }
+  }, [sport, gender, safeLength, safeWidth, safeSockType]);
 
   const sportLabel = sport === 'football' ? 'Football boots' : 'Running shoes';
+
+  const headerText = matches.length > 0
+    ? `${matches.length} match${matches.length === 1 ? '' : 'es'} for you`
+    : nearMisses.length > 0
+      ? `No exact matches — ${nearMisses.length} close alternative${nearMisses.length === 1 ? '' : 's'} below`
+      : 'No matches found';
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f9f9f9' }}>
@@ -84,69 +184,46 @@ export default function ResultScreen() {
       </View>
 
       <Text style={{ fontSize: 18, fontWeight: '700', color: '#111', paddingHorizontal: 16, marginBottom: 12 }}>
-        {recommendedBoots.length > 0
-          ? `${recommendedBoots.length} match${recommendedBoots.length === 1 ? '' : 'es'} for you`
-          : 'No matches found'}
+        {headerText}
       </Text>
 
       <FlatList
-        data={recommendedBoots}
-        keyExtractor={(item) => `${item.brand}-${item.model}-${item.gender}`}
+        data={matches}
+        keyExtractor={(item) => `${item.boot.brand}-${item.boot.model}-${item.boot.gender}`}
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }}
-        renderItem={({ item }) => (
-          <View style={{
-            backgroundColor: '#fff',
-            borderRadius: 14,
-            marginBottom: 14,
-            overflow: 'hidden',
-            borderWidth: 1,
-            borderColor: '#ebebeb',
-          }}>
-            <BootImage uri={item.imageUrl} label={`${item.brand} ${item.model}`} />
-            <View style={{ padding: 14 }}>
-              <Text style={{ fontSize: 16, fontWeight: '800', color: '#111', marginBottom: 4 }}>
-                {item.brand} {item.model}
+        renderItem={({ item }) => <BootCard item={item} />}
+        ListFooterComponent={
+          matches.length < 3 && nearMisses.length > 0 ? (
+            <View>
+              <Text style={{
+                fontSize: 13,
+                fontWeight: '700',
+                color: '#999',
+                textTransform: 'uppercase',
+                letterSpacing: 0.8,
+                marginTop: 8,
+                marginBottom: 12,
+              }}>
+                Close matches
               </Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 10 }}>
-                <Text style={{ fontSize: 18, fontWeight: '700', color: '#111' }}>
-                  £{item.price}
-                </Text>
-                <View style={{
-                  backgroundColor: WIDTH_COLOUR[item.width] + '18',
-                  borderRadius: 6,
-                  paddingHorizontal: 8,
-                  paddingVertical: 3,
-                }}>
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: WIDTH_COLOUR[item.width], textTransform: 'capitalize' }}>
-                    {item.width} fit
-                  </Text>
-                </View>
-              </View>
-              <Text style={{ color: '#666', fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
-                {item.notes}
-              </Text>
-              <Pressable
-                onPress={() => Linking.openURL(item.purchaseUrl)}
-                style={{
-                  backgroundColor: '#111',
-                  borderRadius: 10,
-                  paddingVertical: 10,
-                  alignItems: 'center',
-                }}
-              >
-                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>
-                  Buy now
-                </Text>
-              </Pressable>
+              {nearMisses.map((item) => (
+                <BootCard
+                  key={`${item.boot.brand}-${item.boot.model}-${item.boot.gender}-near`}
+                  item={item}
+                  muted
+                />
+              ))}
             </View>
-          </View>
-        )}
+          ) : null
+        }
         ListEmptyComponent={
-          <View style={{ padding: 16, alignItems: 'center' }}>
-            <Text style={{ color: '#666', fontSize: 15, textAlign: 'center', lineHeight: 22 }}>
-              No {sportLabel.toLowerCase()} in our database match your exact measurements right now.{'\n\n'}Try adjusting your width profile on the previous screen.
-            </Text>
-          </View>
+          nearMisses.length === 0 ? (
+            <View style={{ padding: 16, alignItems: 'center' }}>
+              <Text style={{ color: '#666', fontSize: 15, textAlign: 'center', lineHeight: 22 }}>
+                No {sportLabel.toLowerCase()} in our database match your exact measurements right now.{'\n\n'}Try adjusting your width profile on the previous screen.
+              </Text>
+            </View>
+          ) : null
         }
       />
     </View>
