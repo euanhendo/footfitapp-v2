@@ -15,54 +15,16 @@ import {
   View,
 } from 'react-native';
 
-const UK_SIZE_TO_LENGTH_MM: Record<string, number> = {
-  '5': 240,
-  '5.5': 244,
-  '6': 248,
-  '6.5': 252,
-  '7': 257,
-  '7.5': 261,
-  '8': 265,
-  '8.5': 269,
-  '9': 274,
-  '9.5': 278,
-  '10': 282,
-  '10.5': 286,
-  '11': 291,
-  '11.5': 295,
-  '12': 299,
-};
+import {
+  estimateWidthFromLength,
+  getEstimatedLengthMm,
+  WidthProfile,
+  SizeSystem,
+} from '../../lib/fitting';
 
-const EU_SIZE_TO_LENGTH_MM: Record<string, number> = {
-  '39': 245,
-  '40': 252,
-  '41': 258,
-  '42': 265,
-  '43': 272,
-  '44': 278,
-  '45': 285,
-  '46': 292,
-  '47': 298,
-};
-
-type WidthProfile = 'narrow' | 'standard' | 'wide';
-type SizeSystem = 'UK' | 'EU';
 type InputMode = 'size' | 'manual';
 type Sport = 'football' | 'running';
 type Gender = 'mens' | 'womens';
-
-function estimateWidthFromLength(lengthMm: number, widthProfile: WidthProfile): number {
-  if (!lengthMm) return 0;
-  if (widthProfile === 'narrow') return Math.round(lengthMm * 0.36);
-  if (widthProfile === 'wide') return Math.round(lengthMm * 0.39);
-  return Math.round(lengthMm * 0.375);
-}
-
-function getEstimatedLengthMm(sizeSystem: SizeSystem, sizeValue: string): number {
-  const cleanValue = String(sizeValue).trim();
-  if (sizeSystem === 'UK') return UK_SIZE_TO_LENGTH_MM[cleanValue] ?? 0;
-  return EU_SIZE_TO_LENGTH_MM[cleanValue] ?? 0;
-}
 
 function SelectButton({
   label,

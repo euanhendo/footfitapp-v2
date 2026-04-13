@@ -1,26 +1,10 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { FlatList, Image, Linking, Pressable, Text, View } from 'react-native';
+import { filterBoots, applySocketAdjustment, Boot, SockEntry } from '../../lib/fitting';
 import bootDatabase from '../../bootDatabase.json';
 import sockDatabase from '../../sockDatabase.json';
 
-type Boot = {
-  brand: string;
-  model: string;
-  gender: string;
-  sport: string;
-  width: string;
-  minLength: number;
-  maxLength: number;
-  minWidth: number;
-  maxWidth: number;
-  price: number;
-  notes: string;
-  purchaseUrl: string;
-  imageUrl: string;
-};
-
-type SockEntry = { brand: string; thickness: number };
 type SockDb = Record<string, SockEntry>;
 
 const socks = sockDatabase as SockDb;
@@ -71,16 +55,9 @@ export default function ResultScreen() {
   const sockAdjustment = sockEntry ? sockEntry.thickness : 0;
   const sockLabel = sockEntry ? sockEntry.brand : 'None';
 
-  const adjustedLength = safeLength + sockAdjustment;
-  const adjustedWidth = safeWidth + sockAdjustment;
+  const { adjustedLength, adjustedWidth } = applySocketAdjustment(safeLength, safeWidth, sockAdjustment);
 
-  const recommendedBoots = boots.filter((boot) => {
-    const sportMatch = boot.sport === sport;
-    const genderMatch = boot.gender === gender || boot.gender === 'unisex';
-    const lengthMatch = adjustedLength >= boot.minLength && adjustedLength <= boot.maxLength;
-    const widthMatch = adjustedWidth >= boot.minWidth && adjustedWidth <= boot.maxWidth;
-    return sportMatch && genderMatch && lengthMatch && widthMatch;
-  });
+  const recommendedBoots = filterBoots(boots, adjustedLength, adjustedWidth, sport ?? '', gender ?? '');
 
   const sportLabel = sport === 'football' ? 'Football boots' : 'Running shoes';
 

@@ -1,0 +1,6 @@
+- TypeScript, functional components, hooks only
+- No class components, no external state management
+- Route params are strings — parse with `Number()` on the receiving screen
+- `SafeAreaView` from `react-native-safe-area-context` for top-level screen wrappers
+- Tests live in `lib/__tests__/` — run with `npm test`
+- Core logic (size lookups, width estimation, boot filtering) is in `lib/fitting.ts`
