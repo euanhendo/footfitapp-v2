@@ -102,6 +102,17 @@ export default function HomeScreen() {
                 Start fresh
               </Text>
             </Pressable>
+            <Pressable
+              onPress={() => router.push({
+                pathname: '/screens/OwnedShoesScreen',
+                params: { gender: savedProfile.gender },
+              })}
+              style={{ marginTop: 6, alignItems: 'center' }}
+            >
+              <Text style={{ fontSize: 13, color: '#666', textDecorationLine: 'underline' }}>
+                My shoes
+              </Text>
+            </Pressable>
           </View>
         )}
 

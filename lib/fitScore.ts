@@ -1,4 +1,5 @@
 import { Boot } from './fitting';
+import { OwnedShoe } from './ownedShoes';
 
 export type ScoredBoot = {
   boot: Boot;
@@ -116,6 +117,41 @@ export function computeFitScore(
   const explanation = generateExplanation(boot, adjustedLength, adjustedWidth);
 
   return { boot, score, lengthScore, widthScore, explanation, isExactMatch };
+}
+
+const BRAND_BOOST = 5;
+const WIDTH_BOOST = 5;
+const MAX_AFFINITY_BOOST = 10;
+
+export function computeAffinityBoost(
+  candidate: Boot,
+  ownedShoes: OwnedShoe[],
+  catalog: Boot[],
+): { boost: number; matchedShoe: OwnedShoe | null } {
+  if (ownedShoes.length === 0) return { boost: 0, matchedShoe: null };
+
+  let bestBoost = 0;
+  let bestShoe: OwnedShoe | null = null;
+
+  for (const owned of ownedShoes) {
+    const ownedBoot = catalog.find(
+      (b) => b.brand === owned.brand && b.model === owned.model && b.gender === owned.gender,
+    );
+
+    let boost = 0;
+    if (ownedBoot && candidate.brand === owned.brand) boost += BRAND_BOOST;
+    if (ownedBoot && candidate.width === ownedBoot.width) boost += WIDTH_BOOST;
+
+    if (boost > bestBoost) {
+      bestBoost = boost;
+      bestShoe = owned;
+    }
+  }
+
+  return {
+    boost: Math.min(bestBoost, MAX_AFFINITY_BOOST),
+    matchedShoe: bestShoe,
+  };
 }
 
 export function scoreAndRankBoots(

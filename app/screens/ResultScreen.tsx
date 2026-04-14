@@ -3,8 +3,9 @@ import { useEffect, useState } from 'react';
 import { FlatList, Image, Linking, Pressable, Text, View } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { applySocketAdjustment, Boot, SockEntry } from '../../lib/fitting';
-import { scoreAndRankBoots, ScoredBoot } from '../../lib/fitScore';
+import { computeAffinityBoost, scoreAndRankBoots, ScoredBoot } from '../../lib/fitScore';
 import { createFitProfileStore, StorageAdapter } from '../../lib/fitProfile';
+import { createOwnedShoesStore, OwnedShoe } from '../../lib/ownedShoes';
 import bootDatabase from '../../bootDatabase.json';
 import sockDatabase from '../../sockDatabase.json';
 
@@ -20,6 +21,7 @@ const storage: StorageAdapter = {
 };
 
 const profileStore = createFitProfileStore(storage);
+const ownedStore = createOwnedShoesStore(storage);
 
 const WIDTH_COLOUR: Record<string, string> = {
   narrow: '#1a6bb5',
@@ -46,7 +48,7 @@ function BootImage({ uri, label }: { uri: string; label: string }) {
   );
 }
 
-function BootCard({ item, muted }: { item: ScoredBoot; muted?: boolean }) {
+function BootCard({ item, muted, matchedShoe }: { item: ScoredBoot; muted?: boolean; matchedShoe?: OwnedShoe | null }) {
   const boot = item.boot;
   return (
     <View style={{
@@ -96,9 +98,23 @@ function BootCard({ item, muted }: { item: ScoredBoot; muted?: boolean }) {
         <Text style={{ color: '#666', fontSize: 13, lineHeight: 18, marginBottom: 4 }}>
           {boot.notes}
         </Text>
-        <Text style={{ color: muted ? '#b55a1a' : '#999', fontSize: 12, lineHeight: 16, marginBottom: 12 }}>
+        <Text style={{ color: muted ? '#b55a1a' : '#999', fontSize: 12, lineHeight: 16, marginBottom: matchedShoe ? 6 : 12 }}>
           {item.explanation}
         </Text>
+        {matchedShoe && (
+          <View style={{
+            backgroundColor: '#2a8a3a18',
+            borderRadius: 6,
+            paddingHorizontal: 8,
+            paddingVertical: 4,
+            alignSelf: 'flex-start',
+            marginBottom: 12,
+          }}>
+            <Text style={{ fontSize: 11, fontWeight: '700', color: '#2a8a3a' }}>
+              Similar fit to your {matchedShoe.brand} {matchedShoe.model}
+            </Text>
+          </View>
+        )}
         <Pressable
           onPress={() => Linking.openURL(boot.purchaseUrl)}
           style={{
@@ -139,7 +155,27 @@ export default function ResultScreen() {
 
   const { adjustedLength, adjustedWidth } = applySocketAdjustment(safeLength, safeWidth, sockAdjustment);
 
-  const { matches, nearMisses } = scoreAndRankBoots(boots, adjustedLength, adjustedWidth, sport ?? '', gender ?? '');
+  const { matches: rawMatches, nearMisses: rawNearMisses } = scoreAndRankBoots(boots, adjustedLength, adjustedWidth, sport ?? '', gender ?? '');
+
+  const [ownedShoes, setOwnedShoes] = useState<OwnedShoe[]>([]);
+  useEffect(() => {
+    ownedStore.load().then(setOwnedShoes);
+  }, []);
+
+  const applyAffinity = (s: ScoredBoot): { scored: ScoredBoot; matchedShoe: OwnedShoe | null } => {
+    const { boost, matchedShoe } = computeAffinityBoost(s.boot, ownedShoes, boots);
+    return {
+      scored: boost > 0 ? { ...s, score: Math.min(100, s.score + boost) } : s,
+      matchedShoe,
+    };
+  };
+
+  const matches = rawMatches
+    .map(applyAffinity)
+    .sort((a, b) => b.scored.score - a.scored.score);
+  const nearMisses = rawNearMisses
+    .map(applyAffinity)
+    .sort((a, b) => b.scored.score - a.scored.score);
 
   useEffect(() => {
     if (sport && gender && safeLength > 0 && safeWidth > 0 && safeSockType) {
@@ -189,9 +225,10 @@ export default function ResultScreen() {
 
       <FlatList
         data={matches}
-        keyExtractor={(item) => `${item.boot.brand}-${item.boot.model}-${item.boot.gender}`}
+        keyExtractor={({ scored }) => `${scored.boot.brand}-${scored.boot.model}-${scored.boot.gender}`}
+        style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }}
-        renderItem={({ item }) => <BootCard item={item} />}
+        renderItem={({ item }) => <BootCard item={item.scored} matchedShoe={item.matchedShoe} />}
         ListFooterComponent={
           matches.length < 3 && nearMisses.length > 0 ? (
             <View>
@@ -206,10 +243,11 @@ export default function ResultScreen() {
               }}>
                 Close matches
               </Text>
-              {nearMisses.map((item) => (
+              {nearMisses.map(({ scored, matchedShoe }) => (
                 <BootCard
-                  key={`${item.boot.brand}-${item.boot.model}-${item.boot.gender}-near`}
-                  item={item}
+                  key={`${scored.boot.brand}-${scored.boot.model}-${scored.boot.gender}-near`}
+                  item={scored}
+                  matchedShoe={matchedShoe}
                   muted
                 />
               ))}

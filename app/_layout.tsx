@@ -7,6 +7,7 @@ export default function Layout() {
       <Stack.Screen name="screens/ManualInputScreen" options={{ title: 'Your Measurements' }} />
       <Stack.Screen name="screens/SockSelectionScreen" options={{ title: 'Select Socks' }} />
       <Stack.Screen name="screens/ResultScreen" options={{ title: 'Your Matches' }} />
+      <Stack.Screen name="screens/OwnedShoesScreen" options={{ title: 'My Shoes' }} />
     </Stack>
   );
 }
