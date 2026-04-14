@@ -12,8 +12,8 @@ export type ScoredBoot = {
 
 const LENGTH_TOLERANCE = 10;
 const WIDTH_TOLERANCE = 5;
-const LENGTH_WEIGHT = 0.4;
-const WIDTH_WEIGHT = 0.6;
+export const LENGTH_WEIGHT = 0.4;
+export const WIDTH_WEIGHT = 0.6;
 const NEAR_MISS_MIN_SCORE = 20;
 const NEAR_MISS_CAP = 5;
 
@@ -117,6 +117,30 @@ export function computeFitScore(
   const explanation = generateExplanation(boot, adjustedLength, adjustedWidth);
 
   return { boot, score, lengthScore, widthScore, explanation, isExactMatch };
+}
+
+export type ScoreBreakdown = {
+  lengthScore: number;
+  widthScore: number;
+  lengthContribution: number;
+  widthContribution: number;
+  lengthMax: number;
+  widthMax: number;
+  baseScore: number;
+};
+
+export function getScoreBreakdown(scored: ScoredBoot): ScoreBreakdown {
+  const lengthContribution = Math.round(scored.lengthScore * LENGTH_WEIGHT);
+  const widthContribution = Math.round(scored.widthScore * WIDTH_WEIGHT);
+  return {
+    lengthScore: scored.lengthScore,
+    widthScore: scored.widthScore,
+    lengthContribution,
+    widthContribution,
+    lengthMax: Math.round(100 * LENGTH_WEIGHT),
+    widthMax: Math.round(100 * WIDTH_WEIGHT),
+    baseScore: scored.score,
+  };
 }
 
 const BRAND_BOOST = 5;

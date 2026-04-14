@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { FlatList, Image, Linking, Pressable, Text, View } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { applySocketAdjustment, Boot, SockEntry } from '../../lib/fitting';
-import { computeAffinityBoost, scoreAndRankBoots, ScoredBoot } from '../../lib/fitScore';
+import { computeAffinityBoost, getScoreBreakdown, scoreAndRankBoots, ScoredBoot } from '../../lib/fitScore';
 import { createFitProfileStore, StorageAdapter } from '../../lib/fitProfile';
 import { createOwnedShoesStore, OwnedShoe } from '../../lib/ownedShoes';
 import bootDatabase from '../../bootDatabase.json';
@@ -48,8 +48,25 @@ function BootImage({ uri, label }: { uri: string; label: string }) {
   );
 }
 
-function BootCard({ item, muted, matchedShoe }: { item: ScoredBoot; muted?: boolean; matchedShoe?: OwnedShoe | null }) {
+function BootCard({
+  item,
+  muted,
+  matchedShoe,
+  affinityBoost,
+  sockAdjustment,
+  sockLabel,
+}: {
+  item: ScoredBoot;
+  muted?: boolean;
+  matchedShoe?: OwnedShoe | null;
+  affinityBoost: number;
+  sockAdjustment: number;
+  sockLabel: string;
+}) {
   const boot = item.boot;
+  const [expanded, setExpanded] = useState(false);
+  const breakdown = getScoreBreakdown(item);
+  const total = Math.min(100, breakdown.baseScore + affinityBoost);
   return (
     <View style={{
       backgroundColor: '#fff',
@@ -72,7 +89,7 @@ function BootCard({ item, muted, matchedShoe }: { item: ScoredBoot; muted?: bool
           paddingVertical: 4,
         }}>
           <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>
-            {item.score}% fit
+            {total}% fit
           </Text>
         </View>
       </View>
@@ -112,6 +129,42 @@ function BootCard({ item, muted, matchedShoe }: { item: ScoredBoot; muted?: bool
           }}>
             <Text style={{ fontSize: 11, fontWeight: '700', color: '#2a8a3a' }}>
               Similar fit to your {matchedShoe.brand} {matchedShoe.model}
+            </Text>
+          </View>
+        )}
+        <Pressable onPress={() => setExpanded((v) => !v)} style={{ marginBottom: 10 }}>
+          <Text style={{ fontSize: 12, color: '#1a6bb5', fontWeight: '700' }}>
+            {expanded ? 'Hide breakdown' : 'Why this score?'}
+          </Text>
+        </Pressable>
+        {expanded && (
+          <View style={{
+            backgroundColor: '#f5f5f5',
+            borderRadius: 10,
+            padding: 12,
+            marginBottom: 12,
+            gap: 4,
+          }}>
+            <Text style={{ fontSize: 12, color: '#111' }}>
+              Length fit: {breakdown.lengthContribution} / {breakdown.lengthMax}
+            </Text>
+            <Text style={{ fontSize: 12, color: '#111' }}>
+              Width fit: {breakdown.widthContribution} / {breakdown.widthMax}
+            </Text>
+            {sockAdjustment > 0 && (
+              <Text style={{ fontSize: 12, color: '#666' }}>
+                Sock adjustment: +{sockAdjustment} mm ({sockLabel})
+              </Text>
+            )}
+            {affinityBoost > 0 && (
+              <Text style={{ fontSize: 12, color: '#2a8a3a' }}>
+                Affinity boost: +{affinityBoost}
+                {matchedShoe ? ` (you own ${matchedShoe.brand} ${matchedShoe.model})` : ''}
+              </Text>
+            )}
+            <View style={{ height: 1, backgroundColor: '#e0e0e0', marginVertical: 4 }} />
+            <Text style={{ fontSize: 13, color: '#111', fontWeight: '700' }}>
+              Total: {total} / 100
             </Text>
           </View>
         )}
@@ -162,20 +215,22 @@ export default function ResultScreen() {
     ownedStore.load().then(setOwnedShoes);
   }, []);
 
-  const applyAffinity = (s: ScoredBoot): { scored: ScoredBoot; matchedShoe: OwnedShoe | null } => {
+  const applyAffinity = (s: ScoredBoot): { scored: ScoredBoot; matchedShoe: OwnedShoe | null; boost: number; total: number } => {
     const { boost, matchedShoe } = computeAffinityBoost(s.boot, ownedShoes, boots);
     return {
-      scored: boost > 0 ? { ...s, score: Math.min(100, s.score + boost) } : s,
+      scored: s,
       matchedShoe,
+      boost,
+      total: Math.min(100, s.score + boost),
     };
   };
 
   const matches = rawMatches
     .map(applyAffinity)
-    .sort((a, b) => b.scored.score - a.scored.score);
+    .sort((a, b) => b.total - a.total);
   const nearMisses = rawNearMisses
     .map(applyAffinity)
-    .sort((a, b) => b.scored.score - a.scored.score);
+    .sort((a, b) => b.total - a.total);
 
   useEffect(() => {
     if (sport && gender && safeLength > 0 && safeWidth > 0 && safeSockType) {
@@ -228,7 +283,15 @@ export default function ResultScreen() {
         keyExtractor={({ scored }) => `${scored.boot.brand}-${scored.boot.model}-${scored.boot.gender}`}
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }}
-        renderItem={({ item }) => <BootCard item={item.scored} matchedShoe={item.matchedShoe} />}
+        renderItem={({ item }) => (
+          <BootCard
+            item={item.scored}
+            matchedShoe={item.matchedShoe}
+            affinityBoost={item.boost}
+            sockAdjustment={sockAdjustment}
+            sockLabel={sockLabel}
+          />
+        )}
         ListFooterComponent={
           matches.length < 3 && nearMisses.length > 0 ? (
             <View>
@@ -243,11 +306,14 @@ export default function ResultScreen() {
               }}>
                 Close matches
               </Text>
-              {nearMisses.map(({ scored, matchedShoe }) => (
+              {nearMisses.map(({ scored, matchedShoe, boost }) => (
                 <BootCard
                   key={`${scored.boot.brand}-${scored.boot.model}-${scored.boot.gender}-near`}
                   item={scored}
                   matchedShoe={matchedShoe}
+                  affinityBoost={boost}
+                  sockAdjustment={sockAdjustment}
+                  sockLabel={sockLabel}
                   muted
                 />
               ))}

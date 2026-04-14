@@ -3,6 +3,7 @@ import {
   computeFitScore,
   scoreAndRankBoots,
   generateExplanation,
+  getScoreBreakdown,
 } from '../fitScore';
 import { Boot } from '../fitting';
 
@@ -302,5 +303,46 @@ describe('scoreAndRankBoots', () => {
     const { matches, nearMisses } = scoreAndRankBoots([], 265, 95, 'football', 'mens');
     expect(matches).toEqual([]);
     expect(nearMisses).toEqual([]);
+  });
+});
+
+describe('getScoreBreakdown', () => {
+  const testBoot: Boot = {
+    brand: 'Nike',
+    model: 'Phantom GX II Elite',
+    gender: 'mens',
+    sport: 'football',
+    width: 'standard',
+    minLength: 248,
+    maxLength: 299,
+    minWidth: 89,
+    maxWidth: 101,
+    price: 200,
+    notes: '',
+    purchaseUrl: '',
+    imageUrl: '',
+  };
+
+  it('returns contributions that sum to the overall score', () => {
+    const scored = computeFitScore(testBoot, 273.5, 95);
+    const breakdown = getScoreBreakdown(scored);
+    expect(breakdown.lengthContribution + breakdown.widthContribution).toBe(scored.score);
+  });
+
+  it('caps contributions at their weighted maxima', () => {
+    const scored = computeFitScore(testBoot, 273.5, 95);
+    const breakdown = getScoreBreakdown(scored);
+    expect(breakdown.lengthMax).toBe(40);
+    expect(breakdown.widthMax).toBe(60);
+    expect(breakdown.lengthContribution).toBeLessThanOrEqual(40);
+    expect(breakdown.widthContribution).toBeLessThanOrEqual(60);
+  });
+
+  it('preserves raw dimension scores on breakdown', () => {
+    const scored = computeFitScore(testBoot, 248, 89);
+    const breakdown = getScoreBreakdown(scored);
+    expect(breakdown.lengthScore).toBe(60);
+    expect(breakdown.widthScore).toBe(60);
+    expect(breakdown.baseScore).toBe(60);
   });
 });
