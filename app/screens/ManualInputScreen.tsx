@@ -143,9 +143,18 @@ export default function ManualInputScreen() {
               Measure your feet
             </Text>
 
-            <Text style={{ fontSize: 15, color: '#555', marginBottom: 20 }}>
+            <Text style={{ fontSize: 15, color: '#555', marginBottom: 12 }}>
               Choose the easiest way to get your boot fit.
             </Text>
+
+            <Pressable
+              onPress={() => router.push('/screens/MeasureGuideScreen')}
+              style={{ marginBottom: 16 }}
+            >
+              <Text style={{ fontSize: 13, color: '#666', textDecorationLine: 'underline' }}>
+                Not sure how to measure? Open guide →
+              </Text>
+            </Pressable>
 
             <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 10 }}>
               Input method

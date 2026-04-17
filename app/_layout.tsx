@@ -8,6 +8,7 @@ export default function Layout() {
       <Stack.Screen name="screens/SockSelectionScreen" options={{ title: 'Select Socks' }} />
       <Stack.Screen name="screens/ResultScreen" options={{ title: 'Your Matches' }} />
       <Stack.Screen name="screens/OwnedShoesScreen" options={{ title: 'My Shoes' }} />
+      <Stack.Screen name="screens/MeasureGuideScreen" options={{ title: 'How to measure' }} />
     </Stack>
   );
 }
