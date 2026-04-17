@@ -100,6 +100,7 @@ export default function ManualInputScreen() {
           footWidth: String(parsedManualWidth),
           sport,
           gender,
+          widthProfile: '',
         },
       });
 
@@ -126,6 +127,7 @@ export default function ManualInputScreen() {
         footWidth: String(estimatedWidth),
         sport,
         gender,
+        widthProfile,
       },
     });
   };

@@ -1,11 +1,18 @@
 import { useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { FlatList, Image, Linking, Pressable, Text, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { FlatList, Image, Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { applySocketAdjustment, Boot, SockEntry } from '../../lib/fitting';
 import { computeAffinityBoost, getScoreBreakdown, scoreAndRankBoots, ScoredBoot } from '../../lib/fitScore';
 import { createFitProfileStore, StorageAdapter } from '../../lib/fitProfile';
 import { createOwnedShoesStore, OwnedShoe } from '../../lib/ownedShoes';
+import {
+  applyBootListControls,
+  BootListFilters,
+  BootWidth,
+  collectBrands,
+  SortMode,
+} from '../../lib/bootListControls';
 import bootDatabase from '../../bootDatabase.json';
 import sockDatabase from '../../sockDatabase.json';
 
@@ -187,12 +194,13 @@ function BootCard({
 }
 
 export default function ResultScreen() {
-  const { footLength, footWidth, sockType, sport, gender } = useLocalSearchParams<{
+  const { footLength, footWidth, sockType, sport, gender, widthProfile } = useLocalSearchParams<{
     footLength: string;
     footWidth: string;
     sockType: string;
     sport: string;
     gender: string;
+    widthProfile: string;
   }>();
 
   const length = Number(footLength);
@@ -225,12 +233,68 @@ export default function ResultScreen() {
     };
   };
 
-  const matches = rawMatches
-    .map(applyAffinity)
-    .sort((a, b) => b.total - a.total);
-  const nearMisses = rawNearMisses
-    .map(applyAffinity)
-    .sort((a, b) => b.total - a.total);
+  const matchesWithAffinity = rawMatches.map(applyAffinity);
+  const nearMissesWithAffinity = rawNearMisses.map(applyAffinity);
+
+  const allBrands = useMemo(
+    () => collectBrands([...matchesWithAffinity, ...nearMissesWithAffinity]),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rawMatches, rawNearMisses, ownedShoes],
+  );
+
+  const [sort, setSort] = useState<SortMode>('score');
+  const [widthFilter, setWidthFilter] = useState<Set<BootWidth>>(
+    () => new Set(['narrow', 'standard', 'wide']),
+  );
+  const [brandFilter, setBrandFilter] = useState<Set<string> | null>(null);
+
+  useEffect(() => {
+    if (brandFilter === null && allBrands.length > 0) {
+      setBrandFilter(new Set(allBrands));
+    }
+  }, [allBrands, brandFilter]);
+
+  const activeBrandFilter: Set<string> = brandFilter ?? new Set(allBrands);
+  const filters: BootListFilters = { widths: widthFilter, brands: activeBrandFilter };
+
+  const matches = useMemo(
+    () => applyBootListControls(matchesWithAffinity, filters, sort, widthProfile),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rawMatches, ownedShoes, widthFilter, activeBrandFilter, sort, widthProfile],
+  );
+  const nearMisses = useMemo(
+    () => applyBootListControls(nearMissesWithAffinity, filters, sort, widthProfile),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rawNearMisses, ownedShoes, widthFilter, activeBrandFilter, sort, widthProfile],
+  );
+
+  const filtersActive =
+    widthFilter.size < 3 || activeBrandFilter.size < allBrands.length;
+
+  const resetFilters = () => {
+    setSort('score');
+    setWidthFilter(new Set(['narrow', 'standard', 'wide']));
+    setBrandFilter(new Set(allBrands));
+  };
+
+  const toggleWidth = (w: BootWidth) => {
+    setWidthFilter((prev) => {
+      const next = new Set(prev);
+      if (next.has(w)) next.delete(w);
+      else next.add(w);
+      return next;
+    });
+  };
+
+  const toggleBrand = (brand: string) => {
+    setBrandFilter((prev) => {
+      const base = prev ?? new Set(allBrands);
+      const next = new Set(base);
+      if (next.has(brand)) next.delete(brand);
+      else next.add(brand);
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (sport && gender && safeLength > 0 && safeWidth > 0 && safeSockType) {
@@ -285,6 +349,83 @@ export default function ResultScreen() {
         {headerText}
       </Text>
 
+      <View style={{ paddingHorizontal: 16, marginBottom: 10 }}>
+        <View style={{ flexDirection: 'row', marginBottom: 8, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: '#ebebeb' }}>
+          {(['score', 'price-asc', 'price-desc'] as SortMode[]).map((mode) => {
+            const label = mode === 'score' ? 'Best fit' : mode === 'price-asc' ? 'Price ↑' : 'Price ↓';
+            const active = sort === mode;
+            return (
+              <Pressable
+                key={mode}
+                onPress={() => setSort(mode)}
+                style={{
+                  flex: 1,
+                  backgroundColor: active ? '#111' : '#fff',
+                  paddingVertical: 8,
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={{ color: active ? '#fff' : '#111', fontWeight: '700', fontSize: 13 }}>
+                  {label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 6 }}>
+          {(['narrow', 'standard', 'wide'] as BootWidth[]).map((w) => {
+            const active = widthFilter.has(w);
+            return (
+              <Pressable
+                key={w}
+                onPress={() => toggleWidth(w)}
+                style={{
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 8,
+                  borderWidth: 1,
+                  borderColor: '#ebebeb',
+                  backgroundColor: active ? '#111' : '#fff',
+                  marginRight: 8,
+                }}
+              >
+                <Text style={{ color: active ? '#fff' : '#111', fontSize: 12, fontWeight: '700', textTransform: 'capitalize' }}>
+                  {w}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
+        {allBrands.length > 1 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {allBrands.map((brand) => {
+              const active = activeBrandFilter.has(brand);
+              return (
+                <Pressable
+                  key={brand}
+                  onPress={() => toggleBrand(brand)}
+                  style={{
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: '#ebebeb',
+                    backgroundColor: active ? '#111' : '#fff',
+                    marginRight: 8,
+                  }}
+                >
+                  <Text style={{ color: active ? '#fff' : '#111', fontSize: 12, fontWeight: '700' }}>
+                    {brand}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        )}
+      </View>
+
       <FlatList
         data={matches}
         keyExtractor={({ scored }) => `${scored.boot.brand}-${scored.boot.model}-${scored.boot.gender}`}
@@ -330,9 +471,19 @@ export default function ResultScreen() {
         ListEmptyComponent={
           nearMisses.length === 0 ? (
             <View style={{ padding: 16, alignItems: 'center' }}>
-              <Text style={{ color: '#666', fontSize: 15, textAlign: 'center', lineHeight: 22 }}>
-                No {sportLabel.toLowerCase()} in our database match your exact measurements right now.{'\n\n'}Try adjusting your width profile on the previous screen.
+              <Text style={{ color: '#666', fontSize: 15, textAlign: 'center', lineHeight: 22, marginBottom: filtersActive ? 12 : 0 }}>
+                {filtersActive
+                  ? 'No matches with current filters.'
+                  : `No ${sportLabel.toLowerCase()} in our database match your exact measurements right now.\n\nTry adjusting your width profile on the previous screen.`}
               </Text>
+              {filtersActive && (
+                <Pressable
+                  onPress={resetFilters}
+                  style={{ backgroundColor: '#111', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10 }}
+                >
+                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>Clear filters</Text>
+                </Pressable>
+              )}
             </View>
           ) : null
         }

@@ -1,0 +1,189 @@
+import {
+  applyBootListControls,
+  collectBrands,
+  BootListFilters,
+  ScoredBootWithTotal,
+} from '../bootListControls';
+import { Boot } from '../fitting';
+import { ScoredBoot } from '../fitScore';
+
+function makeBoot(overrides: Partial<Boot>): Boot {
+  return {
+    brand: 'Nike',
+    model: 'X',
+    gender: 'mens',
+    sport: 'football',
+    width: 'standard',
+    minLength: 248,
+    maxLength: 299,
+    minWidth: 89,
+    maxWidth: 101,
+    price: 150,
+    notes: '',
+    purchaseUrl: '',
+    imageUrl: '',
+    ...overrides,
+  };
+}
+
+function makeScored(boot: Boot, score: number): ScoredBoot {
+  return {
+    boot,
+    score,
+    lengthScore: score,
+    widthScore: score,
+    explanation: '',
+    isExactMatch: true,
+  };
+}
+
+function item(boot: Boot, total: number): ScoredBootWithTotal {
+  return { scored: makeScored(boot, total), total };
+}
+
+const allWidths: BootListFilters['widths'] = new Set(['narrow', 'standard', 'wide']);
+
+describe('applyBootListControls', () => {
+  const a = item(makeBoot({ brand: 'Nike', model: 'A', width: 'narrow', price: 200 }), 90);
+  const b = item(makeBoot({ brand: 'Adidas', model: 'B', width: 'standard', price: 100 }), 85);
+  const c = item(makeBoot({ brand: 'Puma', model: 'C', width: 'wide', price: 150 }), 80);
+  const items = [a, b, c];
+  const allBrands = new Set(['Nike', 'Adidas', 'Puma']);
+
+  it('default score sort: highest total first', () => {
+    const out = applyBootListControls(items, { widths: allWidths, brands: allBrands }, 'score');
+    expect(out.map((i) => i.scored.boot.model)).toEqual(['A', 'B', 'C']);
+  });
+
+  it('price-asc: lowest price first', () => {
+    const out = applyBootListControls(items, { widths: allWidths, brands: allBrands }, 'price-asc');
+    expect(out.map((i) => i.scored.boot.price)).toEqual([100, 150, 200]);
+  });
+
+  it('price-desc: highest price first', () => {
+    const out = applyBootListControls(items, { widths: allWidths, brands: allBrands }, 'price-desc');
+    expect(out.map((i) => i.scored.boot.price)).toEqual([200, 150, 100]);
+  });
+
+  it('width filter excludes other widths', () => {
+    const out = applyBootListControls(
+      items,
+      { widths: new Set(['narrow']), brands: allBrands },
+      'score',
+    );
+    expect(out.map((i) => i.scored.boot.width)).toEqual(['narrow']);
+  });
+
+  it('empty width set returns no items', () => {
+    const out = applyBootListControls(items, { widths: new Set(), brands: allBrands }, 'score');
+    expect(out).toEqual([]);
+  });
+
+  it('brand filter excludes other brands', () => {
+    const out = applyBootListControls(
+      items,
+      { widths: allWidths, brands: new Set(['Nike', 'Puma']) },
+      'score',
+    );
+    expect(out.map((i) => i.scored.boot.brand).sort()).toEqual(['Nike', 'Puma']);
+  });
+
+  it('does not mutate input array', () => {
+    const snapshot = [...items];
+    applyBootListControls(items, { widths: allWidths, brands: allBrands }, 'price-asc');
+    expect(items).toEqual(snapshot);
+  });
+
+  describe('width profile preference (score sort)', () => {
+    const narrowA = item(makeBoot({ brand: 'Nike', model: 'NarrowA', width: 'narrow', price: 200 }), 80);
+    const standardB = item(makeBoot({ brand: 'Adidas', model: 'StandardB', width: 'standard', price: 100 }), 82);
+    const standardC = item(makeBoot({ brand: 'Puma', model: 'StandardC', width: 'standard', price: 150 }), 95);
+    const allBrandsSet = new Set(['Nike', 'Adidas', 'Puma']);
+
+    it('floats close-scoring matching-width boot above non-matching', () => {
+      const out = applyBootListControls(
+        [standardB, narrowA],
+        { widths: allWidths, brands: allBrandsSet },
+        'score',
+        'narrow',
+      );
+      expect(out.map((i) => i.scored.boot.model)).toEqual(['NarrowA', 'StandardB']);
+    });
+
+    it('does not override a clearly higher-scoring non-matching boot', () => {
+      const out = applyBootListControls(
+        [standardC, narrowA],
+        { widths: allWidths, brands: allBrandsSet },
+        'score',
+        'narrow',
+      );
+      expect(out.map((i) => i.scored.boot.model)).toEqual(['StandardC', 'NarrowA']);
+    });
+
+    it('does not mutate the displayed total score', () => {
+      const out = applyBootListControls(
+        [standardB, narrowA],
+        { widths: allWidths, brands: allBrandsSet },
+        'score',
+        'narrow',
+      );
+      const narrow = out.find((i) => i.scored.boot.model === 'NarrowA');
+      expect(narrow?.total).toBe(80);
+    });
+
+    it('empty profile = pure score order', () => {
+      const out = applyBootListControls(
+        [standardB, narrowA],
+        { widths: allWidths, brands: allBrandsSet },
+        'score',
+        '',
+      );
+      expect(out.map((i) => i.scored.boot.model)).toEqual(['StandardB', 'NarrowA']);
+    });
+
+    it('undefined profile = pure score order', () => {
+      const out = applyBootListControls(
+        [standardB, narrowA],
+        { widths: allWidths, brands: allBrandsSet },
+        'score',
+      );
+      expect(out.map((i) => i.scored.boot.model)).toEqual(['StandardB', 'NarrowA']);
+    });
+
+    it('price-asc ignores width profile', () => {
+      const out = applyBootListControls(
+        [standardB, narrowA],
+        { widths: allWidths, brands: allBrandsSet },
+        'price-asc',
+        'narrow',
+      );
+      expect(out.map((i) => i.scored.boot.price)).toEqual([100, 200]);
+    });
+
+    it('price-desc ignores width profile', () => {
+      const out = applyBootListControls(
+        [standardB, narrowA],
+        { widths: allWidths, brands: allBrandsSet },
+        'price-desc',
+        'narrow',
+      );
+      expect(out.map((i) => i.scored.boot.price)).toEqual([200, 100]);
+    });
+  });
+});
+
+describe('collectBrands', () => {
+  it('returns unique brands sorted alphabetically', () => {
+    const items = [
+      item(makeBoot({ brand: 'Puma' }), 1),
+      item(makeBoot({ brand: 'Nike' }), 1),
+      item(makeBoot({ brand: 'Nike' }), 1),
+      item(makeBoot({ brand: 'Adidas' }), 1),
+    ];
+    expect(collectBrands(items)).toEqual(['Adidas', 'Nike', 'Puma']);
+  });
+
+  it('returns empty list for empty input', () => {
+    expect(collectBrands([])).toEqual([]);
+  });
+});

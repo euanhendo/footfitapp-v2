@@ -10,11 +10,12 @@ const socks = sockDatabase as SockDb;
 
 export default function SockSelectionScreen() {
   const [sockType, setSockType] = useState('');
-  const { footLength, footWidth, sport, gender } = useLocalSearchParams<{
+  const { footLength, footWidth, sport, gender, widthProfile } = useLocalSearchParams<{
     footLength: string;
     footWidth: string;
     sport: string;
     gender: string;
+    widthProfile: string;
   }>();
 
   const sockOptions = getSocksForSport(socks, sport ?? '');
@@ -28,6 +29,7 @@ export default function SockSelectionScreen() {
         sockType,
         sport,
         gender,
+        widthProfile: widthProfile ?? '',
       },
     });
   };
