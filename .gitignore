@@ -36,8 +36,14 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# test coverage
+coverage/
+
 app-example
 
 # generated native folders
 /ios
 /android
+
+# Claude handoff notes (local only)
+.claude/handoff.md
