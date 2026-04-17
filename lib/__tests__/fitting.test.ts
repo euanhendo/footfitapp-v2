@@ -35,16 +35,19 @@ describe('getEstimatedLengthMm', () => {
 });
 
 describe('estimateWidthFromLength', () => {
-  it('applies narrow ratio (0.36)', () => {
-    expect(estimateWidthFromLength(265, 'narrow')).toBe(95);
+  it('applies narrow ratio (0.33)', () => {
+    // 265 * 0.33 = 87.45 → 87 (centered in narrow band 82–94)
+    expect(estimateWidthFromLength(265, 'narrow')).toBe(87);
   });
 
-  it('applies standard ratio (0.375)', () => {
-    expect(estimateWidthFromLength(265, 'standard')).toBe(99);
+  it('applies standard ratio (0.36)', () => {
+    // 265 * 0.36 = 95.4 → 95 (centered in standard band 89–101)
+    expect(estimateWidthFromLength(265, 'standard')).toBe(95);
   });
 
-  it('applies wide ratio (0.39)', () => {
-    expect(estimateWidthFromLength(265, 'wide')).toBe(103);
+  it('applies wide ratio (0.385)', () => {
+    // 265 * 0.385 = 102.025 → 102 (centered in wide band 95–108)
+    expect(estimateWidthFromLength(265, 'wide')).toBe(102);
   });
 
   it('returns 0 when length is 0', () => {
@@ -52,10 +55,10 @@ describe('estimateWidthFromLength', () => {
   });
 
   it('rounds to nearest integer', () => {
-    // 257 * 0.375 = 96.375 → 96
-    expect(estimateWidthFromLength(257, 'standard')).toBe(96);
-    // 261 * 0.36 = 93.96 → 94
-    expect(estimateWidthFromLength(261, 'narrow')).toBe(94);
+    // 257 * 0.36 = 92.52 → 93
+    expect(estimateWidthFromLength(257, 'standard')).toBe(93);
+    // 261 * 0.33 = 86.13 → 86
+    expect(estimateWidthFromLength(261, 'narrow')).toBe(86);
   });
 });
 

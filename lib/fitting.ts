@@ -32,9 +32,9 @@ export type WidthProfile = 'narrow' | 'standard' | 'wide';
 export type SizeSystem = 'UK' | 'EU';
 
 const WIDTH_RATIOS: Record<WidthProfile, number> = {
-  narrow: 0.36,
-  standard: 0.375,
-  wide: 0.39,
+  narrow: 0.33,
+  standard: 0.36,
+  wide: 0.385,
 };
 
 export function estimateWidthFromLength(lengthMm: number, widthProfile: WidthProfile): number {

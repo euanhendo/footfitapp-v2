@@ -16,6 +16,10 @@ export const LENGTH_WEIGHT = 0.4;
 export const WIDTH_WEIGHT = 0.6;
 const NEAR_MISS_MIN_SCORE = 20;
 const NEAR_MISS_CAP = 5;
+const LOOSE_WIDTH_BASE = 95;
+const LOOSE_WIDTH_FLOOR = 75;
+const LOOSE_WIDTH_TAPER_PER_MM = 2;
+const IN_RANGE_WIDTH_TAPER = 20;
 
 export function computeDimensionScore(
   value: number,
@@ -41,6 +45,34 @@ export function computeDimensionScore(
   return Math.max(0, Math.round(60 * (1 - overshoot / tolerance)));
 }
 
+// Width is asymmetric: a narrow foot in a wider boot is recoverable with laces,
+// but a wide foot in a narrow boot can't be made comfortable.
+export function computeWidthScore(
+  value: number,
+  min: number,
+  max: number,
+  tolerance: number,
+): number {
+  if (value >= min && value <= max) {
+    if (min === max) return 100;
+    const center = (min + max) / 2;
+    const halfRange = (max - min) / 2;
+    const distanceFromCenter = Math.abs(value - center);
+    return Math.round(100 - IN_RANGE_WIDTH_TAPER * (distanceFromCenter / halfRange));
+  }
+
+  if (value < min) {
+    const undershoot = min - value;
+    return Math.max(
+      LOOSE_WIDTH_FLOOR,
+      Math.round(LOOSE_WIDTH_BASE - undershoot * LOOSE_WIDTH_TAPER_PER_MM),
+    );
+  }
+
+  const overshoot = value - max;
+  return Math.max(0, Math.round(60 * (1 - overshoot / tolerance)));
+}
+
 export function generateExplanation(
   boot: Boot,
   adjustedLength: number,
@@ -54,16 +86,21 @@ export function generateExplanation(
   const lengthInRange = adjustedLength >= boot.minLength && adjustedLength <= boot.maxLength;
   const widthInRange = adjustedWidth >= boot.minWidth && adjustedWidth <= boot.maxWidth;
 
-  if (!lengthInRange && !widthInRange) {
+  const widthTooTight = adjustedWidth > boot.maxWidth;
+  const widthLoose = adjustedWidth < boot.minWidth;
+
+  if (!lengthInRange && widthTooTight) {
     return 'Likely not ideal — outside this boot\'s range in both length and width';
   }
 
-  if (!widthInRange) {
-    const diff = adjustedWidth > boot.maxWidth
-      ? Math.round(adjustedWidth - boot.maxWidth)
-      : Math.round(boot.minWidth - adjustedWidth);
-    const direction = adjustedWidth > boot.maxWidth ? 'tight' : 'loose';
-    return `May feel ${direction} in width — your foot is ${diff}mm ${adjustedWidth > boot.maxWidth ? 'wider than' : 'narrower than'} this boot's range`;
+  if (widthTooTight) {
+    const diff = Math.round(adjustedWidth - boot.maxWidth);
+    return `May feel tight in width — your foot is ${diff}mm wider than this boot's range`;
+  }
+
+  if (widthLoose) {
+    const diff = Math.round(boot.minWidth - adjustedWidth);
+    return `Fits with room — ${diff}mm narrower than this boot, tighten laces to secure`;
   }
 
   if (!lengthInRange) {
@@ -102,18 +139,16 @@ export function computeFitScore(
     boot.maxLength,
     LENGTH_TOLERANCE,
   );
-  const widthScore = computeDimensionScore(
+  const widthScore = computeWidthScore(
     adjustedWidth,
     boot.minWidth,
     boot.maxWidth,
     WIDTH_TOLERANCE,
   );
   const score = Math.round(lengthScore * LENGTH_WEIGHT + widthScore * WIDTH_WEIGHT);
-  const isExactMatch =
-    adjustedLength >= boot.minLength &&
-    adjustedLength <= boot.maxLength &&
-    adjustedWidth >= boot.minWidth &&
-    adjustedWidth <= boot.maxWidth;
+  const lengthInRange = adjustedLength >= boot.minLength && adjustedLength <= boot.maxLength;
+  const widthAcceptable = adjustedWidth <= boot.maxWidth;
+  const isExactMatch = lengthInRange && widthAcceptable;
   const explanation = generateExplanation(boot, adjustedLength, adjustedWidth);
 
   return { boot, score, lengthScore, widthScore, explanation, isExactMatch };

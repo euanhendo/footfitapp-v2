@@ -35,12 +35,12 @@ Do **not** make tight width symmetric with loose width. That's a real-world inva
 ## Width-profile ratios (lib/fitting.ts)
 
 ```ts
-narrow:   0.36
-standard: 0.375
-wide:     0.39
+narrow:   0.33
+standard: 0.36
+wide:     0.385
 ```
 
-Applied as `length * ratio` in `estimateWidthFromLength`. Changing these shifts every estimated width in the app.
+Applied as `length * ratio` in `estimateWidthFromLength`. Each ratio maps the profile to the centre of its boot width band (narrow 82–94, standard 89–101, wide 95–108) at typical UK 8 length. Changing these shifts every estimated width in the app.
 
 ## Length tolerance
 

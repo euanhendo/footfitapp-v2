@@ -1,5 +1,6 @@
 import {
   computeDimensionScore,
+  computeWidthScore,
   computeFitScore,
   scoreAndRankBoots,
   generateExplanation,
@@ -55,6 +56,50 @@ describe('computeDimensionScore', () => {
   });
 });
 
+describe('computeWidthScore', () => {
+  // Asymmetric: narrow foot in wider boot = recoverable via laces (mild penalty).
+  // Wide foot in narrow boot = uncomfortable (steep penalty).
+  it('returns 100 at the centre of the range', () => {
+    // Range [89, 101], centre = 95
+    expect(computeWidthScore(95, 89, 101, 5)).toBe(100);
+  });
+
+  it('tapers to 80 at the edges of the range', () => {
+    // 100 - 20 * (6/6) = 80
+    expect(computeWidthScore(89, 89, 101, 5)).toBe(80);
+    expect(computeWidthScore(101, 89, 101, 5)).toBe(80);
+  });
+
+  it('scales in-range scores by distance from centre', () => {
+    // value 98: distance 3, halfRange 6 → 100 - 20*(3/6) = 90
+    expect(computeWidthScore(98, 89, 101, 5)).toBe(90);
+  });
+
+  it('returns 100 for a zero-width range at the exact value', () => {
+    expect(computeWidthScore(95, 95, 95, 5)).toBe(100);
+  });
+
+  it('applies only a mild penalty when foot is narrower than boot', () => {
+    // 95 - 2*1 = 93
+    expect(computeWidthScore(88, 89, 101, 5)).toBe(93);
+    // 95 - 2*5 = 85
+    expect(computeWidthScore(84, 89, 101, 5)).toBe(85);
+  });
+
+  it('floors the loose-width score at 75 no matter how narrow', () => {
+    expect(computeWidthScore(60, 89, 101, 5)).toBe(75);
+  });
+
+  it('applies a steep penalty when foot is wider than boot', () => {
+    // 1mm over max, tolerance 5 → 60 * (1 - 1/5) = 48
+    expect(computeWidthScore(102, 89, 101, 5)).toBe(48);
+  });
+
+  it('returns 0 once foot exceeds max by tolerance', () => {
+    expect(computeWidthScore(106, 89, 101, 5)).toBe(0);
+  });
+});
+
 describe('computeFitScore', () => {
   const testBoot: Boot = {
     brand: 'Nike',
@@ -79,12 +124,21 @@ describe('computeFitScore', () => {
     expect(result.isExactMatch).toBe(true);
   });
 
-  it('scores ~60 when both at boundary', () => {
+  it('tapers widthScore at min-width boundary just like length', () => {
     const result = computeFitScore(testBoot, 248, 89);
     expect(result.lengthScore).toBe(60);
-    expect(result.widthScore).toBe(60);
-    expect(result.score).toBe(60);
+    // width at edge: 100 - 20*(6/6) = 80
+    expect(result.widthScore).toBe(80);
+    // 60*0.4 + 80*0.6 = 72
+    expect(result.score).toBe(72);
     expect(result.isExactMatch).toBe(true);
+  });
+
+  it('treats narrow-foot-in-wider-boot as an exact match', () => {
+    // 3mm below minWidth — laces can tighten.
+    const result = computeFitScore(testBoot, 273.5, 86);
+    expect(result.isExactMatch).toBe(true);
+    expect(result.widthScore).toBeGreaterThanOrEqual(85);
   });
 
   it('marks as not exact match when width is outside', () => {
@@ -104,16 +158,12 @@ describe('computeFitScore', () => {
     expect(result.isExactMatch).toBe(true);
   });
 
-  it('weights width higher than length', () => {
-    // Both at center for length, but width at edge vs center
-    const centeredWidth = computeFitScore(testBoot, 273.5, 95);
-    const edgeWidth = computeFitScore(testBoot, 273.5, 89);
-    // Width penalty should reduce score more than equivalent length penalty
-    const centeredLength = computeFitScore(testBoot, 273.5, 95);
-    const edgeLength = computeFitScore(testBoot, 248, 95);
-    const widthDrop = centeredWidth.score - edgeWidth.score;
-    const lengthDrop = centeredLength.score - edgeLength.score;
-    expect(widthDrop).toBeGreaterThan(lengthDrop);
+  it('weights width higher than length when both fall outside range', () => {
+    // 2mm overshoot on each side so both use the out-of-range penalty curve.
+    const widthOver = computeFitScore(testBoot, 273.5, 103);
+    const lengthOver = computeFitScore(testBoot, 301, 95);
+    const baseline = computeFitScore(testBoot, 273.5, 95).score;
+    expect(baseline - widthOver.score).toBeGreaterThan(baseline - lengthOver.score);
   });
 });
 
@@ -268,14 +318,21 @@ describe('scoreAndRankBoots', () => {
     }
   });
 
-  it('puts boots outside range into nearMisses', () => {
-    // Width 85 is outside Phantom (89-101) but inside Mercurial (82-94)
-    const { matches, nearMisses } = scoreAndRankBoots(testBoots, 265, 85, 'football', 'mens');
+  it('treats wider-than-foot boots as matches (laces can tighten)', () => {
+    // Width 85 is below Phantom's minWidth (89) but still fits — laces compensate.
+    const { matches } = scoreAndRankBoots(testBoots, 265, 85, 'football', 'mens');
     const matchModels = matches.map((m) => m.boot.model);
     expect(matchModels).toContain('Mercurial Superfly');
-    // Phantom should be a near miss (85 is 4mm below min 89, within tolerance 5)
+    expect(matchModels).toContain('Phantom GX II Elite');
+  });
+
+  it('puts boots too narrow for the foot into nearMisses', () => {
+    // Width 96: exceeds Mercurial's maxWidth 94. Should drop to near miss for Mercurial.
+    const { matches, nearMisses } = scoreAndRankBoots(testBoots, 265, 96, 'football', 'mens');
+    const matchModels = matches.map((m) => m.boot.model);
     const nearMissModels = nearMisses.map((m) => m.boot.model);
-    expect(nearMissModels).toContain('Phantom GX II Elite');
+    expect(matchModels).toContain('Phantom GX II Elite');
+    expect(nearMissModels).toContain('Mercurial Superfly');
   });
 
   it('caps near misses at 5', () => {
@@ -342,7 +399,7 @@ describe('getScoreBreakdown', () => {
     const scored = computeFitScore(testBoot, 248, 89);
     const breakdown = getScoreBreakdown(scored);
     expect(breakdown.lengthScore).toBe(60);
-    expect(breakdown.widthScore).toBe(60);
-    expect(breakdown.baseScore).toBe(60);
+    expect(breakdown.widthScore).toBe(80);
+    expect(breakdown.baseScore).toBe(72);
   });
 });
