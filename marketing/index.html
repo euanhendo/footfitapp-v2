@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>FootFit — Find boots that fit.</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #000000;
+    --card: #0d0d0d;
+    --muted: #5a5a5a;
+    --lime: #c6ff3d;
+  }
+  html, body { background: var(--bg); color: #fff; font-family: 'Inter', system-ui, sans-serif; }
+  body { cursor: none; }
+  a, button { cursor: none; }
+
+  /* Custom cursor */
+  #cursor {
+    position: fixed; top: 0; left: 0; z-index: 9999;
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    display: flex; align-items: center; gap: 6px;
+    transition: opacity .2s ease;
+  }
+  #cursor .pill {
+    background: #111; color: #fff; border: 1px solid #1f1f1f;
+    border-radius: 999px; padding: 4px 10px 4px 8px;
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 600; letter-spacing: .01em;
+    box-shadow: 0 4px 14px rgba(0,0,0,.5);
+  }
+  #cursor .dot {
+    width: 10px; height: 10px; border-radius: 999px;
+    background: var(--lime);
+    box-shadow: 0 0 0 2px #000;
+  }
+  #cursor .join {
+    background: var(--lime); color: #000;
+    border-radius: 999px; padding: 4px 10px;
+    font-size: 11px; font-weight: 700;
+  }
+
+  /* Rainbow rings hero */
+  .hero-rings {
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    width: max(140vw, 140vh);
+    aspect-ratio: 1/1;
+  }
+  .ring {
+    position: absolute; inset: 0; border-radius: 50%;
+  }
+  .r1 { background: #ff3d7f; inset: 0; }
+  .r2 { background: #ff8a00; inset: 6%; }
+  .r3 { background: #ffd400; inset: 12%; }
+  .r4 { background: #6dff3d; inset: 18%; }
+  .r5 { background: #00d4ff; inset: 24%; }
+  .r6 { background: #7c3dff; inset: 30%; }
+  .r7 { background: #000; inset: 36%; }
+
+  .hero-text {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center;
+  }
+
+  /* Big bold scroll text sections */
+  .big-copy {
+    font-size: clamp(40px, 7vw, 96px);
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+  }
+  .dim { color: #4d4d4d; }
+  .bright { color: #fff; }
+
+  /* Feature cards */
+  .feature-card {
+    background: var(--card);
+    border-radius: 32px;
+    padding: 48px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    align-items: center;
+    overflow: hidden;
+  }
+  .feature-card h2 {
+    font-size: clamp(44px, 5.5vw, 84px);
+    font-weight: 800;
+    line-height: .98;
+    letter-spacing: -0.02em;
+  }
+  .feature-card p {
+    color: #6b6b6b;
+    font-size: 22px;
+    margin-top: 18px;
+    max-width: 420px;
+  }
+  .pill-badge {
+    display: flex; align-items: center; gap: 14px;
+    border-radius: 999px;
+    padding: 8px 22px 8px 8px;
+    font-weight: 700; color: #fff;
+    box-shadow: 0 8px 24px rgba(0,0,0,.35);
+  }
+  .pill-badge .avatar {
+    width: 56px; height: 56px; border-radius: 999px; object-fit: cover;
+    border: 2px solid rgba(255,255,255,.2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+  }
+  .pill-badge .num { font-size: 22px; font-weight: 800; line-height: 1; }
+  .pill-badge .lbl { font-size: 12px; opacity: .85; font-weight: 600; }
+
+  /* Rings (progress circles) */
+  .ring-circle {
+    width: 72px; height: 72px; border-radius: 999px;
+    border: 8px solid rgba(255,255,255,.08);
+    position: relative;
+  }
+  .ring-circle::after {
+    content: ''; position: absolute; inset: -8px;
+    border: 8px solid transparent; border-top-color: var(--c, #fff);
+    border-right-color: var(--c, #fff);
+    border-radius: 999px;
+    transform: rotate(-30deg);
+  }
+
+  /* Boot card (sock feature) */
+  .boot-card {
+    background: #1b1b1b; border-radius: 20px; padding: 16px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    color: #fff;
+  }
+  .boot-card .name { font-weight: 700; font-size: 16px; }
+  .boot-card .meta { font-size: 12px; color: #8a8a8a; margin-top: 2px; }
+  .score-chip {
+    background: var(--lime); color: #000; font-weight: 800;
+    border-radius: 999px; padding: 6px 12px; font-size: 14px;
+  }
+  .score-chip.warn { background: #ffd400; }
+  .score-chip.low { background: #ff8a00; color: #111; }
+
+  /* Marquee */
+  .marquee {
+    overflow: hidden; white-space: nowrap;
+    display: flex; gap: 14px;
+    padding: 14px 0;
+  }
+  .marquee-track {
+    display: inline-flex; gap: 14px;
+    animation: scroll 30s linear infinite;
+  }
+  @keyframes scroll {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-50%); }
+  }
+  .chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(0,0,0,.08);
+    border: 1px solid rgba(0,0,0,.35);
+    color: #0a0a0a;
+    border-radius: 999px;
+    padding: 10px 18px;
+    font-weight: 700; font-size: 16px;
+  }
+  .chip .d { width: 10px; height: 10px; border-radius: 999px; background: #0a0a0a; }
+
+  /* Reveal */
+  .reveal { opacity: 0; transform: translateY(32px); transition: opacity .8s ease, transform .8s ease; }
+  .reveal.in { opacity: 1; transform: none; }
+
+  /* Final CTA */
+  .cta-lime {
+    background: var(--lime);
+    color: #0a0a0a;
+  }
+  .cta-lime h2 {
+    font-size: clamp(56px, 10vw, 160px);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: .96;
+  }
+
+  /* Download buttons */
+  .dl-btn {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: #111; color: #fff;
+    padding: 14px 22px; border-radius: 999px;
+    font-weight: 600;
+  }
+
+  @media (max-width: 768px) {
+    .feature-card { grid-template-columns: 1fr; padding: 28px; border-radius: 24px; }
+  }
+</style>
+</head>
+<body class="overflow-x-hidden">
+
+<!-- Custom cursor -->
+<div id="cursor" aria-hidden="true">
+  <div class="pill"><span class="dot"></span>FootFit</div>
+  <div class="join">Try it</div>
+</div>
+
+<!-- Top bar -->
+<header class="fixed top-0 left-0 right-0 z-40 flex justify-between items-center px-6 md:px-10 py-5">
+  <div class="text-white font-bold tracking-tight">FootFit</div>
+  <button class="bg-[color:var(--lime)] text-black font-bold rounded-full px-5 py-2 text-sm">Try it</button>
+</header>
+
+<!-- HERO: concentric rainbow rings -->
+<section class="relative flex items-center justify-center min-h-screen overflow-hidden">
+  <div class="hero-rings">
+    <div class="ring r1"></div>
+    <div class="ring r2"></div>
+    <div class="ring r3"></div>
+    <div class="ring r4"></div>
+    <div class="ring r5"></div>
+    <div class="ring r6"></div>
+    <div class="ring r7"></div>
+  </div>
+  <div class="relative z-10 text-center">
+    <h1 class="text-white font-extrabold tracking-tight" style="font-size:clamp(64px,12vw,200px); letter-spacing:-0.04em; line-height:1;">FootFit</h1>
+    <p class="text-neutral-400 mt-3 text-lg md:text-xl">Boots that actually fit.</p>
+  </div>
+</section>
+
+<!-- Scroll copy blocks -->
+<section class="py-32 md:py-48 px-6 text-center">
+  <p class="big-copy reveal">
+    <span class="dim">Boot sizing</span><br/>
+    <span class="dim">is </span><span class="bright">broken.</span>
+  </p>
+</section>
+
+<section class="py-32 md:py-48 px-6 text-center">
+  <p class="big-copy reveal">
+    <span class="dim">Every brand</span><br/>
+    <span class="dim">fits </span><span class="bright">differently.</span>
+  </p>
+</section>
+
+<section class="py-32 md:py-48 px-6 text-center max-w-5xl mx-auto">
+  <p class="big-copy reveal">
+    <span class="bright">FootFit</span><span class="dim"> measures your feet, learns your </span><span class="bright">sock</span><span class="dim">, and scores every boot from </span><span class="bright">0 to 100.</span>
+  </p>
+</section>
+
+<!-- Feature 1: Fit Score 0–100 -->
+<section class="px-4 md:px-6 mb-6">
+  <div class="feature-card reveal max-w-7xl mx-auto">
+    <div>
+      <h2>Score every<br/>boot 0–100.</h2>
+      <p>Length and width weighted together. 100 means your foot sits perfectly centred in the boot's range.</p>
+    </div>
+    <div class="flex flex-col gap-4 items-end">
+      <div class="pill-badge" style="background: linear-gradient(90deg,#6dff3d,#c6ff3d); color:#0a0a0a;">
+        <div class="avatar" style="background:#0a0a0a; color:#c6ff3d;">97</div>
+        <div><div class="num">Excellent fit</div><div class="lbl">Nike Phantom GX · Standard</div></div>
+      </div>
+      <div class="pill-badge" style="background: linear-gradient(90deg,#ffd400,#ff8a00); color:#0a0a0a;">
+        <div class="avatar" style="background:#0a0a0a; color:#ffd400;">82</div>
+        <div><div class="num">Fits with room</div><div class="lbl">Adidas Predator · Wide</div></div>
+      </div>
+      <div class="pill-badge" style="background: linear-gradient(90deg,#ff8a00,#ff3d7f); color:#fff;">
+        <div class="avatar" style="background:#0a0a0a; color:#ff8a00;">68</div>
+        <div><div class="num">May feel tight</div><div class="lbl">Puma Ultra · Narrow</div></div>
+      </div>
+      <div class="pill-badge" style="background: linear-gradient(90deg,#7c3dff,#5b8cff);">
+        <div class="avatar" style="background:#0a0a0a; color:#7c3dff;">45</div>
+        <div><div class="num">Near miss</div><div class="lbl">Try a half size up</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Feature 2: Sock adjustment -->
+<section class="px-4 md:px-6 mb-6">
+  <div class="feature-card reveal max-w-7xl mx-auto">
+    <div>
+      <h2>Socks change<br/>everything.</h2>
+      <p>Grip socks, midweights, performance liners. We adjust for every millimetre before ranking boots.</p>
+    </div>
+    <div class="grid grid-cols-2 gap-4">
+      <div class="ring-circle" style="--c:#6dff3d"></div>
+      <div class="boot-card">
+        <div>
+          <div class="name">Nike Grip</div>
+          <div class="meta">+0.3 mm · Football</div>
+        </div>
+        <span class="score-chip">97</span>
+      </div>
+      <div class="boot-card">
+        <div>
+          <div class="name">Trusox Mid</div>
+          <div class="meta">+0.6 mm · Football</div>
+        </div>
+        <span class="score-chip warn">84</span>
+      </div>
+      <div class="ring-circle" style="--c:#ffd400"></div>
+      <div class="ring-circle" style="--c:#ff8a00"></div>
+      <div class="boot-card">
+        <div>
+          <div class="name">Injinji Run</div>
+          <div class="meta">+0.7 mm · Running</div>
+        </div>
+        <span class="score-chip low">72</span>
+      </div>
+      <div class="boot-card">
+        <div>
+          <div class="name">Smartwool</div>
+          <div class="meta">+0.5 mm · Running</div>
+        </div>
+        <span class="score-chip">91</span>
+      </div>
+      <div class="ring-circle" style="--c:#00d4ff"></div>
+    </div>
+  </div>
+</section>
+
+<!-- Feature 3: Smart matching with owned shoes -->
+<section class="px-4 md:px-6 mb-12">
+  <div class="feature-card reveal max-w-7xl mx-auto">
+    <div>
+      <h2>Fits like your<br/>favourites.</h2>
+      <p>Tell us what you already own. Boots from the same brand and width get an affinity boost — proven fit, ranked first.</p>
+    </div>
+    <div class="flex flex-col gap-3">
+      <div class="boot-card" style="background:#151515; border:1px solid #222;">
+        <div>
+          <div class="name">Nike Mercurial Superfly</div>
+          <div class="meta">You own this · Standard width</div>
+        </div>
+        <span class="score-chip">Owned</span>
+      </div>
+      <div class="boot-card">
+        <div>
+          <div class="name">Nike Phantom GX</div>
+          <div class="meta">Similar fit to your Mercurial · +5</div>
+        </div>
+        <span class="score-chip">97</span>
+      </div>
+      <div class="boot-card">
+        <div>
+          <div class="name">Nike Tiempo Legend</div>
+          <div class="meta">Same brand · +3</div>
+        </div>
+        <span class="score-chip">93</span>
+      </div>
+      <div class="boot-card">
+        <div>
+          <div class="name">Adidas Copa Pure</div>
+          <div class="meta">Matches your width · +2</div>
+        </div>
+        <span class="score-chip warn">88</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Tagline break -->
+<section class="py-32 md:py-48 px-6 text-center">
+  <p class="big-copy reveal"><span class="bright">Measure once.</span> <span class="dim">Match forever.</span></p>
+</section>
+
+<!-- Marquee band -->
+<section class="cta-lime py-6 reveal">
+  <div class="marquee">
+    <div class="marquee-track">
+      <span class="chip"><span class="d"></span>Measure</span>
+      <span class="chip"><span class="d"></span>Match</span>
+      <span class="chip"><span class="d"></span>FootFit</span>
+      <span class="chip"><span class="d"></span>Measure</span>
+      <span class="chip"><span class="d"></span>Match</span>
+      <span class="chip"><span class="d"></span>FootFit</span>
+      <span class="chip"><span class="d"></span>Measure</span>
+      <span class="chip"><span class="d"></span>Match</span>
+      <span class="chip"><span class="d"></span>FootFit</span>
+      <span class="chip"><span class="d"></span>Measure</span>
+      <span class="chip"><span class="d"></span>Match</span>
+      <span class="chip"><span class="d"></span>FootFit</span>
+      <span class="chip"><span class="d"></span>Measure</span>
+      <span class="chip"><span class="d"></span>Match</span>
+      <span class="chip"><span class="d"></span>FootFit</span>
+      <span class="chip"><span class="d"></span>Measure</span>
+      <span class="chip"><span class="d"></span>Match</span>
+      <span class="chip"><span class="d"></span>FootFit</span>
+      <span class="chip"><span class="d"></span>Measure</span>
+      <span class="chip"><span class="d"></span>Match</span>
+      <span class="chip"><span class="d"></span>FootFit</span>
+      <span class="chip"><span class="d"></span>Measure</span>
+      <span class="chip"><span class="d"></span>Match</span>
+      <span class="chip"><span class="d"></span>FootFit</span>
+    </div>
+  </div>
+</section>
+
+<!-- Final CTA -->
+<section class="cta-lime min-h-screen flex flex-col items-center justify-center text-center px-6">
+  <h2 class="reveal">Find boots<br/>that fit.</h2>
+  <div class="mt-10 flex flex-col items-center gap-6 reveal">
+    <div class="flex gap-4">
+      <a class="dl-btn" href="#">
+        <span class="text-xs opacity-70">Download on the</span>
+        <span class="font-bold">App Store</span>
+      </a>
+      <a class="dl-btn" href="#">
+        <span class="text-xs opacity-70">Get it on</span>
+        <span class="font-bold">Google Play</span>
+      </a>
+    </div>
+    <p class="text-black/60 text-sm">Your feet. Measured. Matched.</p>
+  </div>
+</section>
+
+<footer class="cta-lime text-black/70 text-sm py-10 text-center">
+  © FootFit — Boots that actually fit.
+</footer>
+
+<script>
+  // Custom cursor follow
+  const cursor = document.getElementById('cursor');
+  let tx = window.innerWidth / 2, ty = window.innerHeight / 2;
+  let cx = tx, cy = ty;
+  window.addEventListener('pointermove', (e) => { tx = e.clientX; ty = e.clientY; });
+  function tick() {
+    cx += (tx - cx) * 0.18;
+    cy += (ty - cy) * 0.18;
+    cursor.style.transform = `translate(${cx}px, ${cy}px)`;
+    requestAnimationFrame(tick);
+  }
+  tick();
+
+  // Hide cursor when leaving window
+  document.addEventListener('mouseleave', () => cursor.style.opacity = '0');
+  document.addEventListener('mouseenter', () => cursor.style.opacity = '1');
+
+  // Reveal on scroll
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('in'); });
+  }, { threshold: 0.15 });
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+</script>
+</body>
+</html>
