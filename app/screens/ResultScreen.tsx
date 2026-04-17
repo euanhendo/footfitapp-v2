@@ -244,7 +244,14 @@ export default function ResultScreen() {
     }
   }, [sport, gender, safeLength, safeWidth, safeSockType]);
 
-  const sportLabel = sport === 'football' ? 'Football boots' : 'Running shoes';
+  const sportLabel =
+    sport === 'football'
+      ? 'Football boots'
+      : sport === 'rugby'
+      ? 'Rugby boots'
+      : 'Running shoes';
+  const genderLabel =
+    gender === 'mens' ? "Men's" : gender === 'womens' ? "Women's" : 'Unisex';
 
   const headerText = matches.length > 0
     ? `${matches.length} match${matches.length === 1 ? '' : 'es'} for you`
@@ -264,7 +271,7 @@ export default function ResultScreen() {
           Your fit profile
         </Text>
         <Text style={{ color: '#ccc', fontSize: 13, marginBottom: 2 }}>
-          {gender === 'mens' ? "Men's" : "Women's"} {sportLabel}
+          {genderLabel} {sportLabel}
         </Text>
         <Text style={{ color: '#ccc', fontSize: 13, marginBottom: 2 }}>
           Foot: {safeLength} mm long × {safeWidth} mm wide

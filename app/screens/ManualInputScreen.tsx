@@ -23,8 +23,8 @@ import {
 } from '../../lib/fitting';
 
 type InputMode = 'size' | 'manual';
-type Sport = 'football' | 'running';
-type Gender = 'mens' | 'womens';
+type Sport = 'football' | 'running' | 'rugby';
+type Gender = 'mens' | 'womens' | 'unisex';
 
 function SelectButton({
   label,
@@ -166,6 +166,7 @@ export default function ManualInputScreen() {
                 <View style={{ flexDirection: 'row', marginBottom: 16 }}>
                   <SelectButton label="UK" active={sizeSystem === 'UK'} onPress={() => setSizeSystem('UK')} />
                   <SelectButton label="EU" active={sizeSystem === 'EU'} onPress={() => setSizeSystem('EU')} />
+                  <SelectButton label="US" active={sizeSystem === 'US'} onPress={() => setSizeSystem('US')} />
                 </View>
 
                 <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 6 }}>
@@ -175,7 +176,7 @@ export default function ManualInputScreen() {
                 <TextInput
                   value={shoeSize}
                   onChangeText={setShoeSize}
-                  placeholder={sizeSystem === 'UK' ? 'e.g. 8.5' : 'e.g. 43'}
+                  placeholder={sizeSystem === 'UK' ? 'e.g. 8.5' : sizeSystem === 'US' ? 'e.g. 9.5' : 'e.g. 43'}
                   keyboardType="decimal-pad"
                   returnKeyType="done"
                   onSubmitEditing={Keyboard.dismiss}

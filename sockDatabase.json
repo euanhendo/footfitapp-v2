@@ -11,5 +11,9 @@
   "inov8_active":   { "brand": "Inov-8 Active Mid",                  "thickness": 0.7, "sport": "running" },
   "hilly_marathon": { "brand": "Hilly Marathon Fresh",               "thickness": 0.5, "sport": "running" },
   "balega_hidden":  { "brand": "Balega Hidden Comfort",              "thickness": 0.6, "sport": "running" },
-  "danish_endurance":{ "brand": "Danish Endurance Running Sock",     "thickness": 0.4, "sport": "running" }
+  "danish_endurance":{ "brand": "Danish Endurance Running Sock",     "thickness": 0.4, "sport": "running" },
+  "canterbury_grip": { "brand": "Canterbury Grip Rugby",             "thickness": 0.5, "sport": "rugby" },
+  "adidas_rugby":    { "brand": "Adidas Rugby Match",                "thickness": 0.7, "sport": "rugby" },
+  "trusox_rugby":    { "brand": "Trusox Rugby Mid",                  "thickness": 0.6, "sport": "rugby" },
+  "gilbert_rugby":   { "brand": "Gilbert Training Rugby",            "thickness": 0.8, "sport": "rugby" }
 }

@@ -221,7 +221,9 @@ export function scoreAndRankBoots(
   gender: string,
 ): { matches: ScoredBoot[]; nearMisses: ScoredBoot[] } {
   const eligible = boots.filter(
-    (b) => b.sport === sport && (b.gender === gender || b.gender === 'unisex'),
+    (b) =>
+      b.sport === sport &&
+      (gender === 'unisex' || b.gender === gender || b.gender === 'unisex'),
   );
 
   const scored = eligible.map((boot) => computeFitScore(boot, adjustedLength, adjustedWidth));

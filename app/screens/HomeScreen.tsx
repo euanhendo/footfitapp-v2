@@ -5,13 +5,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import { createFitProfileStore, FitProfile, StorageAdapter } from '../../lib/fitProfile';
 
-type Sport = 'football' | 'running';
-type Gender = 'mens' | 'womens';
+type Sport = 'football' | 'running' | 'rugby';
+type Gender = 'mens' | 'womens' | 'unisex';
 
 const SPORTS: { id: Sport; label: string; emoji: string; available: boolean }[] = [
   { id: 'football', label: 'Football', emoji: '⚽', available: true },
   { id: 'running', label: 'Running', emoji: '🏃', available: true },
-  { id: 'rugby' as Sport, label: 'Rugby', emoji: '🏉', available: false },
+  { id: 'rugby', label: 'Rugby', emoji: '🏉', available: true },
 ];
 
 const storage: StorageAdapter = {
@@ -63,8 +63,18 @@ export default function HomeScreen() {
     profileStore.clear().then(() => setSavedProfile(null));
   };
 
-  const sportLabel = savedProfile?.sport === 'football' ? 'Football' : 'Running';
-  const genderLabel = savedProfile?.gender === 'mens' ? "Men's" : "Women's";
+  const sportLabel =
+    savedProfile?.sport === 'football'
+      ? 'Football'
+      : savedProfile?.sport === 'rugby'
+      ? 'Rugby'
+      : 'Running';
+  const genderLabel =
+    savedProfile?.gender === 'mens'
+      ? "Men's"
+      : savedProfile?.gender === 'womens'
+      ? "Women's"
+      : 'Unisex';
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f9f9f9' }}>
@@ -168,28 +178,30 @@ export default function HomeScreen() {
             </Text>
 
             <View style={{ flexDirection: 'row', gap: 12 }}>
-              {(['mens', 'womens'] as Gender[]).map((gender) => (
-                <Pressable
-                  key={gender}
-                  onPress={() => handleGenderSelect(gender)}
-                  style={{
-                    flex: 1,
-                    borderRadius: 16,
-                    padding: 20,
-                    alignItems: 'center',
-                    backgroundColor: '#fff',
-                    borderWidth: 2,
-                    borderColor: '#e8e8e8',
-                  }}
-                >
-                  <Text style={{ fontSize: 32, marginBottom: 8 }}>
-                    {gender === 'mens' ? '👨' : '👩'}
-                  </Text>
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: '#111' }}>
-                    {gender === 'mens' ? "Men's" : "Women's"}
-                  </Text>
-                </Pressable>
-              ))}
+              {(['mens', 'womens', 'unisex'] as Gender[]).map((gender) => {
+                const emoji = gender === 'mens' ? '👨' : gender === 'womens' ? '👩' : '🧑';
+                const label = gender === 'mens' ? "Men's" : gender === 'womens' ? "Women's" : 'Unisex';
+                return (
+                  <Pressable
+                    key={gender}
+                    onPress={() => handleGenderSelect(gender)}
+                    style={{
+                      flex: 1,
+                      borderRadius: 16,
+                      padding: 20,
+                      alignItems: 'center',
+                      backgroundColor: '#fff',
+                      borderWidth: 2,
+                      borderColor: '#e8e8e8',
+                    }}
+                  >
+                    <Text style={{ fontSize: 32, marginBottom: 8 }}>{emoji}</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: '#111' }}>
+                      {label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
           </>
         )}

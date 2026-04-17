@@ -28,8 +28,26 @@ export const EU_SIZE_TO_LENGTH_MM: Record<string, number> = {
   '47': 298,
 };
 
+export const US_SIZE_TO_LENGTH_MM: Record<string, number> = {
+  '6': 240,
+  '6.5': 244,
+  '7': 248,
+  '7.5': 252,
+  '8': 257,
+  '8.5': 261,
+  '9': 265,
+  '9.5': 269,
+  '10': 274,
+  '10.5': 278,
+  '11': 282,
+  '11.5': 286,
+  '12': 291,
+  '12.5': 295,
+  '13': 299,
+};
+
 export type WidthProfile = 'narrow' | 'standard' | 'wide';
-export type SizeSystem = 'UK' | 'EU';
+export type SizeSystem = 'UK' | 'EU' | 'US';
 
 const WIDTH_RATIOS: Record<WidthProfile, number> = {
   narrow: 0.33,
@@ -45,6 +63,7 @@ export function estimateWidthFromLength(lengthMm: number, widthProfile: WidthPro
 export function getEstimatedLengthMm(sizeSystem: SizeSystem, sizeValue: string): number {
   const cleanValue = String(sizeValue).trim();
   if (sizeSystem === 'UK') return UK_SIZE_TO_LENGTH_MM[cleanValue] ?? 0;
+  if (sizeSystem === 'US') return US_SIZE_TO_LENGTH_MM[cleanValue] ?? 0;
   return EU_SIZE_TO_LENGTH_MM[cleanValue] ?? 0;
 }
 
@@ -75,7 +94,7 @@ export function filterBoots(
 ): Boot[] {
   return boots.filter((boot) => {
     const sportMatch = boot.sport === sport;
-    const genderMatch = boot.gender === gender || boot.gender === 'unisex';
+    const genderMatch = gender === 'unisex' || boot.gender === gender || boot.gender === 'unisex';
     const lengthMatch = adjustedLength >= boot.minLength && adjustedLength <= boot.maxLength;
     const widthMatch = adjustedWidth >= boot.minWidth && adjustedWidth <= boot.maxWidth;
     return sportMatch && genderMatch && lengthMatch && widthMatch;
