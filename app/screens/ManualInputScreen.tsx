@@ -57,14 +57,22 @@ function SelectButton({
 }
 
 export default function ManualInputScreen() {
-  const { sport, gender } = useLocalSearchParams<{ sport: Sport; gender: Gender }>();
-  const [inputMode, setInputMode] = useState<InputMode>('size');
+  const { sport, gender, footLength, footWidth } = useLocalSearchParams<{
+    sport: Sport;
+    gender: Gender;
+    footLength?: string;
+    footWidth?: string;
+  }>();
+  const prefilledLength = footLength ?? '';
+  const prefilledWidth = footWidth ?? '';
+  const hasPrefill = prefilledLength !== '' || prefilledWidth !== '';
+  const [inputMode, setInputMode] = useState<InputMode>(hasPrefill ? 'manual' : 'size');
   const [sizeSystem, setSizeSystem] = useState<SizeSystem>('UK');
   const [shoeSize, setShoeSize] = useState('');
   const [widthProfile, setWidthProfile] = useState<WidthProfile>('standard');
 
-  const [manualLength, setManualLength] = useState('');
-  const [manualWidth, setManualWidth] = useState('');
+  const [manualLength, setManualLength] = useState(prefilledLength);
+  const [manualWidth, setManualWidth] = useState(prefilledWidth);
 
   const estimatedLength = useMemo(() => {
     if (inputMode !== 'size') return 0;
@@ -77,10 +85,10 @@ export default function ManualInputScreen() {
   }, [inputMode, estimatedLength, widthProfile]);
 
   const handleScanPress = () => {
-    Alert.alert(
-      'Scan coming next',
-      'Next version: phone camera scan with on-screen guidance and exact foot measurement.'
-    );
+    router.push({
+      pathname: '/screens/ScannerScreen',
+      params: { sport, gender },
+    });
   };
 
   const handleNext = () => {
