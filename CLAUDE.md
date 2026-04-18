@@ -6,10 +6,11 @@ React Native (Expo) app that matches users to fitting sports footwear based on f
 
 See `.claude/rules/`: `workflow.md` (idea-to-ship loop), `screen-flow.md`, `data-rules.md`, `ui-rules.md`, `technical.md`, `commits.md`.
 
-Two rules are load-bearing enough to inline here:
+Three rules are load-bearing enough to inline here:
 
-- **Route params are strings.** Parse with `Number()` on the receiving screen. Never type a param as `number`.
+- **Route params are strings.** Parse with `Number()` on the receiving screen. Never type a param as `number`. Scanner outputs (`lengthMm`, `widthMm`, `confidence`) follow the same rule on the way out of `ScannerScreen`.
 - **Persistence goes through `StorageAdapter`.** Components and screens never import `expo-secure-store` directly — inject the adapter so tests can swap it.
+- **Vision goes through `VisionAdapter`.** Scanner screens never import `react-native-fast-tflite` or camera/ML modules directly — inject the adapter so tests can swap it. Math in `lib/scanner/*` stays pure.
 
 ## Slash commands
 
@@ -21,7 +22,7 @@ Full workflow table in `workflow.md`.
 
 ## Agents
 
-Project-tuned specialists in `.claude/agents/`: `architect` · `planner` · `tdd-guide` · `code-reviewer` · `security-reviewer` · `loop-operator` · `fit-domain-expert`. Delegate to these instead of generic globals for FootFit-specific reasoning.
+Project-tuned specialists in `.claude/agents/`: `architect` · `planner` · `tdd-guide` · `code-reviewer` · `security-reviewer` · `loop-operator` · `fit-domain-expert` · `scanner-cv-expert`. Delegate to these instead of generic globals for FootFit-specific reasoning.
 
 ## Context across sessions
 
@@ -40,6 +41,17 @@ npx tsc --noEmit       # Type check (part of verify)
 
 Or just run `/verify` to fire all three checks in parallel and get a summary.
 
+### EAS dev client (required for scanner)
+
+The scanner uses `react-native-fast-tflite`, a native module that won't load in Expo Go. Build and install a dev client once per device:
+
+```bash
+eas build --profile development --platform ios            # physical device
+eas build --profile development-simulator --platform ios  # iOS simulator
+```
+
+Before the first build, drop the model file into `assets/models/selfie-segmentation.tflite` (see [assets/models/README.md](assets/models/README.md) for the curl command).
+
 ## Key Files
 
 | File | Purpose |
@@ -47,10 +59,17 @@ Or just run `/verify` to fire all three checks in parallel and get a summary.
 | `lib/fitting.ts` | Core: size conversion, width calc, boot filtering, sock adjustment |
 | `lib/fitScore.ts` | Scoring algorithm — 0–100 fit score, near-miss detection |
 | `lib/fitProfile.ts` | Persisted profile — StorageAdapter pattern, versioned schema |
+| `lib/ownedShoes.ts` | Persisted list of owned shoes — StorageAdapter pattern |
+| `lib/bootListControls.ts` | Result-screen filter/sort + width-preference boost |
+| `lib/scanner/*` | Foot-scan CV math: calibration, foot metrics, reference objects, VisionAdapter boundary |
+| `lib/scanner/tfliteVisionAdapter.ts` | Concrete `VisionAdapter` — only file allowed to import `react-native-fast-tflite` / `expo-image-manipulator` |
+| `assets/models/` | Bundled `.tflite` weights (gitignored — download per `assets/models/README.md`) |
 | `lib/__tests__/` | Unit tests (Jest + ts-jest) |
 | `bootDatabase.json` | Boot inventory (mm) — use `/add-boot` |
 | `sockDatabase.json` | Sock thickness map (mm, with `sport`) — use `/add-sock` |
-| `app/screens/*` | HomeScreen (entry), ManualInput, SockSelection, Result |
+| `app/screens/*` | HomeScreen (entry), ManualInput, MeasureGuide, SockSelection, Result, OwnedShoes, Scanner, ScanReview |
+| `app/screens/ScannerScreen.tsx` | `expo-camera` preview + reference-object overlay; captures photo and runs it through `VisionAdapter` |
+| `app/screens/ScanReviewScreen.tsx` | Shows detected mm + confidence; low-confidence routes to ManualInput with prefilled values |
 | `app/_layout.tsx` | Stack navigator, route param types |
 
 ## Mistakes to Avoid
@@ -61,5 +80,7 @@ _Prune during `/retro` when entries become stale or internalised._
 - Run all 3 verify checks before reporting done: `npm test`, `npx tsc --noEmit`, `npm run lint` (or `/verify`)
 - SockSelection renders dynamically via `getSocksForSport()` — never hardcode Picker.Item
 - For persistence, inject a `StorageAdapter` in tests — don't mock native modules directly
+- For vision, inject a `VisionAdapter` in tests — no `react-native-fast-tflite` or `expo-camera` imports inside `lib/scanner/*`
+- Scanner math (`lib/scanner/*`) is pure TypeScript — if you need RN or native APIs in there, you're on the wrong side of the boundary
+- `react-native-fast-tflite` breaks Expo Go — scanner now requires an EAS dev client (see Commands)
 - Installing native Expo modules hits `~/.expo/native-modules-cache/` (outside sandbox) — expect `EPERM`, retry with sandbox disabled
-- Out of scope at current stage: camera scan, analytics, remote catalog, wearables, social sharing

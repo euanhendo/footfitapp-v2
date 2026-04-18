@@ -1,41 +1,28 @@
 # Roadmap — April 2026
 
-Captured from brainstorm on 2026-04-15. Guides which issues get shaped next via `/add-issue` → `/shape-issue` → `/feature`.
+Captured from brainstorm on 2026-04-15. Guides which issues get shaped next via `/add-issue` → `/shape-issue` → `/feature`. Status refreshed 2026-04-17.
 
-## HomeScreen — "I am shopping for"
+## Shipped
 
-- Add **Unisex** option alongside Men's / Women's.
-- Keep the narrow / standard / wide foot-feel toggle.
-- Add more **size systems** — US first, alongside current UK/EU.
+- ✅ Score-breakdown bug — asymmetric width scoring + recentred ratios (`3125e73`).
+- ✅ HomeScreen Unisex + US sizes (`4096989`).
+- ✅ Rugby boot database (`4096989`).
+- ✅ Measure guide screen (`c18c90c`).
+- ✅ Result screen: boot images (`BootImage`) and boot-vs-user dimensions panel.
+- ✅ Result filter / sort / width-preference boost (`8444baf`).
 
-## Sport coverage
+## Remaining
 
-- Build out the **Rugby** boot database (new sport category in `bootDatabase.json`).
-- Broader push: fill `bootDatabase.json` and `sockDatabase.json` as fully as possible.
+### SockSelection screen
 
-## SockSelection screen
+- Replace Picker with a **search bar** (e.g. "Nike" → Nike socks).
+- Show a **picture** of each sock.
 
-- Show a **picture** of each sock — users don't always recognise socks by name.
-- Replace the Picker with a **search bar** (e.g. "Nike" filters to Nike socks, "Trusox" filters to Trusox). Better UX than a long scroll list.
+### Camera-based foot scan (stretch / spike)
 
-## Result / Matches screen
-
-- **Score-breakdown bug**: narrow-fit users see every sub-score at 100. Investigate `lib/fitScore.ts` — narrow path likely isn't penalising correctly.
-- Use **exact boot dimensions vs user dimensions** directly in verdict copy so users see *why* a boot fits.
-- Add **boot pictures** on result cards.
-
-## Camera-based foot scan (stretch)
-
-Currently marked out-of-scope in `CLAUDE.md`. User wants it reconsidered as a potential differentiator.
-
-- Likely needs Expo camera + reference-object scaling (e.g. A4 paper) or ARKit/ARCore depth APIs.
-- Accuracy is make-or-break — a 5mm error is worse than manual input.
-- **Spike first**, decide go/no-go before committing to a full build.
+Marked out-of-scope in `CLAUDE.md` but user wants it reconsidered. Accuracy is make-or-break (5mm error worse than manual input). Likely needs Expo camera + reference-object scaling (A4) or ARKit/ARCore depth. **Spike first**, go/no-go before full build.
 
 ## Priority
 
-1. Fix score-breakdown bug (correctness — quick win).
-2. Unisex + US sizes + Rugby DB (small, high-value).
-3. SockSelection search + images.
-4. Result screen dimensions + boot images.
-5. Camera scan — spike only.
+1. SockSelection search + images.
+2. Camera scan — spike only.
