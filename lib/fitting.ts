@@ -83,7 +83,23 @@ export type Boot = {
   imageUrl: string;
 };
 
-export type SockEntry = { brand: string; thickness: number; sport: string };
+export type SockEntry = {
+  brand: string;
+  name: string;
+  thickness: number;
+  sport: string;
+  imageUrl: string;
+};
+
+export type SockOption = {
+  key: string;
+  brand: string;
+  name: string;
+  thickness: number;
+  imageUrl: string;
+};
+
+export type SockBrandSection = { brand: string; data: SockOption[] };
 
 export function filterBoots(
   boots: Boot[],
@@ -104,10 +120,32 @@ export function filterBoots(
 export function getSocksForSport(
   sockDb: Record<string, SockEntry>,
   sport: string,
-): { key: string; brand: string; thickness: number }[] {
+): SockOption[] {
   return Object.entries(sockDb)
     .filter(([, entry]) => entry.sport === sport)
-    .map(([key, entry]) => ({ key, brand: entry.brand, thickness: entry.thickness }));
+    .map(([key, entry]) => ({
+      key,
+      brand: entry.brand,
+      name: entry.name,
+      thickness: entry.thickness,
+      imageUrl: entry.imageUrl,
+    }));
+}
+
+export function groupSocksByBrand(options: SockOption[]): SockBrandSection[] {
+  const sections: SockBrandSection[] = [];
+  const byBrand = new Map<string, SockOption[]>();
+  for (const option of options) {
+    const existing = byBrand.get(option.brand);
+    if (existing) {
+      existing.push(option);
+    } else {
+      const data: SockOption[] = [option];
+      byBrand.set(option.brand, data);
+      sections.push({ brand: option.brand, data });
+    }
+  }
+  return sections;
 }
 
 export function applySocketAdjustment(

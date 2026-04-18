@@ -33,6 +33,10 @@ Array of boot objects. All measurements in mm. Every entry must include:
 
 ### sockDatabase.json
 
-Map of sock key → `{ brand, thickness, sport }`. Thickness is in mm, added to both length and width before filtering. Key format: `snake_case`. The `sport` field (`"football"` or `"running"`) controls which socks appear in the picker — SockSelectionScreen renders dynamically from this file.
+Map of sock key → `{ brand, name, thickness, sport, imageUrl }`. Thickness is in mm, added to both length and width before filtering. Key format: `snake_case`. The `sport` field (`"football" | "running" | "rugby"`) controls which socks appear in the list — SockSelectionScreen renders dynamically from this file, grouped into sections by `brand`.
 
-When adding a new sock, just add the entry here with the correct `sport` value. No screen changes needed.
+- `brand` is the manufacturer only (e.g. `"Nike"`, `"Adidas"`, `"Trusox"`). Entries sharing a `brand` render under one section header. Use `"Generic"` for unbranded socks.
+- `name` is the product/model (e.g. `"Grip Socks"`, `"Everyday Cushion Crew"`). Shown as the row label.
+- `imageUrl` is rendered as a thumbnail when set to a real product photo URL. Set to `""` (empty string) when no real image is available — the screen falls back to a deterministic branded badge (brand initials on a colour derived from the brand name). Legacy `via.placeholder.com` URLs are also skipped client-side and rendered as the badge.
+
+When adding a new sock, just add the entry here with the correct `brand`, `name`, and `sport`. Set `imageUrl: ""` unless you have a real product photo URL. No screen changes needed.

@@ -4,6 +4,7 @@ import {
   filterBoots,
   applySocketAdjustment,
   getSocksForSport,
+  groupSocksByBrand,
   Boot,
   SockEntry,
 } from '../fitting';
@@ -78,11 +79,11 @@ describe('applySocketAdjustment', () => {
 
 describe('getSocksForSport', () => {
   const testSockDb: Record<string, SockEntry> = {
-    nike_grip: { brand: 'Nike Grip Socks', thickness: 0.3, sport: 'football' },
-    trusox_mid: { brand: 'Trusox Midweight', thickness: 0.6, sport: 'football' },
-    darn_tough: { brand: 'Darn Tough Element Micro Crew', thickness: 0.3, sport: 'running' },
-    smartwool_run: { brand: 'Smartwool Run Cold Weather', thickness: 0.5, sport: 'running' },
-    injinji_ultra: { brand: 'Injinji Ultra Run No-Show', thickness: 0.5, sport: 'running' },
+    nike_grip:     { brand: 'Nike',       name: 'Grip Socks',         thickness: 0.3, sport: 'football', imageUrl: 'x' },
+    trusox_mid:    { brand: 'Trusox',     name: 'Midweight',          thickness: 0.6, sport: 'football', imageUrl: 'x' },
+    darn_tough:    { brand: 'Darn Tough', name: 'Element Micro Crew', thickness: 0.3, sport: 'running',  imageUrl: 'x' },
+    smartwool_run: { brand: 'Smartwool',  name: 'Run Cold Weather',   thickness: 0.5, sport: 'running',  imageUrl: 'x' },
+    injinji_ultra: { brand: 'Injinji',    name: 'Ultra Run No-Show',  thickness: 0.5, sport: 'running',  imageUrl: 'x' },
   };
 
   it('returns only football socks for football', () => {
@@ -106,11 +107,60 @@ describe('getSocksForSport', () => {
     for (const sock of result) {
       expect(sock).toHaveProperty('key');
       expect(sock).toHaveProperty('brand');
+      expect(sock).toHaveProperty('name');
       expect(sock).toHaveProperty('thickness');
+      expect(sock).toHaveProperty('imageUrl');
       expect(typeof sock.key).toBe('string');
       expect(typeof sock.brand).toBe('string');
+      expect(typeof sock.name).toBe('string');
       expect(typeof sock.thickness).toBe('number');
     }
+  });
+});
+
+describe('groupSocksByBrand', () => {
+  const footballSockDb: Record<string, SockEntry> = {
+    nike_grip:      { brand: 'Nike',   name: 'Grip Socks',            thickness: 0.3, sport: 'football', imageUrl: '' },
+    trusox_mid:     { brand: 'Trusox', name: 'Midweight',             thickness: 0.6, sport: 'football', imageUrl: '' },
+    trusox_thin:    { brand: 'Trusox', name: 'Thin',                  thickness: 0.4, sport: 'football', imageUrl: '' },
+    nike_everyday:  { brand: 'Nike',   name: 'Everyday Cushion Crew', thickness: 0.4, sport: 'football', imageUrl: '' },
+    alphaskin:      { brand: 'Adidas', name: 'Alphaskin',             thickness: 0.2, sport: 'football', imageUrl: '' },
+  };
+
+  it('returns empty array for empty input', () => {
+    expect(groupSocksByBrand([])).toEqual([]);
+  });
+
+  it('groups socks with the same brand into one section', () => {
+    const sections = groupSocksByBrand(getSocksForSport(footballSockDb, 'football'));
+    const nike = sections.find((s) => s.brand === 'Nike');
+    const trusox = sections.find((s) => s.brand === 'Trusox');
+    expect(nike?.data).toHaveLength(2);
+    expect(trusox?.data).toHaveLength(2);
+  });
+
+  it('creates one section per brand', () => {
+    const sections = groupSocksByBrand(getSocksForSport(footballSockDb, 'football'));
+    const brands = sections.map((s) => s.brand);
+    expect(brands).toEqual(['Nike', 'Trusox', 'Adidas']);
+  });
+
+  it('preserves first-appearance order of brands', () => {
+    const options = getSocksForSport(footballSockDb, 'football');
+    const sections = groupSocksByBrand(options);
+    const firstAppearanceBrands: string[] = [];
+    for (const option of options) {
+      if (!firstAppearanceBrands.includes(option.brand)) {
+        firstAppearanceBrands.push(option.brand);
+      }
+    }
+    expect(sections.map((s) => s.brand)).toEqual(firstAppearanceBrands);
+  });
+
+  it('preserves insertion order of products within a brand', () => {
+    const sections = groupSocksByBrand(getSocksForSport(footballSockDb, 'football'));
+    const trusox = sections.find((s) => s.brand === 'Trusox');
+    expect(trusox?.data.map((o) => o.key)).toEqual(['trusox_mid', 'trusox_thin']);
   });
 });
 

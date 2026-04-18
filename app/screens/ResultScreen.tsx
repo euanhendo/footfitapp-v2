@@ -62,6 +62,8 @@ function BootCard({
   affinityBoost,
   sockAdjustment,
   sockLabel,
+  adjustedLength,
+  adjustedWidth,
 }: {
   item: ScoredBoot;
   muted?: boolean;
@@ -69,6 +71,8 @@ function BootCard({
   affinityBoost: number;
   sockAdjustment: number;
   sockLabel: string;
+  adjustedLength: number;
+  adjustedWidth: number;
 }) {
   const boot = item.boot;
   const [expanded, setExpanded] = useState(false);
@@ -155,8 +159,14 @@ function BootCard({
             <Text style={{ fontSize: 12, color: '#111' }}>
               Length fit: {breakdown.lengthContribution} / {breakdown.lengthMax}
             </Text>
+            <Text style={{ fontSize: 11, color: '#666', marginBottom: 2 }}>
+              You: {Math.round(adjustedLength)} mm · boot: {boot.minLength}–{boot.maxLength} mm
+            </Text>
             <Text style={{ fontSize: 12, color: '#111' }}>
               Width fit: {breakdown.widthContribution} / {breakdown.widthMax}
+            </Text>
+            <Text style={{ fontSize: 11, color: '#666' }}>
+              You: {Math.round(adjustedWidth)} mm · boot: {boot.minWidth}–{boot.maxWidth} mm
             </Text>
             {sockAdjustment > 0 && (
               <Text style={{ fontSize: 12, color: '#666' }}>
@@ -212,7 +222,7 @@ export default function ResultScreen() {
   const safeSockType = sockType ?? '';
   const sockEntry = socks[safeSockType];
   const sockAdjustment = sockEntry ? sockEntry.thickness : 0;
-  const sockLabel = sockEntry ? sockEntry.brand : 'None';
+  const sockLabel = sockEntry ? `${sockEntry.brand} ${sockEntry.name}` : 'None';
 
   const { adjustedLength, adjustedWidth } = applySocketAdjustment(safeLength, safeWidth, sockAdjustment);
 
@@ -438,6 +448,8 @@ export default function ResultScreen() {
             affinityBoost={item.boost}
             sockAdjustment={sockAdjustment}
             sockLabel={sockLabel}
+            adjustedLength={adjustedLength}
+            adjustedWidth={adjustedWidth}
           />
         )}
         ListFooterComponent={
@@ -462,6 +474,8 @@ export default function ResultScreen() {
                   affinityBoost={boost}
                   sockAdjustment={sockAdjustment}
                   sockLabel={sockLabel}
+                  adjustedLength={adjustedLength}
+                  adjustedWidth={adjustedWidth}
                   muted
                 />
               ))}

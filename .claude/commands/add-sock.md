@@ -10,9 +10,11 @@ Add a new sock entry: $ARGUMENTS
 
 1. **Collect fields** (ask for any missing):
    - key: `snake_case` identifier (e.g. `nike_grip`)
-   - brand: display name
+   - brand: manufacturer only (e.g. `Nike`, `Adidas`, `Trusox`, or `Generic` for unbranded). Groups the sock under a section header in SockSelectionScreen.
+   - name: product/model (e.g. `Grip Socks`, `Everyday Cushion Crew`). Shown as the row label.
    - thickness: mm (typical range 0.2–0.8)
-   - sport: `football | running`
+   - sport: `football | running | rugby`
+   - imageUrl: thumbnail URL, or `""` for the fallback branded badge
 
 2. **Check for duplicate key** in `sockDatabase.json`. If match, ask before proceeding.
 
