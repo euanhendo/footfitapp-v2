@@ -36,9 +36,11 @@ describe('getEstimatedLengthMm', () => {
 });
 
 describe('estimateWidthFromLength', () => {
-  it('applies narrow ratio (0.33)', () => {
-    // 265 * 0.33 = 87.45 → 87 (centered in narrow band 82–94)
-    expect(estimateWidthFromLength(265, 'narrow')).toBe(87);
+  it('applies narrow ratio (0.345)', () => {
+    // 265 * 0.345 = 91.425 → 91. Deliberately offset from the narrow-boot
+    // width locus (~0.33 of length) so widthScore isn't forced to 100 for
+    // every narrow-profile user — see Issue #1.
+    expect(estimateWidthFromLength(265, 'narrow')).toBe(91);
   });
 
   it('applies standard ratio (0.36)', () => {
@@ -46,9 +48,9 @@ describe('estimateWidthFromLength', () => {
     expect(estimateWidthFromLength(265, 'standard')).toBe(95);
   });
 
-  it('applies wide ratio (0.385)', () => {
-    // 265 * 0.385 = 102.025 → 102 (centered in wide band 95–108)
-    expect(estimateWidthFromLength(265, 'wide')).toBe(102);
+  it('applies wide ratio (0.38)', () => {
+    // 265 * 0.38 = 100.7 → 101 (centered in wide band 95–108)
+    expect(estimateWidthFromLength(265, 'wide')).toBe(101);
   });
 
   it('returns 0 when length is 0', () => {
@@ -58,8 +60,8 @@ describe('estimateWidthFromLength', () => {
   it('rounds to nearest integer', () => {
     // 257 * 0.36 = 92.52 → 93
     expect(estimateWidthFromLength(257, 'standard')).toBe(93);
-    // 261 * 0.33 = 86.13 → 86
-    expect(estimateWidthFromLength(261, 'narrow')).toBe(86);
+    // 261 * 0.345 = 90.045 → 90
+    expect(estimateWidthFromLength(261, 'narrow')).toBe(90);
   });
 });
 

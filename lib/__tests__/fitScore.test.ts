@@ -6,7 +6,7 @@ import {
   generateExplanation,
   getScoreBreakdown,
 } from '../fitScore';
-import { Boot } from '../fitting';
+import { Boot, estimateWidthFromLength, getEstimatedLengthMm } from '../fitting';
 
 describe('computeDimensionScore', () => {
   // Range: [248, 299], center = 273.5, halfRange = 25.5
@@ -360,6 +360,51 @@ describe('scoreAndRankBoots', () => {
     const { matches, nearMisses } = scoreAndRankBoots([], 265, 95, 'football', 'mens');
     expect(matches).toEqual([]);
     expect(nearMisses).toEqual([]);
+  });
+});
+
+// Issue #1 — narrow foot-feel + narrow boot must leave the breakdown with real
+// signal. Historically the narrow width ratio sat exactly on the narrow-boot
+// width locus, so estimated width landed on range centre and widthScore rounded
+// to ~100 for every narrow user, hiding real mismatches.
+describe('narrow-fit regression (Issue #1)', () => {
+  const narrowBoot: Boot = {
+    brand: 'Nike',
+    model: 'Mercurial Superfly',
+    gender: 'mens',
+    sport: 'football',
+    width: 'narrow',
+    minLength: 248,
+    maxLength: 299,
+    minWidth: 82,
+    maxWidth: 94,
+    price: 220,
+    notes: 'Narrow fit',
+    purchaseUrl: '',
+    imageUrl: '',
+  };
+
+  it('does not collapse estimated-narrow width onto the boot-range centre', () => {
+    // UK 9 with a narrow profile used to land at ~90mm — within 1-2mm of the
+    // narrow-boot width centre (~88mm), making widthScore round near 100 and
+    // faking a perfect fit. The estimator must now spread narrow users off
+    // that locus so the breakdown carries real signal.
+    const length = getEstimatedLengthMm('UK', '9');
+    const width = estimateWidthFromLength(length, 'narrow');
+    const scored = computeFitScore(narrowBoot, length, width);
+
+    // Length score can legitimately be very high (size lookup is accurate).
+    // Width score must not — it's estimated, and cannot masquerade as measured.
+    expect(scored.widthScore).toBeLessThan(80);
+  });
+
+  it('keeps narrow-profile users meaningfully informed at UK 8 and 8.5 too', () => {
+    for (const size of ['8', '8.5']) {
+      const length = getEstimatedLengthMm('UK', size);
+      const width = estimateWidthFromLength(length, 'narrow');
+      const scored = computeFitScore(narrowBoot, length, width);
+      expect(scored.widthScore).toBeLessThan(95);
+    }
   });
 });
 

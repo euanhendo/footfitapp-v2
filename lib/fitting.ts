@@ -49,10 +49,15 @@ export const US_SIZE_TO_LENGTH_MM: Record<string, number> = {
 export type WidthProfile = 'narrow' | 'standard' | 'wide';
 export type SizeSystem = 'UK' | 'EU' | 'US';
 
+// Ratios are deliberately offset from the narrow-boot width locus (~0.33 of
+// length over the catalogue) so that a narrow-profile user's estimated width
+// does not collapse onto the centre of every narrow boot's range. Without the
+// offset, widthScore rounded near 100 for every narrow user, hiding genuine
+// mismatches — see Issue #1.
 const WIDTH_RATIOS: Record<WidthProfile, number> = {
-  narrow: 0.33,
+  narrow: 0.345,
   standard: 0.36,
-  wide: 0.385,
+  wide: 0.38,
 };
 
 export function estimateWidthFromLength(lengthMm: number, widthProfile: WidthProfile): number {
