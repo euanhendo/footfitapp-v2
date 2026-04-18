@@ -1,6 +1,6 @@
 # Roadmap — April 2026
 
-Captured from brainstorm on 2026-04-15. Guides which issues get shaped next via `/add-issue` → `/shape-issue` → `/feature`. Status refreshed 2026-04-17.
+Captured from brainstorm on 2026-04-15. Guides which issues get shaped next via `/add-issue` → `/shape-issue` → `/feature`. Status refreshed 2026-04-18.
 
 ## Shipped
 
@@ -10,19 +10,23 @@ Captured from brainstorm on 2026-04-15. Guides which issues get shaped next via 
 - ✅ Measure guide screen (`c18c90c`).
 - ✅ Result screen: boot images (`BootImage`) and boot-vs-user dimensions panel.
 - ✅ Result filter / sort / width-preference boost (`8444baf`).
+- ✅ SockSelection search + brand grouping + images (`bc2f120`).
+- ✅ Camera scan spike — Phase 1 (pure-math scaffold) + Phase 2 (`ScannerScreen` + `ScanReviewScreen` with stub `VisionAdapter`, end-to-end navigable) (`bce9844`).
+- ✅ Narrow-profile width-score inflation fix — Issue #1 (`2fca24d`).
 
 ## Remaining
 
-### SockSelection screen
+### Camera-scan Phase 3 — real vision
 
-- Replace Picker with a **search bar** (e.g. "Nike" → Nike socks).
-- Show a **picture** of each sock.
+Boundary is live; only the model + dev client remain.
 
-### Camera-based foot scan (stretch / spike)
+- Drop `selfie-segmentation.tflite` into `assets/models/` per [assets/models/README.md](../../assets/models/README.md).
+- Build EAS dev client (`eas build --profile development --platform ios` for device, `development-simulator` for sim). Expo Go cannot load `react-native-fast-tflite`.
+- Verify `tfliteVisionAdapter` produces sane `lengthMm`/`widthMm`/`confidence` on a real A4-referenced capture.
+- Confirm low-confidence path correctly falls back to `ManualInput` with prefilled values.
 
-Marked out-of-scope in `CLAUDE.md` but user wants it reconsidered. Accuracy is make-or-break (5mm error worse than manual input). Likely needs Expo camera + reference-object scaling (A4) or ARKit/ARCore depth. **Spike first**, go/no-go before full build.
+Accuracy bar: 5 mm error is worse than manual input. Spike ships only if it clears that bar.
 
 ## Priority
 
-1. SockSelection search + images.
-2. Camera scan — spike only.
+1. Camera-scan Phase 3 — ship real-vision path or formally abandon.
