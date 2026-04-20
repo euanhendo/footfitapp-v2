@@ -52,7 +52,9 @@ npx expo run:ios --device   # plugged-in iPhone, free Apple ID signing OK
 
 ### Scanner status
 
-The camera-scan spike (`ScannerScreen`, `tfliteVisionAdapter`, `lib/scanner/*`) is **abandoned as of 2026-04-20** — see [.claude/decisions/roadmap-2026-04.md](.claude/decisions/roadmap-2026-04.md) for the failure mode. The code is kept for a future revival attempt; the "Scan with phone" user entry point has been removed from `ManualInputScreen`. Do not add links back to `ScannerScreen` without reading the abandon note first.
+The camera-scan spike (`ScannerScreen`, `tfliteVisionAdapter`, `lib/scanner/*`) is **parked as of 2026-04-20** — Phase 3 died on the `react-native-fast-tflite` op resolver, see [.claude/decisions/roadmap-2026-04.md](.claude/decisions/roadmap-2026-04.md) for the failure mode.
+
+**Revival is an explicit product goal**, not a dead spike. The preferred next attempt is **classical CV, not ML** — Nike-style A4-reference edge detection via Apple Vision `VNDetectContoursRequest`, reusing the pure-math scaffolding in `lib/scanner/referenceObjects.ts` and `lib/scanner/footMetrics.ts`. Do not revive via another TFLite-segmentation route. Keep `lib/scanner/*`, the `VisionAdapter` boundary, and `ScannerScreen`/`ScanReviewScreen` intact — they are the revival foundation, not dead code. The "Scan with phone" entry point in `ManualInputScreen` stays removed until a revival clears an isolated CV smoke test. Do not add links back to `ScannerScreen` without reading the abandon + revival note first.
 
 ## Key Files
 

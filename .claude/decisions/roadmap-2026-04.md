@@ -42,6 +42,22 @@ Getting further would need either (a) a purpose-built foot-segmentation model us
 - Expo Go still can't load the app (native TFLite module is linked whether or not it's called). `expo run:ios` / `expo run:android` is the only dev path.
 - If someone revives this: start by testing a swapped model against the op resolver in isolation before wiring anything to the capture screen.
 
+### Revival intent (2026-04-20)
+
+The fit scanner is a **north-star feature** — user has explicit intent to rebuild it, not abandon it. Reference UX: Nike's paper-reference scanner (foot on an A4 sheet → correct size returned).
+
+Because Nike's approach is **classical CV, not ML**, a revival likely sidesteps the `react-native-fast-tflite` op-resolver problem entirely. The more tractable path is:
+
+- Apple Vision `VNDetectContoursRequest` on iOS (edge detection against the A4 reference), **reusing the existing pure-math scaffolding in [lib/scanner/referenceObjects.ts](../../lib/scanner/referenceObjects.ts) and [lib/scanner/footMetrics.ts](../../lib/scanner/footMetrics.ts)**. No TFLite, no segmentation model.
+- Or, if cross-platform is wanted later, an OpenCV-via-RN binding for the same contour approach.
+
+**Guardrails for any revival attempt:**
+
+- Do not revive via the same TFLite-segmentation route that failed in Phase 3 — see the `unresolved-ops` note above and the "native-ML same-error" rule.
+- Smoke-test the new CV stack **in isolation** (static image → contour → mm) before touching `ScannerScreen` or `ScanReviewScreen`.
+- Keep the `VisionAdapter` boundary. The new stack becomes a new concrete adapter alongside `tfliteVisionAdapter.ts`.
+- Leave `lib/scanner/*` pure-math and framework-free. If the new adapter needs camera or native CV APIs, those live in the adapter, not the math.
+
 ## Priority
 
 1. None currently shaped. Brainstorm the next milestone via `/brainstorm`.
