@@ -8,15 +8,14 @@ The scanner phase 3 adapter (`lib/scanner/tfliteVisionAdapter.ts`) loads `selfie
 
 ## Source
 
-MediaPipe Selfie Segmentation, float16 variant.
+MediaPipe Selfie Segmentation, legacy MLKit 256×256 variant (plain TFLite — no custom ops).
 
-- Page: https://developers.google.com/mediapipe/solutions/vision/image_segmenter
-- Direct (general model): https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite
 - License: Apache 2.0
+- Do **not** use the newer `mediapipe-models/image_segmenter/selfie_segmenter/…` Tasks variant — it contains MediaPipe-specific custom ops that bare `react-native-fast-tflite` can't resolve (fails with `unresolved-ops` at tensor allocation).
 
 ```bash
 curl -L -o assets/models/selfie-segmentation.tflite \
-  https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite
+  https://storage.googleapis.com/mediapipe-assets/selfie_segmentation.tflite
 ```
 
 ## Tensor shape

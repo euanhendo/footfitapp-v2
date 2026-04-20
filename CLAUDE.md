@@ -41,16 +41,18 @@ npx tsc --noEmit       # Type check (part of verify)
 
 Or just run `/verify` to fire all three checks in parallel and get a summary.
 
-### EAS dev client (required for scanner)
+### Dev client (required — native modules present)
 
-The scanner uses `react-native-fast-tflite`, a native module that won't load in Expo Go. Build and install a dev client once per device:
+`react-native-fast-tflite` is linked into the app (even though the scanner is currently abandoned, see below). Expo Go cannot load it. Use a local dev client:
 
 ```bash
-eas build --profile development --platform ios            # physical device
-eas build --profile development-simulator --platform ios  # iOS simulator
+npm run ios            # npx expo run:ios (simulator)
+npx expo run:ios --device   # plugged-in iPhone, free Apple ID signing OK
 ```
 
-Before the first build, drop the model file into `assets/models/selfie-segmentation.tflite` (see [assets/models/README.md](assets/models/README.md) for the curl command).
+### Scanner status
+
+The camera-scan spike (`ScannerScreen`, `tfliteVisionAdapter`, `lib/scanner/*`) is **abandoned as of 2026-04-20** — see [.claude/decisions/roadmap-2026-04.md](.claude/decisions/roadmap-2026-04.md) for the failure mode. The code is kept for a future revival attempt; the "Scan with phone" user entry point has been removed from `ManualInputScreen`. Do not add links back to `ScannerScreen` without reading the abandon note first.
 
 ## Key Files
 
@@ -82,5 +84,5 @@ _Prune during `/retro` when entries become stale or internalised._
 - For persistence, inject a `StorageAdapter` in tests — don't mock native modules directly
 - For vision, inject a `VisionAdapter` in tests — no `react-native-fast-tflite` or `expo-camera` imports inside `lib/scanner/*`
 - Scanner math (`lib/scanner/*`) is pure TypeScript — if you need RN or native APIs in there, you're on the wrong side of the boundary
-- `react-native-fast-tflite` breaks Expo Go — scanner now requires an EAS dev client (see Commands)
+- `react-native-fast-tflite` breaks Expo Go — even with scanner abandoned, the native module is linked; use `npm run ios` / `expo run:ios --device`, not Expo Go
 - Installing native Expo modules hits `~/.expo/native-modules-cache/` (outside sandbox) — expect `EPERM`, retry with sandbox disabled

@@ -84,13 +84,6 @@ export default function ManualInputScreen() {
     return estimateWidthFromLength(estimatedLength, widthProfile);
   }, [inputMode, estimatedLength, widthProfile]);
 
-  const handleScanPress = () => {
-    router.push({
-      pathname: '/screens/ScannerScreen',
-      params: { sport, gender },
-    });
-  };
-
   const handleNext = () => {
     if (inputMode === 'manual') {
       const parsedManualLength = Number(manualLength);
@@ -173,7 +166,6 @@ export default function ManualInputScreen() {
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 16 }}>
               <SelectButton label="Shoe size" active={inputMode === 'size'} onPress={() => setInputMode('size')} />
               <SelectButton label="Advanced manual" active={inputMode === 'manual'} onPress={() => setInputMode('manual')} />
-              <SelectButton label="Scan with phone" active={false} onPress={handleScanPress} />
             </View>
 
             {inputMode === 'size' && (
@@ -230,7 +222,7 @@ export default function ManualInputScreen() {
                   <Text>Estimated foot length: {estimatedLength || '-'} mm</Text>
                   <Text>Estimated foot width: {estimatedWidth || '-'} mm</Text>
                   <Text style={{ marginTop: 8, color: '#666', fontSize: 13 }}>
-                    This is a size-based estimate. Camera scan will be more accurate.
+                    This is a size-based estimate. Use Advanced manual for exact mm.
                   </Text>
                 </View>
               </>

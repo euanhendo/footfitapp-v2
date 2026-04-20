@@ -1,6 +1,6 @@
 # Roadmap — April 2026
 
-Captured from brainstorm on 2026-04-15. Guides which issues get shaped next via `/add-issue` → `/shape-issue` → `/feature`. Status refreshed 2026-04-19.
+Captured from brainstorm on 2026-04-15. Guides which issues get shaped next via `/add-issue` → `/shape-issue` → `/feature`. Status refreshed 2026-04-20.
 
 ## Shipped
 
@@ -15,19 +15,33 @@ Captured from brainstorm on 2026-04-15. Guides which issues get shaped next via 
 - ✅ Narrow-profile width-score inflation fix — Issue #1 (`2fca24d`).
 - ✅ Fit-score + size-recommendation overhaul — flattened in-range curves (length 95–100, width 92–100), per-boot `sizeOffset` field, `recommendSize()` returning UK/EU/US + `borderlineTight` flag, ResultScreen shows "Foot with socks: X × Y mm" header and per-card "Suggested size" line.
 
-## Remaining
+## Abandoned
 
-### Camera-scan Phase 3 — real vision
+### Camera-scan Phase 3 — real vision (2026-04-20)
 
-Boundary is live; only the model + dev client remain.
+Spike halted at the model-load smoke test on real hardware (iPhone 15 Pro Max, local `npx expo run:ios --device`, free Apple ID signing). Both the MediaPipe Tasks `selfie_segmenter.tflite` (float16) and the legacy MediaPipe Solutions `selfie_segmentation.tflite` (2021 MLKit build) fail identically at tensor allocation:
 
-- Drop `selfie-segmentation.tflite` into `assets/models/` per [assets/models/README.md](../../assets/models/README.md).
-- Build EAS dev client (`eas build --profile development --platform ios` for device, `development-simulator` for sim). Expo Go cannot load `react-native-fast-tflite`.
-- Verify `tfliteVisionAdapter` produces sane `lengthMm`/`widthMm`/`confidence` on a real A4-referenced capture.
-- Confirm low-confidence path correctly falls back to `ManualInput` with prefilled values.
+```
+TFLite: Failed to allocate memory for input/output tensors! Status: unresolved-ops
+```
 
-Accuracy bar: 5 mm error is worse than manual input. Spike ships only if it clears that bar.
+`react-native-fast-tflite@1.6.1` ships a bare TFLite interpreter whose builtin op resolver cannot register kernels for ops these models use. We never reached inference, let alone the 5 mm accuracy bar.
+
+Getting further would need either (a) a purpose-built foot-segmentation model using only standard TFLite builtins, (b) a different RN TFLite library with a broader op registry / MediaPipe Tasks support, or (c) a wholly different CV stack. All are algorithm rework — out of scope for this spike.
+
+**Kept in the tree for a future revival attempt** (the boundary is cheap insurance):
+
+- [lib/scanner/](../../lib/scanner/) — pure math (calibration, footMetrics, referenceObjects) is framework-free and reusable.
+- [lib/scanner/tfliteVisionAdapter.ts](../../lib/scanner/tfliteVisionAdapter.ts) — concrete adapter, the only file that imports `react-native-fast-tflite` / `expo-image-manipulator`. Untouched.
+- [app/screens/ScannerScreen.tsx](../../app/screens/ScannerScreen.tsx) + [app/screens/ScanReviewScreen.tsx](../../app/screens/ScanReviewScreen.tsx) — still registered in `_layout.tsx` but **no user entry point**. The "Scan with phone" button in `ManualInputScreen` was removed.
+- `react-native-fast-tflite`, `expo-camera`, `expo-image-manipulator` remain in `package.json` — removing them would rip out the boundary we want to keep.
+
+**Practical consequences:**
+
+- Users reach boot recommendations via shoe-size lookup or Advanced manual mm input. No camera path.
+- Expo Go still can't load the app (native TFLite module is linked whether or not it's called). `expo run:ios` / `expo run:android` is the only dev path.
+- If someone revives this: start by testing a swapped model against the op resolver in isolation before wiring anything to the capture screen.
 
 ## Priority
 
-1. Camera-scan Phase 3 — ship real-vision path or formally abandon.
+1. None currently shaped. Brainstorm the next milestone via `/brainstorm`.
