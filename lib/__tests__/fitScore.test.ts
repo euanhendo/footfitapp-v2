@@ -9,17 +9,20 @@ import {
 import { Boot, estimateWidthFromLength, getEstimatedLengthMm } from '../fitting';
 
 describe('computeDimensionScore', () => {
-  // Range: [248, 299], center = 273.5, halfRange = 25.5
+  // Range: [248, 299], center = 273.5, halfRange = 25.5. In-range taper is 5pt,
+  // so length in-range always lands between 95 and 100 — the score rewards
+  // being inside the model's range and leaves size-picking to `recommendSize`.
   it('returns 100 at exact center of range', () => {
     expect(computeDimensionScore(273.5, 248, 299, 10)).toBe(100);
   });
 
-  it('returns 60 at min boundary', () => {
-    expect(computeDimensionScore(248, 248, 299, 10)).toBe(60);
+  it('returns 95 at min boundary', () => {
+    // 100 - 5 * (25.5 / 25.5) = 95
+    expect(computeDimensionScore(248, 248, 299, 10)).toBe(95);
   });
 
-  it('returns 60 at max boundary', () => {
-    expect(computeDimensionScore(299, 248, 299, 10)).toBe(60);
+  it('returns 95 at max boundary', () => {
+    expect(computeDimensionScore(299, 248, 299, 10)).toBe(95);
   });
 
   it('scores below 60 when just outside range', () => {
@@ -36,11 +39,16 @@ describe('computeDimensionScore', () => {
     expect(computeDimensionScore(230, 248, 299, 5)).toBe(0);
   });
 
-  it('scores ~80 at 25% from center toward edge', () => {
+  it('stays near 100 even 25% from center toward edge', () => {
     // 25% of halfRange (25.5) = 6.375 from center
-    // center = 273.5, value = 273.5 + 6.375 = 279.875
-    // score = 100 - 40 * (6.375 / 25.5) = 100 - 10 = 90
-    expect(computeDimensionScore(279.875, 248, 299, 10)).toBe(90);
+    // score = 100 - 5 * (6.375 / 25.5) = 100 - 1.25 → 99
+    expect(computeDimensionScore(279.875, 248, 299, 10)).toBe(99);
+  });
+
+  it('keeps any in-range length above 94', () => {
+    for (const value of [248, 260, 273.5, 285, 299]) {
+      expect(computeDimensionScore(value, 248, 299, 10)).toBeGreaterThanOrEqual(95);
+    }
   });
 
   it('handles zero-width range (min === max)', () => {
@@ -64,15 +72,21 @@ describe('computeWidthScore', () => {
     expect(computeWidthScore(95, 89, 101, 5)).toBe(100);
   });
 
-  it('tapers to 80 at the edges of the range', () => {
-    // 100 - 20 * (6/6) = 80
-    expect(computeWidthScore(89, 89, 101, 5)).toBe(80);
-    expect(computeWidthScore(101, 89, 101, 5)).toBe(80);
+  it('tapers to 92 at the edges of the range', () => {
+    // 100 - 8 * (6/6) = 92
+    expect(computeWidthScore(89, 89, 101, 5)).toBe(92);
+    expect(computeWidthScore(101, 89, 101, 5)).toBe(92);
   });
 
   it('scales in-range scores by distance from centre', () => {
-    // value 98: distance 3, halfRange 6 → 100 - 20*(3/6) = 90
-    expect(computeWidthScore(98, 89, 101, 5)).toBe(90);
+    // value 98: distance 3, halfRange 6 → 100 - 8*(3/6) = 96
+    expect(computeWidthScore(98, 89, 101, 5)).toBe(96);
+  });
+
+  it('keeps any in-range width above 91', () => {
+    for (const value of [89, 92, 95, 98, 101]) {
+      expect(computeWidthScore(value, 89, 101, 5)).toBeGreaterThanOrEqual(92);
+    }
   });
 
   it('returns 100 for a zero-width range at the exact value', () => {
@@ -124,13 +138,14 @@ describe('computeFitScore', () => {
     expect(result.isExactMatch).toBe(true);
   });
 
-  it('tapers widthScore at min-width boundary just like length', () => {
+  it('still rewards edge-of-range measurements as strong in-range matches', () => {
     const result = computeFitScore(testBoot, 248, 89);
-    expect(result.lengthScore).toBe(60);
-    // width at edge: 100 - 20*(6/6) = 80
-    expect(result.widthScore).toBe(80);
-    // 60*0.4 + 80*0.6 = 72
-    expect(result.score).toBe(72);
+    // length at min boundary: 100 - 5 = 95
+    expect(result.lengthScore).toBe(95);
+    // width at min boundary: 100 - 8 = 92
+    expect(result.widthScore).toBe(92);
+    // 95*0.4 + 92*0.6 = 38 + 55.2 = 93.2 → 93
+    expect(result.score).toBe(93);
     expect(result.isExactMatch).toBe(true);
   });
 
@@ -399,11 +414,14 @@ describe('narrow-fit regression (Issue #1)', () => {
   });
 
   it('keeps narrow-profile users meaningfully informed at UK 8 and 8.5 too', () => {
+    // Softer in-range width taper (8pt) means narrow-in-narrow widthScore sits
+    // in the 90s rather than the 80s — but must still read below a clean 100
+    // so the breakdown carries real signal.
     for (const size of ['8', '8.5']) {
       const length = getEstimatedLengthMm('UK', size);
       const width = estimateWidthFromLength(length, 'narrow');
       const scored = computeFitScore(narrowBoot, length, width);
-      expect(scored.widthScore).toBeLessThan(95);
+      expect(scored.widthScore).toBeLessThan(97);
     }
   });
 });
@@ -443,8 +461,8 @@ describe('getScoreBreakdown', () => {
   it('preserves raw dimension scores on breakdown', () => {
     const scored = computeFitScore(testBoot, 248, 89);
     const breakdown = getScoreBreakdown(scored);
-    expect(breakdown.lengthScore).toBe(60);
-    expect(breakdown.widthScore).toBe(80);
-    expect(breakdown.baseScore).toBe(72);
+    expect(breakdown.lengthScore).toBe(95);
+    expect(breakdown.widthScore).toBe(92);
+    expect(breakdown.baseScore).toBe(93);
   });
 });

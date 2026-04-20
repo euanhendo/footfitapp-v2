@@ -86,7 +86,60 @@ export type Boot = {
   notes: string;
   purchaseUrl: string;
   imageUrl: string;
+  // mm offset vs. universal size tables. 0 = true-to-size. Negative = runs
+  // small (size up in recommendations). Positive = runs large.
+  sizeOffset?: number;
 };
+
+export type SizeRecommendation = {
+  uk: string;
+  eu: string;
+  us: string;
+  headroomMm: number;
+  borderlineTight: boolean;
+};
+
+function pickClosestSize(
+  table: Record<string, number>,
+  targetMm: number,
+): { key: string; nominal: number; nextNominal: number } {
+  const entries = Object.entries(table).sort((a, b) => a[1] - b[1]);
+  let bestIdx = 0;
+  let bestDist = Math.abs(entries[0][1] - targetMm);
+  for (let i = 1; i < entries.length; i++) {
+    const dist = Math.abs(entries[i][1] - targetMm);
+    if (dist < bestDist) {
+      bestIdx = i;
+      bestDist = dist;
+    } else if (dist === bestDist && entries[i][1] > entries[bestIdx][1]) {
+      // Tie: prefer the higher nominal so the shoe errs on the roomy side.
+      bestIdx = i;
+    }
+  }
+  const [key, nominal] = entries[bestIdx];
+  const nextEntry = entries[bestIdx + 1];
+  const nextNominal = nextEntry ? nextEntry[1] : nominal;
+  return { key, nominal, nextNominal };
+}
+
+export function recommendSize(
+  adjustedLengthMm: number,
+  sizeOffset: number = 0,
+): SizeRecommendation {
+  const effectiveMm = adjustedLengthMm - sizeOffset;
+  const uk = pickClosestSize(UK_SIZE_TO_LENGTH_MM, effectiveMm);
+  const eu = pickClosestSize(EU_SIZE_TO_LENGTH_MM, effectiveMm);
+  const us = pickClosestSize(US_SIZE_TO_LENGTH_MM, effectiveMm);
+  const headroomMm = Math.max(0, uk.nextNominal - effectiveMm);
+  const borderlineTight = effectiveMm > uk.nominal && headroomMm < 2;
+  return {
+    uk: uk.key,
+    eu: eu.key,
+    us: us.key,
+    headroomMm,
+    borderlineTight,
+  };
+}
 
 export type SockEntry = {
   brand: string;

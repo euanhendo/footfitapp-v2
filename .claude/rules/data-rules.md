@@ -20,6 +20,7 @@ Array of boot objects. All measurements in mm. Every entry must include:
   "maxLength": 0,
   "minWidth": 0,
   "maxWidth": 0,
+  "sizeOffset": 0,
   "price": 0,
   "notes": "string",
   "purchaseUrl": "https://www.google.com/search?q=Brand+Model+site:prodirectsoccer.com",
@@ -30,6 +31,7 @@ Array of boot objects. All measurements in mm. Every entry must include:
 - `purchaseUrl` defaults to a Google search scoped to prodirectsoccer.com
 - Width ranges: narrow (~82–94mm), standard (~89–101mm), wide (~95–108mm)
 - Length ranges should cover UK 5–12 (~240–299mm)
+- `sizeOffset` (mm) shifts the per-boot size recommendation vs. the universal UK/EU/US tables. `0` = true-to-size (default). Negative = runs small (recommend going up — e.g. `-3` for a model that's consistently ~3mm short). Positive = runs large. Leave at `0` unless you have size-chart evidence.
 
 ### sockDatabase.json
 

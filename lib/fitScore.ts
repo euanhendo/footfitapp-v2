@@ -19,7 +19,8 @@ const NEAR_MISS_CAP = 5;
 const LOOSE_WIDTH_BASE = 95;
 const LOOSE_WIDTH_FLOOR = 75;
 const LOOSE_WIDTH_TAPER_PER_MM = 2;
-const IN_RANGE_WIDTH_TAPER = 20;
+const IN_RANGE_WIDTH_TAPER = 8;
+const IN_RANGE_LENGTH_TAPER = 5;
 
 export function computeDimensionScore(
   value: number,
@@ -38,7 +39,7 @@ export function computeDimensionScore(
 
   if (value >= min && value <= max) {
     const distanceFromCenter = Math.abs(value - center);
-    return Math.round(100 - 40 * (distanceFromCenter / halfRange));
+    return Math.round(100 - IN_RANGE_LENGTH_TAPER * (distanceFromCenter / halfRange));
   }
 
   const overshoot = value < min ? min - value : value - max;

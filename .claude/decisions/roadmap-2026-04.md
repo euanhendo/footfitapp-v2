@@ -1,6 +1,6 @@
 # Roadmap — April 2026
 
-Captured from brainstorm on 2026-04-15. Guides which issues get shaped next via `/add-issue` → `/shape-issue` → `/feature`. Status refreshed 2026-04-18.
+Captured from brainstorm on 2026-04-15. Guides which issues get shaped next via `/add-issue` → `/shape-issue` → `/feature`. Status refreshed 2026-04-19.
 
 ## Shipped
 
@@ -13,6 +13,7 @@ Captured from brainstorm on 2026-04-15. Guides which issues get shaped next via 
 - ✅ SockSelection search + brand grouping + images (`bc2f120`).
 - ✅ Camera scan spike — Phase 1 (pure-math scaffold) + Phase 2 (`ScannerScreen` + `ScanReviewScreen` with stub `VisionAdapter`, end-to-end navigable) (`bce9844`).
 - ✅ Narrow-profile width-score inflation fix — Issue #1 (`2fca24d`).
+- ✅ Fit-score + size-recommendation overhaul — flattened in-range curves (length 95–100, width 92–100), per-boot `sizeOffset` field, `recommendSize()` returning UK/EU/US + `borderlineTight` flag, ResultScreen shows "Foot with socks: X × Y mm" header and per-card "Suggested size" line.
 
 ## Remaining
 

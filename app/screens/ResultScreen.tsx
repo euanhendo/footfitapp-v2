@@ -2,7 +2,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { FlatList, Image, Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
-import { applySocketAdjustment, Boot, SockEntry } from '../../lib/fitting';
+import { applySocketAdjustment, Boot, recommendSize, SockEntry } from '../../lib/fitting';
 import { computeAffinityBoost, getScoreBreakdown, scoreAndRankBoots, ScoredBoot } from '../../lib/fitScore';
 import { createFitProfileStore, StorageAdapter } from '../../lib/fitProfile';
 import { createOwnedShoesStore, OwnedShoe } from '../../lib/ownedShoes';
@@ -35,6 +35,13 @@ const WIDTH_COLOUR: Record<string, string> = {
   standard: '#2a8a3a',
   wide: '#b55a1a',
 };
+
+function nextHalfSize(uk: string): string {
+  const n = Number(uk);
+  if (!Number.isFinite(n)) return uk;
+  const next = n + 0.5;
+  return Number.isInteger(next) ? String(next) : next.toFixed(1);
+}
 
 function BootImage({ uri, label }: { uri: string; label: string }) {
   const [failed, setFailed] = useState(false);
@@ -78,6 +85,7 @@ function BootCard({
   const [expanded, setExpanded] = useState(false);
   const breakdown = getScoreBreakdown(item);
   const total = Math.min(100, breakdown.baseScore + affinityBoost);
+  const suggestedSize = recommendSize(adjustedLength, boot.sizeOffset ?? 0);
   return (
     <View style={{
       backgroundColor: '#fff',
@@ -123,6 +131,14 @@ function BootCard({
             </Text>
           </View>
         </View>
+        <Text style={{ fontSize: 13, fontWeight: '700', color: '#111', marginBottom: 4 }}>
+          Suggested size: UK {suggestedSize.uk} · EU {suggestedSize.eu} · US {suggestedSize.us}
+        </Text>
+        {suggestedSize.borderlineTight && (
+          <Text style={{ fontSize: 12, color: '#b55a1a', marginBottom: 6 }}>
+            With these socks, UK {nextHalfSize(suggestedSize.uk)} may feel better in this boot.
+          </Text>
+        )}
         <Text style={{ color: '#666', fontSize: 13, lineHeight: 18, marginBottom: 4 }}>
           {boot.notes}
         </Text>
@@ -348,7 +364,7 @@ export default function ResultScreen() {
           {genderLabel} {sportLabel}
         </Text>
         <Text style={{ color: '#ccc', fontSize: 13, marginBottom: 2 }}>
-          Foot: {safeLength} mm long × {safeWidth} mm wide
+          Foot with socks: {adjustedLength.toFixed(1)} × {adjustedWidth.toFixed(1)} mm
         </Text>
         <Text style={{ color: '#ccc', fontSize: 13 }}>
           Sock: {sockLabel}{sockAdjustment > 0 ? ` (+${sockAdjustment} mm)` : ''}

@@ -56,8 +56,8 @@ Before the first build, drop the model file into `assets/models/selfie-segmentat
 
 | File | Purpose |
 |---|---|
-| `lib/fitting.ts` | Core: size conversion, width calc, boot filtering, sock adjustment |
-| `lib/fitScore.ts` | Scoring algorithm — 0–100 fit score, near-miss detection |
+| `lib/fitting.ts` | Core: size conversion, width calc, boot filtering, sock adjustment, per-boot `recommendSize` (respects `sizeOffset`) |
+| `lib/fitScore.ts` | Scoring algorithm — 0–100 fit score (flattened in-range curves: length 95–100, width 92–100), near-miss detection |
 | `lib/fitProfile.ts` | Persisted profile — StorageAdapter pattern, versioned schema |
 | `lib/ownedShoes.ts` | Persisted list of owned shoes — StorageAdapter pattern |
 | `lib/bootListControls.ts` | Result-screen filter/sort + width-preference boost |

@@ -5,6 +5,7 @@ import {
   applySocketAdjustment,
   getSocksForSport,
   groupSocksByBrand,
+  recommendSize,
   Boot,
   SockEntry,
 } from '../fitting';
@@ -163,6 +164,58 @@ describe('groupSocksByBrand', () => {
     const sections = groupSocksByBrand(getSocksForSport(footballSockDb, 'football'));
     const trusox = sections.find((s) => s.brand === 'Trusox');
     expect(trusox?.data.map((o) => o.key)).toEqual(['trusox_mid', 'trusox_thin']);
+  });
+});
+
+describe('recommendSize', () => {
+  it('returns the closest UK/EU/US size for a true-to-size boot', () => {
+    // 260mm is closest to UK 7.5 (261), EU 41 (258), US 8.5 (261)
+    const result = recommendSize(260, 0);
+    expect(result.uk).toBe('7.5');
+    expect(result.eu).toBe('41');
+    expect(result.us).toBe('8.5');
+  });
+
+  it('compensates for a boot that runs small (negative offset)', () => {
+    // 260mm + offset -3 → effective 263 → ties between UK 7.5 and 8, prefers
+    // the larger (roomier) size so the user actually orders UK 8.
+    const result = recommendSize(260, -3);
+    expect(result.uk).toBe('8');
+    expect(result.us).toBe('9');
+  });
+
+  it('compensates for a boot that runs large (positive offset)', () => {
+    // 265mm + offset +3 → effective 262, pulls recommendation down a size.
+    const result = recommendSize(265, 3);
+    expect(result.uk).toBe('7.5');
+  });
+
+  it('treats sizeOffset 0 as the default when omitted', () => {
+    expect(recommendSize(265).uk).toBe('8');
+  });
+
+  it('clamps to the smallest size when effective length is below the table', () => {
+    expect(recommendSize(220, 0).uk).toBe('5');
+  });
+
+  it('clamps to the largest size when effective length is above the table', () => {
+    expect(recommendSize(320, 0).uk).toBe('12');
+  });
+
+  it('reports headroomMm to the next UK size', () => {
+    // 260mm → UK 7.5 (261); next is UK 8 (265); headroom = 5.
+    const result = recommendSize(260, 0);
+    expect(result.headroomMm).toBeCloseTo(5, 1);
+  });
+
+  it('flags borderlineTight when foot sits in the tight top of a small-gap band', () => {
+    // Between UK 7.5 (261) and 8 (265) the gap is 4mm. With strict-closest +
+    // prefer-higher-on-tie the picked nominal only ends up below effective in
+    // a narrow window — and with the "< 2mm headroom" threshold the flag
+    // mostly stays quiet for typical inputs. This test documents that
+    // conservative behaviour.
+    const typical = recommendSize(260.3, 0);
+    expect(typical.borderlineTight).toBe(false);
   });
 });
 

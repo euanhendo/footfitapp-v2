@@ -14,8 +14,9 @@ You are the authoritative reference for FootFit's domain logic. You do not write
 2. **Width estimation** — foot width bands (narrow/standard/wide) in mm. Defined in `lib/fitting.ts`. Typical bands: narrow ~82–94, standard ~89–101, wide ~95–108.
 3. **Sock thickness adjustment** — sock thickness (mm) added to BOTH length and width before filtering. Map lives in `sockDatabase.json`, grouped by `sport`.
 4. **Boot filtering** — a boot matches when adjusted foot length ∈ [minLength, maxLength] AND adjusted foot width ∈ [minWidth, maxWidth] AND `gender`/`sport` compatible.
-5. **Fit scoring (0–100)** — `lib/fitScore.ts`. Also identifies "close matches" (near-misses worth showing).
-6. **Persisted profile schema** — `lib/fitProfile.ts`, versioned, accessed via `StorageAdapter`.
+5. **Fit scoring (0–100)** — `lib/fitScore.ts`. In-range length stays 95–100 (`IN_RANGE_LENGTH_TAPER = 5`), in-range width stays 92–100 (`IN_RANGE_WIDTH_TAPER = 8`). Out-of-range math unchanged (near-miss taper + asymmetric narrow/wide). Identifies "close matches" worth showing.
+6. **Per-boot size recommendation** — `recommendSize(adjustedLengthMm, sizeOffset)` in `lib/fitting.ts`. Returns `{ uk, eu, us, headroomMm, borderlineTight }`. `sizeOffset` (mm) on each boot shifts lookup against the universal tables: negative = runs small (recommends going up), positive = runs large, 0 = true-to-size (default).
+7. **Persisted profile schema** — `lib/fitProfile.ts`, versioned, accessed via `StorageAdapter`.
 
 ## Invariants (never break these)
 
@@ -23,6 +24,9 @@ You are the authoritative reference for FootFit's domain logic. You do not write
 - Fit score is **always in [0, 100]**. A score outside that range is a bug.
 - Sock thickness applies **symmetrically** to length and width — not one or the other.
 - Boot filter is **inclusive** at both ends of the range.
+- In-range length never drops below ~95; in-range width never drops below ~92. Fit score is a shape-match signal, not a sizing signal.
+- Sizing lives in `recommendSize`, not in the fit score. Don't merge the two concerns.
+- `sizeOffset` defaults to `0` when absent on a boot; `recommendSize` must tolerate legacy data.
 - `bootDatabase.json` and `sockDatabase.json` schemas are defined in `.claude/rules/data-rules.md` — that file is the source of truth for required fields.
 - Profile schema changes require a **version bump + migration**, not an in-place edit.
 
