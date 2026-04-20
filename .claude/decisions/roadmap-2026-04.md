@@ -14,6 +14,7 @@ Captured from brainstorm on 2026-04-15. Guides which issues get shaped next via 
 - ✅ Camera scan spike — Phase 1 (pure-math scaffold) + Phase 2 (`ScannerScreen` + `ScanReviewScreen` with stub `VisionAdapter`, end-to-end navigable) (`bce9844`).
 - ✅ Narrow-profile width-score inflation fix — Issue #1 (`2fca24d`).
 - ✅ Fit-score + size-recommendation overhaul — flattened in-range curves (length 95–100, width 92–100), per-boot `sizeOffset` field, `recommendSize()` returning UK/EU/US + `borderlineTight` flag, ResultScreen shows "Foot with socks: X × Y mm" header and per-card "Suggested size" line.
+- ✅ Per-brand fit calibration — `OwnedShoe.fitRating` (tight/true/loose), `computePersonalOffsetMm()` averaged and clamped ±2 mm, `effectiveSizeOffset()` stacks personal delta on top of each boot's static `sizeOffset`, OwnedShoesScreen three-pill rater, ResultScreen "Adjusted for your {brand} fits" line.
 
 ## Abandoned
 
@@ -60,4 +61,4 @@ Because Nike's approach is **classical CV, not ML**, a revival likely sidesteps 
 
 ## Priority
 
-1. None currently shaped. Brainstorm the next milestone via `/brainstorm`.
+1. Next milestone: **scanner revival via classical CV** (Apple Vision `VNDetectContoursRequest` against an A4 reference). Kick off with `/brainstorm scanner revival — classical CV`, then `/add-issue` → `/shape-issue` before touching code. Do **not** retry TFLite segmentation — see the abandon + revival-intent notes above.
