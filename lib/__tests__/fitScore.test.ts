@@ -1,66 +1,47 @@
 import {
-  computeDimensionScore,
   computeWidthScore,
   computeFitScore,
   scoreAndRankBoots,
+  scoreLengthFromGap,
   generateExplanation,
   getScoreBreakdown,
 } from '../fitScore';
 import { Boot, estimateWidthFromLength, getEstimatedLengthMm } from '../fitting';
 
-describe('computeDimensionScore', () => {
-  // Range: [248, 299], center = 273.5, halfRange = 25.5. In-range taper is 5pt,
-  // so length in-range always lands between 95 and 100 — the score rewards
-  // being inside the model's range and leaves size-picking to `recommendSize`.
-  it('returns 100 at exact center of range', () => {
-    expect(computeDimensionScore(273.5, 248, 299, 10)).toBe(100);
+describe('scoreLengthFromGap', () => {
+  // Comfort gap = (recommendedNominalMm + effectiveSizeOffset) - adjustedLength.
+  // Negative gap means foot is bigger than the boot's actual length at the
+  // recommended size — a pinch. Large positive gap is sloppy.
+  it('returns 60 for a pinch (gap < 0)', () => {
+    expect(scoreLengthFromGap(-2)).toBe(60);
+    expect(scoreLengthFromGap(-0.5)).toBe(60);
   });
 
-  it('returns 95 at min boundary', () => {
-    // 100 - 5 * (25.5 / 25.5) = 95
-    expect(computeDimensionScore(248, 248, 299, 10)).toBe(95);
+  it('returns 80 for a tight gap (0–1 mm)', () => {
+    expect(scoreLengthFromGap(0)).toBe(80);
+    expect(scoreLengthFromGap(1)).toBe(80);
   });
 
-  it('returns 95 at max boundary', () => {
-    expect(computeDimensionScore(299, 248, 299, 10)).toBe(95);
+  it('returns 100 for a sweet-spot gap (2–4 mm)', () => {
+    expect(scoreLengthFromGap(2)).toBe(100);
+    expect(scoreLengthFromGap(3)).toBe(100);
+    expect(scoreLengthFromGap(4)).toBe(100);
   });
 
-  it('scores below 60 when just outside range', () => {
-    // 1mm below min, tolerance 5
-    const score = computeDimensionScore(247, 248, 299, 5);
-    expect(score).toBe(48); // 60 * (1 - 1/5) = 48
+  it('returns 90 for a comfortable gap (>4–7 mm)', () => {
+    expect(scoreLengthFromGap(5)).toBe(90);
+    expect(scoreLengthFromGap(6)).toBe(90);
+    expect(scoreLengthFromGap(7)).toBe(90);
   });
 
-  it('returns 0 at tolerance distance outside', () => {
-    expect(computeDimensionScore(243, 248, 299, 5)).toBe(0);
+  it('returns 80 for a roomy gap (>7–10 mm)', () => {
+    expect(scoreLengthFromGap(8)).toBe(80);
+    expect(scoreLengthFromGap(10)).toBe(80);
   });
 
-  it('clamps to 0 when far outside', () => {
-    expect(computeDimensionScore(230, 248, 299, 5)).toBe(0);
-  });
-
-  it('stays near 100 even 25% from center toward edge', () => {
-    // 25% of halfRange (25.5) = 6.375 from center
-    // score = 100 - 5 * (6.375 / 25.5) = 100 - 1.25 → 99
-    expect(computeDimensionScore(279.875, 248, 299, 10)).toBe(99);
-  });
-
-  it('keeps any in-range length above 94', () => {
-    for (const value of [248, 260, 273.5, 285, 299]) {
-      expect(computeDimensionScore(value, 248, 299, 10)).toBeGreaterThanOrEqual(95);
-    }
-  });
-
-  it('handles zero-width range (min === max)', () => {
-    expect(computeDimensionScore(265, 265, 265, 5)).toBe(100);
-    expect(computeDimensionScore(266, 265, 265, 5)).toBe(48); // 60 * (1 - 1/5)
-    expect(computeDimensionScore(270, 265, 265, 5)).toBe(0);
-  });
-
-  it('handles outside on the low side', () => {
-    // 2mm below min, tolerance 5
-    const score = computeDimensionScore(246, 248, 299, 5);
-    expect(score).toBe(36); // 60 * (1 - 2/5) = 36
+  it('returns 70 for a sloppy gap (>10 mm)', () => {
+    expect(scoreLengthFromGap(12)).toBe(70);
+    expect(scoreLengthFromGap(30)).toBe(70);
   });
 });
 
@@ -131,22 +112,46 @@ describe('computeFitScore', () => {
     imageUrl: 'https://example.com/img.png',
   };
 
-  it('scores near 100 when perfectly centered', () => {
-    // Center length = 273.5, center width = 95
+  it('marks as exact match when measurements are inside boot range', () => {
     const result = computeFitScore(testBoot, 273.5, 95);
-    expect(result.score).toBeGreaterThanOrEqual(95);
     expect(result.isExactMatch).toBe(true);
   });
 
-  it('still rewards edge-of-range measurements as strong in-range matches', () => {
+  it('scores 100 for a foot in the sweet-spot gap at the recommended size', () => {
+    // Foot 272 → closest UK 9 nominal 274, gap = 2mm → length 100.
+    // Width 95 is centred in [89, 101] → width 100. Combined total 100.
+    const result = computeFitScore(testBoot, 272, 95);
+    expect(result.lengthScore).toBe(100);
+    expect(result.score).toBe(100);
+  });
+
+  it('reflects a tight comfort gap at the recommended size', () => {
+    // Foot 273.5 → UK 9 (274) is closest, gap 0.5mm → tight → 80.
+    const result = computeFitScore(testBoot, 273.5, 95);
+    expect(result.lengthScore).toBe(80);
+  });
+
+  it('still rewards edge-of-range measurements as in-range matches', () => {
+    // Foot 248 sits on UK 6 nominal, gap 0 → 80 (tight).
+    // Width 89 at minWidth → 92.
     const result = computeFitScore(testBoot, 248, 89);
-    // length at min boundary: 100 - 5 = 95
-    expect(result.lengthScore).toBe(95);
-    // width at min boundary: 100 - 8 = 92
+    expect(result.lengthScore).toBe(80);
     expect(result.widthScore).toBe(92);
-    // 95*0.4 + 92*0.6 = 38 + 55.2 = 93.2 → 93
-    expect(result.score).toBe(93);
+    // 80*0.4 + 92*0.6 = 32 + 55.2 = 87.2 → 87
+    expect(result.score).toBe(87);
     expect(result.isExactMatch).toBe(true);
+  });
+
+  it('gives different length scores to in-range boots with different sizeOffset', () => {
+    // Regression: the old flat in-range length curve collapsed every displayed
+    // boot into 95–100, so the breakdown row gave no information. With the
+    // comfort-gap curve, a runs-large boot (sizeOffset: +3) shifts the
+    // recommended size and therefore the gap — must produce a different score.
+    const runsTrue: Boot = { ...testBoot, sizeOffset: 0 };
+    const runsLarge: Boot = { ...testBoot, sizeOffset: 3 };
+    const a = computeFitScore(runsTrue, 274, 95);
+    const b = computeFitScore(runsLarge, 274, 95);
+    expect(a.lengthScore).not.toBe(b.lengthScore);
   });
 
   it('treats narrow-foot-in-wider-boot as an exact match', () => {
@@ -459,10 +464,12 @@ describe('getScoreBreakdown', () => {
   });
 
   it('preserves raw dimension scores on breakdown', () => {
+    // Foot 248 hits UK 6 nominal exactly, so gap=0 → length 80 (tight).
+    // Width 89 at minWidth → 92. Combined 80*0.4 + 92*0.6 = 87.
     const scored = computeFitScore(testBoot, 248, 89);
     const breakdown = getScoreBreakdown(scored);
-    expect(breakdown.lengthScore).toBe(95);
+    expect(breakdown.lengthScore).toBe(80);
     expect(breakdown.widthScore).toBe(92);
-    expect(breakdown.baseScore).toBe(93);
+    expect(breakdown.baseScore).toBe(87);
   });
 });

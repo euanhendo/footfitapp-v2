@@ -1,14 +1,17 @@
 import { StorageAdapter } from './fitProfile';
 
+export type FitRating = 'tight' | 'true' | 'loose';
+
 export type OwnedShoe = {
   brand: string;
   model: string;
   gender: string;
   savedAt: string;
+  fitRating?: FitRating;
 };
 
-export type OwnedShoesV1 = {
-  version: 1;
+export type OwnedShoesV2 = {
+  version: 2;
   shoes: OwnedShoe[];
 };
 
@@ -24,7 +27,7 @@ export function createOwnedShoesStore(storage: StorageAdapter) {
     if (!raw) return [];
     try {
       const parsed = JSON.parse(raw);
-      if (parsed.version !== 1 || !Array.isArray(parsed.shoes)) return [];
+      if ((parsed.version !== 1 && parsed.version !== 2) || !Array.isArray(parsed.shoes)) return [];
       return parsed.shoes as OwnedShoe[];
     } catch {
       return [];
@@ -32,7 +35,7 @@ export function createOwnedShoesStore(storage: StorageAdapter) {
   }
 
   async function save(shoes: OwnedShoe[]): Promise<void> {
-    const payload: OwnedShoesV1 = { version: 1, shoes };
+    const payload: OwnedShoesV2 = { version: 2, shoes };
     await storage.setItem(OWNED_SHOES_KEY, JSON.stringify(payload));
   }
 
@@ -51,6 +54,18 @@ export function createOwnedShoesStore(storage: StorageAdapter) {
     async remove(shoe: { brand: string; model: string; gender: string }): Promise<OwnedShoe[]> {
       const current = await load();
       const next = current.filter((s) => !sameShoe(s, shoe));
+      await save(next);
+      return next;
+    },
+
+    async rate(
+      shoe: { brand: string; model: string; gender: string },
+      fitRating: FitRating | null,
+    ): Promise<OwnedShoe[]> {
+      const current = await load();
+      const next = current.map((s) =>
+        sameShoe(s, shoe) ? { ...s, fitRating: fitRating ?? undefined } : s,
+      );
       await save(next);
       return next;
     },

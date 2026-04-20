@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import { Boot } from '../../lib/fitting';
 import { StorageAdapter } from '../../lib/fitProfile';
-import { createOwnedShoesStore, OwnedShoe } from '../../lib/ownedShoes';
+import { createOwnedShoesStore, FitRating, OwnedShoe } from '../../lib/ownedShoes';
 import bootDatabase from '../../bootDatabase.json';
 
 const boots = bootDatabase as Boot[];
@@ -60,6 +60,12 @@ export default function OwnedShoesScreen() {
     setOwned(next);
   };
 
+  const handleRate = async (shoe: OwnedShoe, rating: FitRating) => {
+    const nextRating = shoe.fitRating === rating ? null : rating;
+    const next = await ownedStore.rate(shoe, nextRating);
+    setOwned(next);
+  };
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f9f9f9' }}>
       <View style={{ flex: 1, padding: 20 }}>
@@ -72,6 +78,11 @@ export default function OwnedShoesScreen() {
 
         {!adding && (
           <>
+            {owned.length > 0 && (
+              <Text style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>
+                Tap how each pair fits — we&apos;ll adjust brand recommendations for you.
+              </Text>
+            )}
             <FlatList
               data={owned}
               keyExtractor={(item) => `${item.brand}-${item.model}-${item.gender}`}
@@ -88,26 +99,58 @@ export default function OwnedShoesScreen() {
                   marginBottom: 10,
                   borderWidth: 1,
                   borderColor: '#ebebeb',
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
                 }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: '#111' }}>
-                      {item.brand} {item.model}
-                    </Text>
-                    <Text style={{ fontSize: 12, color: '#666', marginTop: 2 }}>
-                      {item.gender === 'mens' ? "Men's" : item.gender === 'womens' ? "Women's" : 'Unisex'}
-                    </Text>
+                  <View style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 15, fontWeight: '700', color: '#111' }}>
+                        {item.brand} {item.model}
+                      </Text>
+                      <Text style={{ fontSize: 12, color: '#666', marginTop: 2 }}>
+                        {item.gender === 'mens' ? "Men's" : item.gender === 'womens' ? "Women's" : 'Unisex'}
+                      </Text>
+                    </View>
+                    <Pressable
+                      onPress={() => handleRemove(item)}
+                      style={{ paddingHorizontal: 10, paddingVertical: 6 }}
+                    >
+                      <Text style={{ color: '#b55a1a', fontSize: 13, fontWeight: '700' }}>
+                        Remove
+                      </Text>
+                    </Pressable>
                   </View>
-                  <Pressable
-                    onPress={() => handleRemove(item)}
-                    style={{ paddingHorizontal: 10, paddingVertical: 6 }}
-                  >
-                    <Text style={{ color: '#b55a1a', fontSize: 13, fontWeight: '700' }}>
-                      Remove
-                    </Text>
-                  </Pressable>
+                  <View style={{ flexDirection: 'row', marginTop: 10, gap: 6 }}>
+                    {(['tight', 'true', 'loose'] as FitRating[]).map((rating) => {
+                      const selected = item.fitRating === rating;
+                      return (
+                        <Pressable
+                          key={rating}
+                          onPress={() => handleRate(item, rating)}
+                          style={{
+                            flex: 1,
+                            paddingVertical: 8,
+                            borderRadius: 8,
+                            borderWidth: 1,
+                            borderColor: selected ? '#111' : '#ebebeb',
+                            backgroundColor: selected ? '#111' : '#fff',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <Text style={{
+                            fontSize: 12,
+                            fontWeight: '700',
+                            color: selected ? '#fff' : '#666',
+                            textTransform: 'capitalize',
+                          }}>
+                            {rating === 'true' ? 'True to size' : rating}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
                 </View>
               )}
             />

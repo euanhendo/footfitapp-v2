@@ -2,7 +2,8 @@ import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { FlatList, Image, Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
-import { applySocketAdjustment, Boot, recommendSize, SockEntry } from '../../lib/fitting';
+import { applySocketAdjustment, Boot, effectiveSizeOffset, recommendSize, SockEntry } from '../../lib/fitting';
+import { computePersonalOffsetMm } from '../../lib/fitCalibration';
 import { computeAffinityBoost, getScoreBreakdown, scoreAndRankBoots, ScoredBoot } from '../../lib/fitScore';
 import { createFitProfileStore, StorageAdapter } from '../../lib/fitProfile';
 import { createOwnedShoesStore, OwnedShoe } from '../../lib/ownedShoes';
@@ -71,6 +72,7 @@ function BootCard({
   sockLabel,
   adjustedLength,
   adjustedWidth,
+  ownedShoes,
 }: {
   item: ScoredBoot;
   muted?: boolean;
@@ -80,12 +82,14 @@ function BootCard({
   sockLabel: string;
   adjustedLength: number;
   adjustedWidth: number;
+  ownedShoes: OwnedShoe[];
 }) {
   const boot = item.boot;
   const [expanded, setExpanded] = useState(false);
   const breakdown = getScoreBreakdown(item);
   const total = Math.min(100, breakdown.baseScore + affinityBoost);
-  const suggestedSize = recommendSize(adjustedLength, boot.sizeOffset ?? 0);
+  const personalOffset = computePersonalOffsetMm(ownedShoes, boot.brand);
+  const suggestedSize = recommendSize(adjustedLength, effectiveSizeOffset(boot, ownedShoes));
   return (
     <View style={{
       backgroundColor: '#fff',
@@ -134,6 +138,11 @@ function BootCard({
         <Text style={{ fontSize: 13, fontWeight: '700', color: '#111', marginBottom: 4 }}>
           Suggested size: UK {suggestedSize.uk} · EU {suggestedSize.eu} · US {suggestedSize.us}
         </Text>
+        {personalOffset !== 0 && (
+          <Text style={{ fontSize: 11, color: '#666', marginBottom: 4, fontStyle: 'italic' }}>
+            Adjusted for your {boot.brand} fits
+          </Text>
+        )}
         {suggestedSize.borderlineTight && (
           <Text style={{ fontSize: 12, color: '#b55a1a', marginBottom: 6 }}>
             With these socks, UK {nextHalfSize(suggestedSize.uk)} may feel better in this boot.
@@ -242,12 +251,19 @@ export default function ResultScreen() {
 
   const { adjustedLength, adjustedWidth } = applySocketAdjustment(safeLength, safeWidth, sockAdjustment);
 
-  const { matches: rawMatches, nearMisses: rawNearMisses } = scoreAndRankBoots(boots, adjustedLength, adjustedWidth, sport ?? '', gender ?? '');
-
   const [ownedShoes, setOwnedShoes] = useState<OwnedShoe[]>([]);
   useEffect(() => {
     ownedStore.load().then(setOwnedShoes);
   }, []);
+
+  const { matches: rawMatches, nearMisses: rawNearMisses } = scoreAndRankBoots(
+    boots,
+    adjustedLength,
+    adjustedWidth,
+    sport ?? '',
+    gender ?? '',
+    ownedShoes,
+  );
 
   const applyAffinity = (s: ScoredBoot): { scored: ScoredBoot; matchedShoe: OwnedShoe | null; boost: number; total: number } => {
     const { boost, matchedShoe } = computeAffinityBoost(s.boot, ownedShoes, boots);
@@ -375,6 +391,22 @@ export default function ResultScreen() {
         {headerText}
       </Text>
 
+      {widthProfile === 'wide' && (
+        <View style={{
+          backgroundColor: '#fff',
+          borderRadius: 14,
+          padding: 14,
+          marginHorizontal: 16,
+          marginBottom: 12,
+          borderWidth: 1,
+          borderColor: '#ebebeb',
+        }}>
+          <Text style={{ fontSize: 13, color: '#666', lineHeight: 18 }}>
+            Wide-fit boots are scarcer across brands — here are your closest matches.
+          </Text>
+        </View>
+      )}
+
       <View style={{ paddingHorizontal: 16, marginBottom: 10 }}>
         <View style={{ flexDirection: 'row', marginBottom: 8, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: '#ebebeb' }}>
           {(['score', 'price-asc', 'price-desc'] as SortMode[]).map((mode) => {
@@ -466,6 +498,7 @@ export default function ResultScreen() {
             sockLabel={sockLabel}
             adjustedLength={adjustedLength}
             adjustedWidth={adjustedWidth}
+            ownedShoes={ownedShoes}
           />
         )}
         ListFooterComponent={
@@ -492,6 +525,7 @@ export default function ResultScreen() {
                   sockLabel={sockLabel}
                   adjustedLength={adjustedLength}
                   adjustedWidth={adjustedWidth}
+                  ownedShoes={ownedShoes}
                   muted
                 />
               ))}

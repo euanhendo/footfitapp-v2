@@ -1,3 +1,6 @@
+import { computePersonalOffsetMm } from './fitCalibration';
+import { OwnedShoe } from './ownedShoes';
+
 export const UK_SIZE_TO_LENGTH_MM: Record<string, number> = {
   '5': 240,
   '5.5': 244,
@@ -120,6 +123,10 @@ function pickClosestSize(
   const nextEntry = entries[bestIdx + 1];
   const nextNominal = nextEntry ? nextEntry[1] : nominal;
   return { key, nominal, nextNominal };
+}
+
+export function effectiveSizeOffset(boot: Boot, ownedShoes: OwnedShoe[]): number {
+  return (boot.sizeOffset ?? 0) + computePersonalOffsetMm(ownedShoes, boot.brand);
 }
 
 export function recommendSize(

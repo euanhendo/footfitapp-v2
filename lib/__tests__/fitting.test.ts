@@ -6,9 +6,11 @@ import {
   getSocksForSport,
   groupSocksByBrand,
   recommendSize,
+  effectiveSizeOffset,
   Boot,
   SockEntry,
 } from '../fitting';
+import { OwnedShoe } from '../ownedShoes';
 
 describe('getEstimatedLengthMm', () => {
   it('returns correct mm for UK sizes', () => {
@@ -336,5 +338,49 @@ describe('filterBoots', () => {
   it('returns empty array when nothing matches', () => {
     const results = filterBoots(testBoots, 200, 70, 'football', 'mens');
     expect(results).toEqual([]);
+  });
+});
+
+describe('effectiveSizeOffset', () => {
+  const nikeBoot: Boot = {
+    brand: 'Nike',
+    model: 'Phantom GX II',
+    gender: 'mens',
+    sport: 'football',
+    width: 'standard',
+    minLength: 260,
+    maxLength: 280,
+    minWidth: 89,
+    maxWidth: 101,
+    price: 220,
+    notes: '',
+    purchaseUrl: '',
+    imageUrl: '',
+    sizeOffset: 0,
+  };
+
+  function shoe(brand: string, fitRating?: 'tight' | 'true' | 'loose'): OwnedShoe {
+    return { brand, model: 'm', gender: 'mens', savedAt: '2026-04-20T00:00:00.000Z', fitRating };
+  }
+
+  it('returns boot sizeOffset when no owned shoes', () => {
+    expect(effectiveSizeOffset(nikeBoot, [])).toBe(0);
+  });
+
+  it('adds personal tight delta to catalogue offset', () => {
+    const tightNike = { ...nikeBoot, sizeOffset: -2 };
+    // catalogue -2 + personal -1 = -3
+    expect(effectiveSizeOffset(tightNike, [shoe('Nike', 'tight')])).toBe(-3);
+  });
+
+  it('tight Nike rating yields a larger recommended UK size than no rating', () => {
+    const adjustedMm = 266; // UK 8 under offset 0; effective 267 ties 8/8.5 → picks 8.5
+    const without = recommendSize(adjustedMm, effectiveSizeOffset(nikeBoot, []));
+    const withTight = recommendSize(adjustedMm, effectiveSizeOffset(nikeBoot, [shoe('Nike', 'tight')]));
+    expect(parseFloat(withTight.uk)).toBeGreaterThan(parseFloat(without.uk));
+  });
+
+  it('ignores unrated owned shoes', () => {
+    expect(effectiveSizeOffset(nikeBoot, [shoe('Nike')])).toBe(0);
   });
 });

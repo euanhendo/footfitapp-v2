@@ -1,4 +1,9 @@
-import { Boot } from './fitting';
+import {
+  Boot,
+  effectiveSizeOffset,
+  recommendSize,
+  UK_SIZE_TO_LENGTH_MM,
+} from './fitting';
 import { OwnedShoe } from './ownedShoes';
 
 export type ScoredBoot = {
@@ -20,30 +25,39 @@ const LOOSE_WIDTH_BASE = 95;
 const LOOSE_WIDTH_FLOOR = 75;
 const LOOSE_WIDTH_TAPER_PER_MM = 2;
 const IN_RANGE_WIDTH_TAPER = 8;
-const IN_RANGE_LENGTH_TAPER = 5;
 
-export function computeDimensionScore(
-  value: number,
-  min: number,
-  max: number,
-  tolerance: number,
+// Length score measures the comfort gap at the recommended size —
+// `(recommendedNominalMm + effectiveSizeOffset) - adjustedLength`. A small
+// positive gap is the football-boot sweet spot; negative is pinch, large is
+// sloppy. filterBoots already gates out-of-range boots; this curve only
+// shapes the in-range signal so the breakdown row earns its place.
+export function scoreLengthFromGap(gapMm: number): number {
+  if (gapMm < 0) return 60;
+  if (gapMm <= 1) return 80;
+  if (gapMm <= 4) return 100;
+  if (gapMm <= 7) return 90;
+  if (gapMm <= 10) return 80;
+  return 70;
+}
+
+function computeLengthScore(
+  boot: Boot,
+  adjustedLength: number,
+  ownedShoes: OwnedShoe[],
 ): number {
-  if (min === max) {
-    if (value === min) return 100;
-    const overshoot = Math.abs(value - min);
-    return Math.max(0, Math.round(60 * (1 - overshoot / tolerance)));
+  const lengthInRange = adjustedLength >= boot.minLength && adjustedLength <= boot.maxLength;
+  if (!lengthInRange) {
+    const overshoot = adjustedLength < boot.minLength
+      ? boot.minLength - adjustedLength
+      : adjustedLength - boot.maxLength;
+    return Math.max(0, Math.round(60 * (1 - overshoot / LENGTH_TOLERANCE)));
   }
 
-  const center = (min + max) / 2;
-  const halfRange = (max - min) / 2;
-
-  if (value >= min && value <= max) {
-    const distanceFromCenter = Math.abs(value - center);
-    return Math.round(100 - IN_RANGE_LENGTH_TAPER * (distanceFromCenter / halfRange));
-  }
-
-  const overshoot = value < min ? min - value : value - max;
-  return Math.max(0, Math.round(60 * (1 - overshoot / tolerance)));
+  const sizeOffset = effectiveSizeOffset(boot, ownedShoes);
+  const rec = recommendSize(adjustedLength, sizeOffset);
+  const nominalMm = UK_SIZE_TO_LENGTH_MM[rec.uk] ?? 0;
+  const gap = nominalMm + sizeOffset - adjustedLength;
+  return scoreLengthFromGap(gap);
 }
 
 // Width is asymmetric: a narrow foot in a wider boot is recoverable with laces,
@@ -133,13 +147,9 @@ export function computeFitScore(
   boot: Boot,
   adjustedLength: number,
   adjustedWidth: number,
+  ownedShoes: OwnedShoe[] = [],
 ): ScoredBoot {
-  const lengthScore = computeDimensionScore(
-    adjustedLength,
-    boot.minLength,
-    boot.maxLength,
-    LENGTH_TOLERANCE,
-  );
+  const lengthScore = computeLengthScore(boot, adjustedLength, ownedShoes);
   const widthScore = computeWidthScore(
     adjustedWidth,
     boot.minWidth,
@@ -220,6 +230,7 @@ export function scoreAndRankBoots(
   adjustedWidth: number,
   sport: string,
   gender: string,
+  ownedShoes: OwnedShoe[] = [],
 ): { matches: ScoredBoot[]; nearMisses: ScoredBoot[] } {
   const eligible = boots.filter(
     (b) =>
@@ -227,7 +238,9 @@ export function scoreAndRankBoots(
       (gender === 'unisex' || b.gender === gender || b.gender === 'unisex'),
   );
 
-  const scored = eligible.map((boot) => computeFitScore(boot, adjustedLength, adjustedWidth));
+  const scored = eligible.map((boot) =>
+    computeFitScore(boot, adjustedLength, adjustedWidth, ownedShoes),
+  );
 
   const matches = scored
     .filter((s) => s.isExactMatch)
