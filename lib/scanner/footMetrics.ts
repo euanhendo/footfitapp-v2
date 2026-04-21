@@ -1,4 +1,5 @@
-import { BBox, FootMetrics, Mask } from './types';
+import { minAreaRect } from './orientedBBox';
+import { BBox, FootMetrics, Mask, Point } from './types';
 
 const EXPECTED_ASPECT_MIN = 2.0;
 const EXPECTED_ASPECT_MAX = 3.8;
@@ -55,6 +56,23 @@ export function computeFootMetrics(footMask: Mask, pxPerMm: number): FootMetrics
   const confidence = scoreConfidence(fillRatio, aspect);
 
   return { lengthMm, widthMm, confidence };
+}
+
+export function computeFootMetricsFromContour(contour: Point[]): FootMetrics {
+  if (!contour || contour.length < 3) {
+    return { lengthMm: 0, widthMm: 0, confidence: 0 };
+  }
+  const rect = minAreaRect(contour);
+  if (rect.lengthMm === 0) {
+    return { lengthMm: 0, widthMm: 0, confidence: 0 };
+  }
+  const aspect = rect.lengthMm / Math.max(rect.widthMm, 1);
+  const confidence = Math.max(0, Math.min(1, rangeScore(aspect, EXPECTED_ASPECT_MIN, EXPECTED_ASPECT_MAX)));
+  return {
+    lengthMm: rect.lengthMm,
+    widthMm: rect.widthMm,
+    confidence,
+  };
 }
 
 function scoreConfidence(fillRatio: number, aspect: number): number {

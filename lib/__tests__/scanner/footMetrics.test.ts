@@ -1,5 +1,10 @@
-import { computeFootMetrics, maskBoundingBox, maskPixelCount } from '../../scanner/footMetrics';
-import { Mask } from '../../scanner/types';
+import {
+  computeFootMetrics,
+  computeFootMetricsFromContour,
+  maskBoundingBox,
+  maskPixelCount,
+} from '../../scanner/footMetrics';
+import { Mask, Point } from '../../scanner/types';
 
 function rectMask(width: number, height: number, filled: { x: number; y: number; w: number; h: number }): Mask {
   const data = new Uint8Array(width * height);
@@ -91,5 +96,68 @@ describe('computeFootMetrics', () => {
   it('throws if pxPerMm is not positive', () => {
     const mask = rectMask(10, 10, { x: 0, y: 0, w: 5, h: 5 });
     expect(() => computeFootMetrics(mask, 0)).toThrow();
+  });
+});
+
+describe('computeFootMetricsFromContour', () => {
+  it('returns zeroed metrics for an empty contour', () => {
+    const m = computeFootMetricsFromContour([]);
+    expect(m.lengthMm).toBe(0);
+    expect(m.widthMm).toBe(0);
+    expect(m.confidence).toBe(0);
+  });
+
+  it('measures an axis-aligned rectangle directly in mm', () => {
+    const contour: Point[] = [
+      { x: 0, y: 0 },
+      { x: 260, y: 0 },
+      { x: 260, y: 95 },
+      { x: 0, y: 95 },
+    ];
+    const m = computeFootMetricsFromContour(contour);
+    expect(m.lengthMm).toBeCloseTo(260, 3);
+    expect(m.widthMm).toBeCloseTo(95, 3);
+    expect(m.confidence).toBeGreaterThan(0.9);
+  });
+
+  it('measures a rotated rectangle along its own axis, not the paper axis', () => {
+    const base: Point[] = [];
+    for (let t = 0; t <= 260; t += 4) base.push({ x: t, y: 0 });
+    for (let t = 0; t <= 95; t += 4) base.push({ x: 260, y: t });
+    for (let t = 260; t >= 0; t -= 4) base.push({ x: t, y: 95 });
+    for (let t = 95; t >= 0; t -= 4) base.push({ x: 0, y: t });
+    const angle = Math.PI / 7;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const rotated = base.map((p) => ({
+      x: p.x * cos - p.y * sin + 50,
+      y: p.x * sin + p.y * cos + 50,
+    }));
+    const m = computeFootMetricsFromContour(rotated);
+    expect(m.lengthMm).toBeCloseTo(260, 0);
+    expect(m.widthMm).toBeCloseTo(95, 0);
+  });
+
+  it('returns low confidence for a roughly square contour (not foot-shaped)', () => {
+    const contour: Point[] = [
+      { x: 0, y: 0 },
+      { x: 100, y: 0 },
+      { x: 100, y: 100 },
+      { x: 0, y: 100 },
+    ];
+    const m = computeFootMetricsFromContour(contour);
+    expect(m.confidence).toBeLessThan(0.5);
+  });
+
+  it('confidence is in [0, 1]', () => {
+    const contour: Point[] = [
+      { x: 0, y: 0 },
+      { x: 260, y: 0 },
+      { x: 260, y: 95 },
+      { x: 0, y: 95 },
+    ];
+    const m = computeFootMetricsFromContour(contour);
+    expect(m.confidence).toBeGreaterThanOrEqual(0);
+    expect(m.confidence).toBeLessThanOrEqual(1);
   });
 });

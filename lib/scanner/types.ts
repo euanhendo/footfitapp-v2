@@ -1,5 +1,7 @@
 export type Point = { x: number; y: number };
 
+export type Contour = Point[];
+
 export type BBox = {
   x: number;
   y: number;
