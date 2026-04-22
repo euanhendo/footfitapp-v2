@@ -1,5 +1,6 @@
 import { minAreaRect } from './orientedBBox';
-import { BBox, FootMetrics, Mask, Point } from './types';
+import { getReferenceObject } from './referenceObjects';
+import { BBox, DetectedContours, FootMetrics, Mask, Point, ReferenceKind } from './types';
 
 const EXPECTED_ASPECT_MIN = 2.0;
 const EXPECTED_ASPECT_MAX = 3.8;
@@ -73,6 +74,36 @@ export function computeFootMetricsFromContour(contour: Point[]): FootMetrics {
     widthMm: rect.widthMm,
     confidence,
   };
+}
+
+export function measureFromContours(
+  detected: DetectedContours,
+  referenceKind: ReferenceKind,
+): FootMetrics {
+  const ref = getReferenceObject(referenceKind);
+  const refRect = minAreaRect(detected.reference);
+  if (refRect.lengthMm <= 0 || refRect.widthMm <= 0) {
+    return { lengthMm: 0, widthMm: 0, confidence: 0 };
+  }
+  const normPerMm = (refRect.lengthMm / ref.longMm + refRect.widthMm / ref.shortMm) / 2;
+  if (normPerMm <= 0) {
+    return { lengthMm: 0, widthMm: 0, confidence: 0 };
+  }
+  const footRect = minAreaRect(detected.foot);
+  if (footRect.lengthMm <= 0) {
+    return { lengthMm: 0, widthMm: 0, confidence: 0 };
+  }
+  const lengthMm = footRect.lengthMm / normPerMm;
+  const widthMm = footRect.widthMm / normPerMm;
+
+  const detectedRatio = refRect.widthMm / refRect.lengthMm;
+  const expectedRatio = ref.shortMm / ref.longMm;
+  const calibration = Math.max(0, 1 - Math.abs(detectedRatio - expectedRatio) / expectedRatio);
+  const aspect = lengthMm / Math.max(widthMm, 1);
+  const footScore = rangeScore(aspect, EXPECTED_ASPECT_MIN, EXPECTED_ASPECT_MAX);
+  const confidence = Math.max(0, Math.min(1, calibration * footScore));
+
+  return { lengthMm, widthMm, confidence };
 }
 
 function scoreConfidence(fillRatio: number, aspect: number): number {

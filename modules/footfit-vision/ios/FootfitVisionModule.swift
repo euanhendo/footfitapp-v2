@@ -18,7 +18,7 @@ public class FootfitVisionModule: Module {
 
       DispatchQueue.global(qos: .userInitiated).async {
         let request = VNDetectContoursRequest()
-        request.contrastAdjustment = 1.0
+        request.contrastAdjustment = 3.0
         request.detectsDarkOnLight = false
         request.maximumImageDimension = 1024
 

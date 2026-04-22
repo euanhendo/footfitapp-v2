@@ -3,6 +3,7 @@ import {
   computeFootMetricsFromContour,
   maskBoundingBox,
   maskPixelCount,
+  measureFromContours,
 } from '../../scanner/footMetrics';
 import { Mask, Point } from '../../scanner/types';
 
@@ -159,5 +160,43 @@ describe('computeFootMetricsFromContour', () => {
     const m = computeFootMetricsFromContour(contour);
     expect(m.confidence).toBeGreaterThanOrEqual(0);
     expect(m.confidence).toBeLessThanOrEqual(1);
+  });
+});
+
+describe('measureFromContours', () => {
+  function rectContour(w: number, h: number, ox = 0, oy = 0): Point[] {
+    return [
+      { x: ox, y: oy },
+      { x: ox + w, y: oy },
+      { x: ox + w, y: oy + h },
+      { x: ox, y: oy + h },
+    ];
+  }
+
+  it('recovers foot length and width in mm from normalized contours', () => {
+    const normPerMm = 0.5 / 297;
+    const reference = rectContour(0.5, 210 * normPerMm, 0.1, 0.1);
+    const foot = rectContour(280 * normPerMm, 95 * normPerMm, 0.2, 0.2);
+    const m = measureFromContours({ reference, foot }, 'a4');
+    expect(m.lengthMm).toBeCloseTo(280, 0);
+    expect(m.widthMm).toBeCloseTo(95, 0);
+    expect(m.confidence).toBeGreaterThan(0.9);
+  });
+
+  it('returns zeros when reference is degenerate', () => {
+    const m = measureFromContours({ reference: [], foot: rectContour(0.3, 0.1) }, 'a4');
+    expect(m.lengthMm).toBe(0);
+    expect(m.widthMm).toBe(0);
+    expect(m.confidence).toBe(0);
+  });
+
+  it('lowers confidence when reference aspect is wrong', () => {
+    const normPerMm = 0.5 / 297;
+    const reference = rectContour(0.5, 0.5);
+    const foot = rectContour(280 * normPerMm, 95 * normPerMm);
+    const cleanRef = rectContour(0.5, 210 * normPerMm);
+    const clean = measureFromContours({ reference: cleanRef, foot }, 'a4');
+    const dirty = measureFromContours({ reference, foot }, 'a4');
+    expect(dirty.confidence).toBeLessThan(clean.confidence);
   });
 });

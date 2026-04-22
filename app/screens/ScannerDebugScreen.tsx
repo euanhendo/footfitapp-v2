@@ -4,8 +4,9 @@ import { ActivityIndicator, Alert, Animated, Pressable, ScrollView, Text, View }
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { detectContours as nativeDetectContours } from '../../modules/footfit-vision';
-import { CandidateDebug, debugTopCandidates, pickContours } from '../../lib/scanner/contourPicker';
-import { Point, ReferenceKind } from '../../lib/scanner/types';
+import { CandidateDebug, debugTopByPoints, debugTopCandidates, pickContours } from '../../lib/scanner/contourPicker';
+import { measureFromContours } from '../../lib/scanner/footMetrics';
+import { FootMetrics, Point, ReferenceKind } from '../../lib/scanner/types';
 
 type Result = {
   totalContours: number;
@@ -13,6 +14,8 @@ type Result = {
   footPoints: number;
   rawSample: Point[];
   topCandidates: CandidateDebug[];
+  topByPoints: CandidateDebug[];
+  metrics: FootMetrics | null;
 };
 
 export default function ScannerDebugScreen() {
@@ -60,12 +63,16 @@ export default function ScannerDebugScreen() {
       const raw = await nativeDetectContours(photo.uri);
       const picked = pickContours(raw, kind);
       const topCandidates = debugTopCandidates(raw, kind, 5);
+      const topByPoints = debugTopByPoints(raw, 5);
+      const metrics = picked ? measureFromContours(picked, kind) : null;
       setResult({
         totalContours: raw.length,
         referencePoints: picked?.reference.length ?? 0,
         footPoints: picked?.foot.length ?? 0,
         rawSample: raw[0]?.slice(0, 3) ?? [],
         topCandidates,
+        topByPoints,
+        metrics,
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -196,6 +203,27 @@ export default function ScannerDebugScreen() {
             <Text style={{ color: '#fff', fontSize: 13, marginBottom: 4 }}>
               Foot points: {result.footPoints}
             </Text>
+            {result.metrics && (
+              <View style={{ marginTop: 10, padding: 10, backgroundColor: '#1a2a1a', borderRadius: 8, borderWidth: 1, borderColor: '#2a4a2a' }}>
+                <Text style={{ color: '#7bff9f', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 4, textTransform: 'uppercase' }}>
+                  Measurement
+                </Text>
+                <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>
+                  Length: {result.metrics.lengthMm.toFixed(1)} mm
+                </Text>
+                <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>
+                  Width: {result.metrics.widthMm.toFixed(1)} mm
+                </Text>
+                <Text style={{ color: '#ccc', fontSize: 12, marginTop: 2 }}>
+                  Confidence: {(result.metrics.confidence * 100).toFixed(0)}%
+                </Text>
+                {result.metrics.widthMm > 0 && (
+                  <Text style={{ color: '#888', fontSize: 11, marginTop: 2 }}>
+                    Foot aspect: {(result.metrics.lengthMm / result.metrics.widthMm).toFixed(2)} (expected 2.2–2.8)
+                  </Text>
+                )}
+              </View>
+            )}
             {result.rawSample.length > 0 && (
               <Text style={{ color: '#888', fontSize: 11, marginTop: 6 }}>
                 First-contour sample: {result.rawSample.map((p) => `(${p.x.toFixed(2)}, ${p.y.toFixed(2)})`).join(' ')}
@@ -210,6 +238,19 @@ export default function ScannerDebugScreen() {
                 {result.topCandidates.map((c, i) => (
                   <Text key={i} style={{ color: i === 0 ? '#7bff9f' : '#ccc', fontSize: 11, fontFamily: 'Courier', marginBottom: 2 }}>
                     {`#${i + 1}  pts=${c.points.toString().padStart(4)}  asp=${c.aspect.toFixed(2)}  fill=${c.fillRatio.toFixed(2)}  area=${c.area.toExponential(1)}  score=${c.score.toFixed(3)}`}
+                  </Text>
+                ))}
+              </View>
+            )}
+
+            {result.topByPoints.length > 0 && (
+              <View style={{ marginTop: 12 }}>
+                <Text style={{ color: '#888', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 6, textTransform: 'uppercase' }}>
+                  Top 5 by raw point count (unfiltered)
+                </Text>
+                {result.topByPoints.map((c, i) => (
+                  <Text key={i} style={{ color: i === 0 ? '#ffd27b' : '#ccc', fontSize: 11, fontFamily: 'Courier', marginBottom: 2 }}>
+                    {`#${i + 1}  pts=${c.points.toString().padStart(4)}  asp=${c.aspect.toFixed(2)}  fill=${c.fillRatio.toFixed(2)}  area=${c.area.toExponential(1)}`}
                   </Text>
                 ))}
               </View>

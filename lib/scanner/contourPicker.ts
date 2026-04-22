@@ -1,6 +1,8 @@
 import { minAreaRect } from './orientedBBox';
 import { DetectedContours, Point, ReferenceKind } from './types';
 
+const MIN_RELATIVE_AREA = 0.001;
+
 type ContourStats = {
   contour: Point[];
   area: number;
@@ -71,7 +73,10 @@ export function pickContours(
   contours: Point[][],
   referenceKind: ReferenceKind,
 ): DetectedContours | null {
-  const stats = contours.map(statsFor).filter((s): s is ContourStats => s !== null);
+  const stats = contours
+    .map(statsFor)
+    .filter((s): s is ContourStats => s !== null)
+    .filter((s) => s.area >= MIN_RELATIVE_AREA);
   if (stats.length < 2) return null;
 
   const targetAspect = referenceAspect(referenceKind);
@@ -106,7 +111,10 @@ export function debugTopCandidates(
   referenceKind: ReferenceKind,
   limit = 5,
 ): CandidateDebug[] {
-  const stats = contours.map(statsFor).filter((s): s is ContourStats => s !== null);
+  const stats = contours
+    .map(statsFor)
+    .filter((s): s is ContourStats => s !== null)
+    .filter((s) => s.area >= MIN_RELATIVE_AREA);
   const targetAspect = referenceAspect(referenceKind);
   return stats
     .map((s) => ({
@@ -117,5 +125,35 @@ export function debugTopCandidates(
       score: s.fillRatio / (1 + Math.abs(s.aspect - targetAspect)),
     }))
     .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
+}
+
+export function debugTopByPoints(contours: Point[][], limit = 5): CandidateDebug[] {
+  return contours
+    .filter((c) => c.length > 0)
+    .map((c) => {
+      let minX = Infinity;
+      let maxX = -Infinity;
+      let minY = Infinity;
+      let maxY = -Infinity;
+      for (const p of c) {
+        if (p.x < minX) minX = p.x;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.y > maxY) maxY = p.y;
+      }
+      const w = Math.max(maxX - minX, 1e-6);
+      const h = Math.max(maxY - minY, 1e-6);
+      const aspect = Math.max(w, h) / Math.max(Math.min(w, h), 1e-6);
+      const area = polygonArea(c);
+      return {
+        points: c.length,
+        area,
+        aspect,
+        fillRatio: area / (w * h),
+        score: 0,
+      };
+    })
+    .sort((a, b) => b.points - a.points)
     .slice(0, limit);
 }
