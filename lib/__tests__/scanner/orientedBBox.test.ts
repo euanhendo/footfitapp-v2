@@ -7,13 +7,35 @@ function rotate(p: Point, angleRad: number): Point {
   return { x: p.x * c - p.y * s, y: p.x * s + p.y * c };
 }
 
+function sortCorners(corners: Point[]): Point[] {
+  return corners.slice().sort((a, b) => (a.x === b.x ? a.y - b.y : a.x - b.x));
+}
+
+function expectCornersClose(actual: Point[], expected: Point[], decimals: number): void {
+  const a = sortCorners(actual);
+  const e = sortCorners(expected);
+  expect(a.length).toBe(e.length);
+  for (let i = 0; i < a.length; i++) {
+    expect(a[i].x).toBeCloseTo(e[i].x, decimals);
+    expect(a[i].y).toBeCloseTo(e[i].y, decimals);
+  }
+}
+
 describe('minAreaRect', () => {
   it('returns zeroed result for an empty contour', () => {
-    expect(minAreaRect([])).toEqual({ lengthMm: 0, widthMm: 0, angleRad: 0 });
+    const r = minAreaRect([]);
+    expect(r.lengthMm).toBe(0);
+    expect(r.widthMm).toBe(0);
+    expect(r.angleRad).toBe(0);
+    expect(r.corners).toHaveLength(4);
   });
 
   it('returns zeroed result for a single point', () => {
-    expect(minAreaRect([{ x: 1, y: 1 }])).toEqual({ lengthMm: 0, widthMm: 0, angleRad: 0 });
+    const r = minAreaRect([{ x: 1, y: 1 }]);
+    expect(r.lengthMm).toBe(0);
+    expect(r.widthMm).toBe(0);
+    expect(r.angleRad).toBe(0);
+    expect(r.corners).toHaveLength(4);
   });
 
   it('measures an axis-aligned rectangle with length on the long axis', () => {
@@ -76,5 +98,45 @@ describe('minAreaRect', () => {
     const r = minAreaRect(line);
     expect(r.lengthMm).toBeCloseTo(20, 5);
     expect(r.widthMm).toBeCloseTo(0, 5);
+  });
+
+  it('returns four corners matching an axis-aligned rectangle', () => {
+    const corners: Point[] = [
+      { x: 0, y: 0 },
+      { x: 260, y: 0 },
+      { x: 260, y: 95 },
+      { x: 0, y: 95 },
+    ];
+    const r = minAreaRect(corners);
+    expectCornersClose(r.corners, corners, 3);
+  });
+
+  it('returns four corners matching a 45-degree rotated rectangle', () => {
+    const base: Point[] = [
+      { x: 0, y: 0 },
+      { x: 100, y: 0 },
+      { x: 100, y: 50 },
+      { x: 0, y: 50 },
+    ];
+    const rotated = base.map((p) => rotate(p, Math.PI / 4));
+    const r = minAreaRect(rotated);
+    expectCornersClose(r.corners, rotated, 3);
+  });
+
+  it('returned corners form a rectangle with the reported length and width', () => {
+    const base: Point[] = [
+      { x: 0, y: 0 },
+      { x: 150, y: 0 },
+      { x: 150, y: 70 },
+      { x: 0, y: 70 },
+    ];
+    const rotated = base.map((p) => rotate(p, Math.PI / 3));
+    const r = minAreaRect(rotated);
+    const side01 = Math.hypot(r.corners[1].x - r.corners[0].x, r.corners[1].y - r.corners[0].y);
+    const side12 = Math.hypot(r.corners[2].x - r.corners[1].x, r.corners[2].y - r.corners[1].y);
+    const long = Math.max(side01, side12);
+    const short = Math.min(side01, side12);
+    expect(long).toBeCloseTo(r.lengthMm, 3);
+    expect(short).toBeCloseTo(r.widthMm, 3);
   });
 });

@@ -34,3 +34,8 @@ export type ScanResult = FootMetrics & {
   imageUri: string;
   reference: ReferenceKind;
 };
+
+export type DetectedContours = {
+  reference: Point[];
+  foot: Point[];
+};

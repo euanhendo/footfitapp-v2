@@ -1,0 +1,7 @@
+{
+  "name": "footfit-vision",
+  "version": "0.0.1",
+  "description": "Local Expo module wrapping Apple Vision VNDetectContoursRequest for the FootFit scanner.",
+  "main": "index.ts",
+  "private": true
+}

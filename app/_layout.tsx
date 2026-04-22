@@ -11,6 +11,7 @@ export default function Layout() {
       <Stack.Screen name="screens/MeasureGuideScreen" options={{ title: 'How to measure' }} />
       <Stack.Screen name="screens/ScannerScreen" options={{ title: 'Scan your foot' }} />
       <Stack.Screen name="screens/ScanReviewScreen" options={{ title: 'Scan result' }} />
+      <Stack.Screen name="screens/ScannerDebugScreen" options={{ title: 'Scanner debug' }} />
     </Stack>
   );
 }

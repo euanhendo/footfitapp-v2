@@ -1,12 +1,21 @@
 import { Point } from './types';
 
+export type RectCorners = [Point, Point, Point, Point];
+
 export type OrientedRect = {
   lengthMm: number;
   widthMm: number;
   angleRad: number;
+  corners: RectCorners;
 };
 
-const ZERO: OrientedRect = { lengthMm: 0, widthMm: 0, angleRad: 0 };
+const ZERO_CORNERS: RectCorners = [
+  { x: 0, y: 0 },
+  { x: 0, y: 0 },
+  { x: 0, y: 0 },
+  { x: 0, y: 0 },
+];
+const ZERO: OrientedRect = { lengthMm: 0, widthMm: 0, angleRad: 0, corners: ZERO_CORNERS };
 
 function cross(o: Point, a: Point, b: Point): number {
   return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
@@ -38,7 +47,23 @@ function convexHull(points: Point[]): Point[] {
   return lower.concat(upper);
 }
 
-function rectForEdge(hull: Point[], a: Point, b: Point): { length: number; width: number; angle: number; area: number } {
+type EdgeRect = { length: number; width: number; angle: number; area: number; corners: RectCorners };
+
+function cornersFromUV(
+  ux: number,
+  uy: number,
+  vx: number,
+  vy: number,
+  minU: number,
+  maxU: number,
+  minV: number,
+  maxV: number,
+): RectCorners {
+  const p = (u: number, v: number): Point => ({ x: u * ux + v * vx, y: u * uy + v * vy });
+  return [p(minU, minV), p(maxU, minV), p(maxU, maxV), p(minU, maxV)];
+}
+
+function rectForEdge(hull: Point[], a: Point, b: Point): EdgeRect {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const len = Math.hypot(dx, dy);
@@ -52,7 +77,13 @@ function rectForEdge(hull: Point[], a: Point, b: Point): { length: number; width
     }
     const w = maxX - minX;
     const h = maxY - minY;
-    return { length: Math.max(w, h), width: Math.min(w, h), angle: 0, area: w * h };
+    const corners: RectCorners = [
+      { x: minX, y: minY },
+      { x: maxX, y: minY },
+      { x: maxX, y: maxY },
+      { x: minX, y: maxY },
+    ];
+    return { length: Math.max(w, h), width: Math.min(w, h), angle: 0, area: w * h, corners };
   }
   const ux = dx / len;
   const uy = dy / len;
@@ -72,7 +103,8 @@ function rectForEdge(hull: Point[], a: Point, b: Point): { length: number; width
   const length = Math.max(sideU, sideV);
   const width = Math.min(sideU, sideV);
   const angle = sideU >= sideV ? Math.atan2(uy, ux) : Math.atan2(vy, vx);
-  return { length, width, angle, area: sideU * sideV };
+  const corners = cornersFromUV(ux, uy, vx, vy, minU, maxU, minV, maxV);
+  return { length, width, angle, area: sideU * sideV, corners };
 }
 
 export function minAreaRect(points: Point[]): OrientedRect {
@@ -89,6 +121,7 @@ export function minAreaRect(points: Point[]): OrientedRect {
       lengthMm: length,
       widthMm: 0,
       angleRad: Math.atan2(b.y - a.y, b.x - a.x),
+      corners: [{ ...a }, { ...b }, { ...b }, { ...a }],
     };
   }
 
@@ -104,5 +137,6 @@ export function minAreaRect(points: Point[]): OrientedRect {
     lengthMm: best.length,
     widthMm: best.width,
     angleRad: best.angle,
+    corners: best.corners,
   };
 }

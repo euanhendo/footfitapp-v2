@@ -171,6 +171,25 @@ export default function HomeScreen() {
           ))}
         </View>
 
+        {__DEV__ && (
+          <Pressable
+            onPress={() => router.push('/screens/ScannerDebugScreen')}
+            style={{
+              marginBottom: 16,
+              borderRadius: 10,
+              borderWidth: 1,
+              borderStyle: 'dashed',
+              borderColor: '#b55a1a',
+              paddingVertical: 10,
+              alignItems: 'center',
+            }}
+          >
+            <Text style={{ fontSize: 12, fontWeight: '700', color: '#b55a1a', letterSpacing: 1 }}>
+              SCANNER DEBUG (DEV ONLY)
+            </Text>
+          </Pressable>
+        )}
+
         {selectedSport && (
           <>
             <Text style={{ fontSize: 13, fontWeight: '700', color: '#999', letterSpacing: 1, marginBottom: 12, textTransform: 'uppercase' }}>

@@ -1,4 +1,4 @@
-import { BBox, Mask, ReferenceKind } from './types';
+import { BBox, DetectedContours, Mask, ReferenceKind } from './types';
 
 export type VisionAdapter = {
   segmentFoot: (imageUri: string) => Promise<Mask>;
@@ -7,6 +7,10 @@ export type VisionAdapter = {
     kind: ReferenceKind,
     hint?: BBox,
   ) => Promise<BBox | null>;
+  detectContours?: (
+    imageUri: string,
+    kind: ReferenceKind,
+  ) => Promise<DetectedContours | null>;
 };
 
 export function createFixedVisionAdapter(mask: Mask, referenceBox: BBox | null): VisionAdapter {
