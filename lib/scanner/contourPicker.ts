@@ -82,7 +82,7 @@ export function pickContours(
   const targetAspect = referenceAspect(referenceKind);
   const scored = stats.map((s) => ({
     s,
-    score: s.fillRatio / (1 + Math.abs(s.aspect - targetAspect)),
+    score: s.fillRatio / (1 + 5 * Math.abs(s.aspect - targetAspect)),
   }));
   scored.sort((a, b) => b.score - a.score);
   const reference = scored[0].s;
@@ -122,7 +122,7 @@ export function debugTopCandidates(
       area: s.area,
       aspect: s.aspect,
       fillRatio: s.fillRatio,
-      score: s.fillRatio / (1 + Math.abs(s.aspect - targetAspect)),
+      score: s.fillRatio / (1 + 5 * Math.abs(s.aspect - targetAspect)),
     }))
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
