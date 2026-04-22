@@ -92,10 +92,9 @@ export function pickContours(
     .filter((s) => s !== reference)
     .filter((s) => pointInPolygon(centroid(s.contour), referenceCorners));
   if (remaining.length === 0) return null;
-  remaining.sort((a, b) => b.area - a.area);
-  const foot = remaining[0];
+  const foot = remaining.flatMap((s) => s.contour);
 
-  return { reference: reference.contour, foot: foot.contour };
+  return { reference: reference.contour, foot };
 }
 
 export type CandidateDebug = {

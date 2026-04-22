@@ -1,4 +1,5 @@
 import { pickContours } from '../../scanner/contourPicker';
+import { minAreaRect } from '../../scanner/orientedBBox';
 import { Point } from '../../scanner/types';
 
 function rect(x: number, y: number, w: number, h: number): Point[] {
@@ -75,12 +76,15 @@ describe('pickContours', () => {
     expect(result!.foot).toEqual(insideFoot);
   });
 
-  it('picks the larger of two foot candidates when both centroids are inside the reference', () => {
+  it('unions all foot-fragment candidates whose centroids are inside the reference', () => {
     const a4 = rect(0, 0, 297, 210);
-    const bigFoot = footShape(50, 50, 2);
-    const smallFoot = footShape(150, 100, 0.4);
-    const result = pickContours([smallFoot, a4, bigFoot], 'a4');
-    expect(result!.foot).toEqual(bigFoot);
+    const fragmentA = rect(30, 30, 20, 20);
+    const fragmentB = rect(210, 110, 20, 20);
+    const result = pickContours([fragmentA, a4, fragmentB], 'a4');
+    expect(result).not.toBeNull();
+    const unioned = minAreaRect(result!.foot);
+    const fragLen = Math.max(minAreaRect(fragmentA).lengthMm, minAreaRect(fragmentB).lengthMm);
+    expect(unioned.lengthMm).toBeGreaterThan(fragLen * 2);
   });
 
   it('returns null when no non-reference contour has its centroid inside the reference', () => {
