@@ -2,13 +2,26 @@ import { requireNativeModule } from 'expo-modules-core';
 
 import { Point } from '../../lib/scanner/types';
 
+export type DetectedScene = {
+  quad: Point[] | null;
+  contours: Point[][];
+};
+
+type NativeScene = {
+  quad: number[][] | null;
+  contours: number[][][];
+};
+
 type NativeModule = {
-  detectContours: (uri: string) => Promise<number[][][]>;
+  detectScene: (uri: string) => Promise<NativeScene>;
 };
 
 const FootfitVision = requireNativeModule<NativeModule>('FootfitVision');
 
-export async function detectContours(uri: string): Promise<Point[][]> {
-  const raw = await FootfitVision.detectContours(uri);
-  return raw.map((contour) => contour.map(([x, y]) => ({ x, y })));
+export async function detectScene(uri: string): Promise<DetectedScene> {
+  const raw = await FootfitVision.detectScene(uri);
+  return {
+    quad: raw.quad ? raw.quad.map(([x, y]) => ({ x, y })) : null,
+    contours: raw.contours.map((contour) => contour.map(([x, y]) => ({ x, y }))),
+  };
 }

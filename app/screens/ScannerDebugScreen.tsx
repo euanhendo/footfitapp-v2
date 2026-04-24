@@ -3,20 +3,34 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Animated, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { detectContours as nativeDetectContours } from '../../modules/footfit-vision';
-import { CandidateDebug, debugTopByPoints, debugTopCandidates, pickContours } from '../../lib/scanner/contourPicker';
-import { measureFromContours } from '../../lib/scanner/footMetrics';
+import { detectScene } from '../../modules/footfit-vision';
+import { pickFootFromQuad } from '../../lib/scanner/contourPicker';
+import { measureFromQuadAndFoot } from '../../lib/scanner/footMetrics';
 import { FootMetrics, Point, ReferenceKind } from '../../lib/scanner/types';
 
 type Result = {
   totalContours: number;
+  quadFound: boolean;
+  quadAspect: number | null;
   referencePoints: number;
   footPoints: number;
-  rawSample: Point[];
-  topCandidates: CandidateDebug[];
-  topByPoints: CandidateDebug[];
   metrics: FootMetrics | null;
 };
+
+function quadAspect(quad: Point[]): number | null {
+  if (!quad || quad.length !== 4) return null;
+  const [tl, tr, br, bl] = quad;
+  const top = Math.hypot(tr.x - tl.x, tr.y - tl.y);
+  const right = Math.hypot(br.x - tr.x, br.y - tr.y);
+  const bottom = Math.hypot(br.x - bl.x, br.y - bl.y);
+  const left = Math.hypot(bl.x - tl.x, bl.y - tl.y);
+  const horiz = (top + bottom) / 2;
+  const vert = (right + left) / 2;
+  const long = Math.max(horiz, vert);
+  const short = Math.min(horiz, vert);
+  if (long === 0) return null;
+  return short / long;
+}
 
 export default function ScannerDebugScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -60,18 +74,15 @@ export default function ScannerDebugScreen() {
         setError('Camera returned no image.');
         return;
       }
-      const raw = await nativeDetectContours(photo.uri);
-      const picked = pickContours(raw, kind);
-      const topCandidates = debugTopCandidates(raw, kind, 5);
-      const topByPoints = debugTopByPoints(raw, 5);
-      const metrics = picked ? measureFromContours(picked, kind) : null;
+      const { quad, contours } = await detectScene(photo.uri);
+      const picked = quad ? pickFootFromQuad(quad, contours) : null;
+      const metrics = picked ? measureFromQuadAndFoot(picked.reference, picked.foot, kind) : null;
       setResult({
-        totalContours: raw.length,
+        totalContours: contours.length,
+        quadFound: !!quad,
+        quadAspect: quad ? quadAspect(quad) : null,
         referencePoints: picked?.reference.length ?? 0,
         footPoints: picked?.foot.length ?? 0,
-        rawSample: raw[0]?.slice(0, 3) ?? [],
-        topCandidates,
-        topByPoints,
         metrics,
       });
     } catch (err) {
@@ -121,11 +132,10 @@ export default function ScannerDebugScreen() {
             How to test (keep consistent)
           </Text>
           <Text style={{ color: '#ddd', fontSize: 12, lineHeight: 18 }}>
-            1. Lay A4 flat on a dark, plain surface (wood / dark rug — not white tile).{'\n'}
-            2. Stand bare-footed on the A4. Heel at one short edge, toes pointing to the other.{'\n'}
-            3. Hold phone directly overhead, parallel to the floor (not tilted).{'\n'}
-            4. Frame the whole A4 + foot with ~10% margin around the paper.{'\n'}
-            5. Even light, no shadow of you or the phone on the paper. Hold still, then tap Capture.
+            1. Lay A4 flat on the floor with one <Text style={{ fontWeight: '800' }}>short edge pressed against a wall</Text>.{'\n'}
+            2. Stand facing the wall. Slide your foot onto the paper so your <Text style={{ fontWeight: '800' }}>heel presses against the wall</Text> (and the paper edge).{'\n'}
+            3. Hold the phone directly overhead, parallel to the floor. Frame the whole A4 and your foot with ~10% margin.{'\n'}
+            4. Even light, no shadow of you or the phone on the paper. Tap Capture.
           </Text>
         </View>
 
@@ -194,19 +204,25 @@ export default function ScannerDebugScreen() {
 
         {result && (
           <View>
-            <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700', marginBottom: 6 }}>
+            <View style={{ marginBottom: 10, padding: 10, backgroundColor: '#1a1a2a', borderRadius: 8, borderWidth: 1, borderColor: '#2a2a4a' }}>
+              <Text style={{ color: '#7b9fff', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 4, textTransform: 'uppercase' }}>
+                A4 quad (VNDetectRectanglesRequest)
+              </Text>
+              <Text style={{ color: result.quadFound ? '#7b9fff' : '#ff7b7b', fontSize: 13, fontWeight: '700' }}>
+                {result.quadFound ? 'Found' : 'Not found'}
+                {result.quadAspect !== null && ` · aspect ${result.quadAspect.toFixed(3)} (A4 ≈ 0.707)`}
+              </Text>
+            </View>
+            <Text style={{ color: '#fff', fontSize: 13, marginBottom: 4 }}>
               Total contours: {result.totalContours}
             </Text>
             <Text style={{ color: '#fff', fontSize: 13, marginBottom: 4 }}>
-              Reference points: {result.referencePoints}
+              Foot points (inside quad): {result.footPoints}
             </Text>
-            <Text style={{ color: '#fff', fontSize: 13, marginBottom: 4 }}>
-              Foot points: {result.footPoints}
-            </Text>
-            {result.metrics && (
+            {result.metrics ? (
               <View style={{ marginTop: 10, padding: 10, backgroundColor: '#1a2a1a', borderRadius: 8, borderWidth: 1, borderColor: '#2a4a2a' }}>
                 <Text style={{ color: '#7bff9f', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 4, textTransform: 'uppercase' }}>
-                  Measurement
+                  Measurement (heel-at-wall)
                 </Text>
                 <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>
                   Length: {result.metrics.lengthMm.toFixed(1)} mm
@@ -223,37 +239,10 @@ export default function ScannerDebugScreen() {
                   </Text>
                 )}
               </View>
-            )}
-            {result.rawSample.length > 0 && (
-              <Text style={{ color: '#888', fontSize: 11, marginTop: 6 }}>
-                First-contour sample: {result.rawSample.map((p) => `(${p.x.toFixed(2)}, ${p.y.toFixed(2)})`).join(' ')}
+            ) : (
+              <Text style={{ color: '#ff7b7b', fontSize: 12, marginTop: 8 }}>
+                No measurement — {result.quadFound ? 'no foot contour inside the quad' : 'no A4 quad detected'}.
               </Text>
-            )}
-
-            {result.topCandidates.length > 0 && (
-              <View style={{ marginTop: 12 }}>
-                <Text style={{ color: '#888', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 6, textTransform: 'uppercase' }}>
-                  Top 5 candidates (by score)
-                </Text>
-                {result.topCandidates.map((c, i) => (
-                  <Text key={i} style={{ color: i === 0 ? '#7bff9f' : '#ccc', fontSize: 11, fontFamily: 'Courier', marginBottom: 2 }}>
-                    {`#${i + 1}  pts=${c.points.toString().padStart(4)}  asp=${c.aspect.toFixed(2)}  fill=${c.fillRatio.toFixed(2)}  area=${c.area.toExponential(1)}  score=${c.score.toFixed(3)}`}
-                  </Text>
-                ))}
-              </View>
-            )}
-
-            {result.topByPoints.length > 0 && (
-              <View style={{ marginTop: 12 }}>
-                <Text style={{ color: '#888', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 6, textTransform: 'uppercase' }}>
-                  Top 5 by raw point count (unfiltered)
-                </Text>
-                {result.topByPoints.map((c, i) => (
-                  <Text key={i} style={{ color: i === 0 ? '#ffd27b' : '#ccc', fontSize: 11, fontFamily: 'Courier', marginBottom: 2 }}>
-                    {`#${i + 1}  pts=${c.points.toString().padStart(4)}  asp=${c.aspect.toFixed(2)}  fill=${c.fillRatio.toFixed(2)}  area=${c.area.toExponential(1)}`}
-                  </Text>
-                ))}
-              </View>
             )}
           </View>
         )}

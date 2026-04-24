@@ -1,4 +1,4 @@
-import { pickContours } from '../../scanner/contourPicker';
+import { pickContours, pickFootFromQuad } from '../../scanner/contourPicker';
 import { minAreaRect } from '../../scanner/orientedBBox';
 import { Point } from '../../scanner/types';
 
@@ -92,5 +92,43 @@ describe('pickContours', () => {
     const farBlob = footShape(2000, 2000, 3);
     const result = pickContours([farBlob, a4], 'a4');
     expect(result).toBeNull();
+  });
+});
+
+describe('pickFootFromQuad', () => {
+  const quad: Point[] = rect(0, 0, 297, 210);
+
+  it('returns null when quad is not 4 corners', () => {
+    expect(pickFootFromQuad([], [footShape(50, 50, 1)])).toBeNull();
+    expect(pickFootFromQuad(quad.slice(0, 3), [footShape(50, 50, 1)])).toBeNull();
+  });
+
+  it('includes contours whose centroid sits inside the quad', () => {
+    const foot = footShape(100, 100, 1);
+    const result = pickFootFromQuad(quad, [foot]);
+    expect(result).not.toBeNull();
+    expect(result!.reference).toBe(quad);
+    expect(result!.foot).toEqual(foot);
+  });
+
+  it('excludes contours whose centroid sits outside the quad', () => {
+    const inside = footShape(100, 100, 1);
+    const outside = footShape(1500, 1500, 5);
+    const result = pickFootFromQuad(quad, [outside, inside]);
+    expect(result).not.toBeNull();
+    expect(result!.foot).toEqual(inside);
+  });
+
+  it('unions multiple inside contours into a single foot', () => {
+    const fragA = rect(30, 30, 20, 20);
+    const fragB = rect(210, 110, 20, 20);
+    const result = pickFootFromQuad(quad, [fragA, fragB]);
+    expect(result).not.toBeNull();
+    expect(result!.foot).toHaveLength(fragA.length + fragB.length);
+  });
+
+  it('returns null when no contour is inside the quad', () => {
+    const outside = footShape(2000, 2000, 3);
+    expect(pickFootFromQuad(quad, [outside])).toBeNull();
   });
 });

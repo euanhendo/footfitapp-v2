@@ -1,0 +1,74 @@
+import { measureFromQuadAndFoot } from '../../scanner/footMetrics';
+import { Point } from '../../scanner/types';
+
+function axisAlignedA4(pxPerMm: number): Point[] {
+  const w = 297 * pxPerMm;
+  const h = 210 * pxPerMm;
+  return [
+    { x: 0, y: 0 },
+    { x: w, y: 0 },
+    { x: w, y: h },
+    { x: 0, y: h },
+  ];
+}
+
+function rotate(points: Point[], degrees: number, cx: number, cy: number): Point[] {
+  const rad = (degrees * Math.PI) / 180;
+  const c = Math.cos(rad);
+  const s = Math.sin(rad);
+  return points.map((p) => ({
+    x: cx + (p.x - cx) * c - (p.y - cy) * s,
+    y: cy + (p.x - cx) * s + (p.y - cy) * c,
+  }));
+}
+
+function footRect(x0: number, x1: number, y0: number, y1: number): Point[] {
+  return [
+    { x: x0, y: y0 },
+    { x: x1, y: y0 },
+    { x: x1, y: y1 },
+    { x: x0, y: y1 },
+  ];
+}
+
+describe('measureFromQuadAndFoot', () => {
+  it('measures axis-aligned A4 with foot crossing a short edge', () => {
+    const quad = axisAlignedA4(1);
+    const foot = footRect(0, 250, 80, 140);
+    const result = measureFromQuadAndFoot(quad, foot, 'a4');
+    expect(Math.abs(result.lengthMm - 250)).toBeLessThanOrEqual(2);
+    expect(Math.abs(result.widthMm - 60)).toBeLessThanOrEqual(2);
+    expect(result.confidence).toBeGreaterThan(0);
+  });
+
+  it('measures a 30°-rotated A4 with the same tolerance', () => {
+    const base = axisAlignedA4(1);
+    const foot = footRect(0, 250, 80, 140);
+    const cx = 148.5;
+    const cy = 105;
+    const quad = rotate(base, 30, cx, cy);
+    const rotatedFoot = rotate(foot, 30, cx, cy);
+    const result = measureFromQuadAndFoot(quad, rotatedFoot, 'a4');
+    expect(Math.abs(result.lengthMm - 250)).toBeLessThanOrEqual(2);
+    expect(Math.abs(result.widthMm - 60)).toBeLessThanOrEqual(2);
+    expect(result.confidence).toBeGreaterThan(0);
+  });
+
+  it('picks a short edge as heel even when foot crosses a long edge (wrong orientation)', () => {
+    const quad = axisAlignedA4(1);
+    const foot = footRect(80, 220, 10, 150);
+    const result = measureFromQuadAndFoot(quad, foot, 'a4');
+    expect(result.lengthMm).toBeGreaterThan(200);
+    expect(result.confidence).toBe(0);
+  });
+
+  it('returns zeros when quad is not 4 corners', () => {
+    const result = measureFromQuadAndFoot([{ x: 0, y: 0 }], [{ x: 1, y: 1 }], 'a4');
+    expect(result).toEqual({ lengthMm: 0, widthMm: 0, confidence: 0 });
+  });
+
+  it('returns zeros when foot is empty', () => {
+    const result = measureFromQuadAndFoot(axisAlignedA4(1), [], 'a4');
+    expect(result).toEqual({ lengthMm: 0, widthMm: 0, confidence: 0 });
+  });
+});

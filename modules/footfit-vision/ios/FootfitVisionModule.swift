@@ -6,7 +6,7 @@ public class FootfitVisionModule: Module {
   public func definition() -> ModuleDefinition {
     Name("FootfitVision")
 
-    AsyncFunction("detectContours") { (uri: String, promise: Promise) in
+    AsyncFunction("detectScene") { (uri: String, promise: Promise) in
       guard let url = Self.resolveURL(uri) else {
         promise.reject("E_URI", "Unable to parse image URI: \(uri)")
         return
@@ -17,33 +17,53 @@ public class FootfitVisionModule: Module {
       }
 
       DispatchQueue.global(qos: .userInitiated).async {
-        let request = VNDetectContoursRequest()
-        request.contrastAdjustment = 3.0
-        request.detectsDarkOnLight = false
-        request.maximumImageDimension = 1024
+        let rectRequest = VNDetectRectanglesRequest()
+        rectRequest.minimumAspectRatio = 0.5
+        rectRequest.maximumAspectRatio = 0.8
+        rectRequest.minimumSize = 0.15
+        rectRequest.quadratureTolerance = 25
+        rectRequest.maximumObservations = 1
+
+        let contoursRequest = VNDetectContoursRequest()
+        contoursRequest.contrastAdjustment = 3.0
+        contoursRequest.detectsDarkOnLight = false
+        contoursRequest.maximumImageDimension = 1024
 
         let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
         do {
-          try handler.perform([request])
+          try handler.perform([rectRequest, contoursRequest])
         } catch {
-          promise.reject("E_VISION", "VNDetectContoursRequest failed: \(error.localizedDescription)")
+          promise.reject("E_VISION", "Vision requests failed: \(error.localizedDescription)")
           return
         }
 
-        guard let observation = request.results?.first as? VNContoursObservation else {
-          promise.resolve([] as [[[Double]]])
-          return
+        var quad: [[Double]]? = nil
+        if let obs = rectRequest.results?.first {
+          quad = [
+            [Double(obs.topLeft.x), Double(obs.topLeft.y)],
+            [Double(obs.topRight.x), Double(obs.topRight.y)],
+            [Double(obs.bottomRight.x), Double(obs.bottomRight.y)],
+            [Double(obs.bottomLeft.x), Double(obs.bottomLeft.y)],
+          ]
         }
 
-        do {
-          let contours = try Self.flattenContours(observation)
-          let serialized: [[[Double]]] = contours.map { contour in
-            contour.normalizedPoints.map { [Double($0.x), Double($0.y)] }
+        var contours: [[[Double]]] = []
+        if let observation = contoursRequest.results?.first as? VNContoursObservation {
+          do {
+            let flat = try Self.flattenContours(observation)
+            contours = flat.map { contour in
+              contour.normalizedPoints.map { [Double($0.x), Double($0.y)] }
+            }
+          } catch {
+            promise.reject("E_CONTOURS", "Failed to walk contours: \(error.localizedDescription)")
+            return
           }
-          promise.resolve(serialized)
-        } catch {
-          promise.reject("E_CONTOURS", "Failed to walk contours: \(error.localizedDescription)")
         }
+
+        promise.resolve([
+          "quad": quad as Any,
+          "contours": contours,
+        ])
       }
     }
   }

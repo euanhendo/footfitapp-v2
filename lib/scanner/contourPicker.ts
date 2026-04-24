@@ -69,6 +69,21 @@ function statsFor(contour: Point[]): ContourStats | null {
   };
 }
 
+export function pickFootFromQuad(
+  quad: Point[],
+  contours: Point[][],
+): DetectedContours | null {
+  if (!quad || quad.length !== 4) return null;
+  const inside = contours
+    .map(statsFor)
+    .filter((s): s is ContourStats => s !== null)
+    .filter((s) => s.area >= MIN_RELATIVE_AREA)
+    .filter((s) => pointInPolygon(centroid(s.contour), quad));
+  if (inside.length === 0) return null;
+  const foot = inside.flatMap((s) => s.contour);
+  return { reference: quad, foot };
+}
+
 export function pickContours(
   contours: Point[][],
   referenceKind: ReferenceKind,

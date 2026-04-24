@@ -106,6 +106,114 @@ export function measureFromContours(
   return { lengthMm, widthMm, confidence };
 }
 
+type QuadEdge = {
+  a: Point;
+  b: Point;
+  length: number;
+  dx: number;
+  dy: number;
+  nx: number;
+  ny: number;
+};
+
+function buildEdges(quad: Point[]): QuadEdge[] | null {
+  const cx = (quad[0].x + quad[1].x + quad[2].x + quad[3].x) / 4;
+  const cy = (quad[0].y + quad[1].y + quad[2].y + quad[3].y) / 4;
+  const edges: QuadEdge[] = [];
+  for (let i = 0; i < 4; i++) {
+    const a = quad[i];
+    const b = quad[(i + 1) % 4];
+    const vx = b.x - a.x;
+    const vy = b.y - a.y;
+    const len = Math.hypot(vx, vy);
+    if (len === 0) return null;
+    const dx = vx / len;
+    const dy = vy / len;
+    const mx = (a.x + b.x) / 2;
+    const my = (a.y + b.y) / 2;
+    let nx = -dy;
+    let ny = dx;
+    if (nx * (cx - mx) + ny * (cy - my) < 0) {
+      nx = -nx;
+      ny = -ny;
+    }
+    edges.push({ a, b, length: len, dx, dy, nx, ny });
+  }
+  return edges;
+}
+
+function countNearEdge(edge: QuadEdge, points: Point[]): number {
+  const threshold = edge.length * 0.08;
+  let count = 0;
+  for (const p of points) {
+    const vx = p.x - edge.a.x;
+    const vy = p.y - edge.a.y;
+    const perp = Math.abs(vx * edge.nx + vy * edge.ny);
+    if (perp <= threshold) count++;
+  }
+  return count;
+}
+
+export function measureFromQuadAndFoot(
+  quad: Point[],
+  foot: Point[],
+  referenceKind: ReferenceKind,
+): FootMetrics {
+  if (!quad || quad.length !== 4 || !foot || foot.length === 0) {
+    return { lengthMm: 0, widthMm: 0, confidence: 0 };
+  }
+  const edges = buildEdges(quad);
+  if (!edges) return { lengthMm: 0, widthMm: 0, confidence: 0 };
+
+  const sorted = [...edges].sort((l, r) => l.length - r.length);
+  const shortEdges = [sorted[0], sorted[1]];
+  const longEdges = [sorted[2], sorted[3]];
+
+  const votesA = countNearEdge(shortEdges[0], foot);
+  const votesB = countNearEdge(shortEdges[1], foot);
+  const heelEdge = votesA >= votesB ? shortEdges[0] : shortEdges[1];
+  const heelVotes = Math.max(votesA, votesB);
+  const toeVotes = Math.min(votesA, votesB);
+
+  let maxPerp = 0;
+  let minProj = Infinity;
+  let maxProj = -Infinity;
+  for (const p of foot) {
+    const vx = p.x - heelEdge.a.x;
+    const vy = p.y - heelEdge.a.y;
+    const perp = vx * heelEdge.nx + vy * heelEdge.ny;
+    if (perp > maxPerp) maxPerp = perp;
+    const proj = vx * heelEdge.dx + vy * heelEdge.dy;
+    if (proj < minProj) minProj = proj;
+    if (proj > maxProj) maxProj = proj;
+  }
+  const lengthPx = Math.max(0, maxPerp);
+  const widthPx = Math.max(0, maxProj - minProj);
+  if (lengthPx <= 0 || widthPx <= 0) {
+    return { lengthMm: 0, widthMm: 0, confidence: 0 };
+  }
+
+  const ref = getReferenceObject(referenceKind);
+  const longAvgPx = (longEdges[0].length + longEdges[1].length) / 2;
+  const shortAvgPx = (shortEdges[0].length + shortEdges[1].length) / 2;
+  const pxPerMm = (longAvgPx / ref.longMm + shortAvgPx / ref.shortMm) / 2;
+  if (pxPerMm <= 0) return { lengthMm: 0, widthMm: 0, confidence: 0 };
+
+  const lengthMm = lengthPx / pxPerMm;
+  const widthMm = widthPx / pxPerMm;
+
+  const detectedRatio = shortAvgPx / longAvgPx;
+  const expectedRatio = ref.shortMm / ref.longMm;
+  const calibration = Math.max(0, 1 - Math.abs(detectedRatio - expectedRatio) / expectedRatio);
+  const aspect = lengthMm / Math.max(widthMm, 1);
+  const footScore = rangeScore(aspect, EXPECTED_ASPECT_MIN, EXPECTED_ASPECT_MAX);
+  const denom = heelVotes + toeVotes;
+  const heelMargin = denom > 0 ? Math.max(0, Math.min(1, (heelVotes - toeVotes) / denom)) : 0;
+  const confidence = Math.max(0, Math.min(1, calibration * footScore * heelMargin));
+
+  return { lengthMm, widthMm, confidence };
+}
+
 function scoreConfidence(fillRatio: number, aspect: number): number {
   const fill = rangeScore(fillRatio, EXPECTED_FILL_MIN, EXPECTED_FILL_MAX);
   const ratio = rangeScore(aspect, EXPECTED_ASPECT_MIN, EXPECTED_ASPECT_MAX);
