@@ -16,6 +16,8 @@ public class FootfitVisionModule: Module {
         return
       }
 
+      let orientation = CGImagePropertyOrientation(image.imageOrientation)
+
       DispatchQueue.global(qos: .userInitiated).async {
         let rectRequest = VNDetectRectanglesRequest()
         rectRequest.minimumAspectRatio = 0.5
@@ -29,7 +31,7 @@ public class FootfitVisionModule: Module {
         contoursRequest.detectsDarkOnLight = false
         contoursRequest.maximumImageDimension = 1024
 
-        let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+        let handler = VNImageRequestHandler(cgImage: cgImage, orientation: orientation, options: [:])
         do {
           try handler.perform([rectRequest, contoursRequest])
         } catch {
@@ -60,9 +62,19 @@ public class FootfitVisionModule: Module {
           }
         }
 
+        // Vision results are normalized to the upright image when orientation is supplied
+        let swapped: Bool
+        switch orientation {
+        case .left, .right, .leftMirrored, .rightMirrored:
+          swapped = true
+        default:
+          swapped = false
+        }
         promise.resolve([
           "quad": quad as Any,
           "contours": contours,
+          "width": swapped ? cgImage.height : cgImage.width,
+          "height": swapped ? cgImage.width : cgImage.height,
         ])
       }
     }
@@ -90,6 +102,22 @@ public class FootfitVisionModule: Module {
       var next = indexPath
       next.append(i)
       try walk(observation: observation, indexPath: next, into: &into)
+    }
+  }
+}
+
+extension CGImagePropertyOrientation {
+  init(_ uiOrientation: UIImage.Orientation) {
+    switch uiOrientation {
+    case .up: self = .up
+    case .upMirrored: self = .upMirrored
+    case .down: self = .down
+    case .downMirrored: self = .downMirrored
+    case .left: self = .left
+    case .leftMirrored: self = .leftMirrored
+    case .right: self = .right
+    case .rightMirrored: self = .rightMirrored
+    @unknown default: self = .up
     }
   }
 }

@@ -230,13 +230,17 @@ export default function ScannerDebugScreen() {
         setError('Camera returned no image.');
         return;
       }
-      const { quad: quadNorm, contours: contoursNorm } = await detectScene(photo.uri);
-      // Vision coords are normalized to a unit square — convert to pixels before any math
-      const hasDims = (photo.width ?? 0) > 0 && (photo.height ?? 0) > 0;
-      const quad = quadNorm && hasDims ? denormalizePoints(quadNorm, photo.width, photo.height) : quadNorm;
+      const scene = await detectScene(photo.uri);
+      // Vision coords are normalized to a unit square — convert to pixels before any math.
+      // Prefer the dims Vision actually analyzed; fall back to camera dims on a stale native build.
+      const imgW = scene.width > 0 ? scene.width : (photo.width ?? 0);
+      const imgH = scene.height > 0 ? scene.height : (photo.height ?? 0);
+      const hasDims = imgW > 0 && imgH > 0;
+      const quadNorm = scene.quad;
+      const quad = quadNorm && hasDims ? denormalizePoints(quadNorm, imgW, imgH) : quadNorm;
       const contours = hasDims
-        ? contoursNorm.map((c) => denormalizePoints(c, photo.width, photo.height))
-        : contoursNorm;
+        ? scene.contours.map((c) => denormalizePoints(c, imgW, imgH))
+        : scene.contours;
       const picked = quad ? pickFootFromQuad(quad, contours) : null;
       const metrics = picked ? measureFromQuadAndFoot(picked.reference, picked.foot, kind) : null;
       if (metrics && metrics.lengthMm > 0 && metrics.confidence >= 0.3) {
@@ -266,8 +270,8 @@ export default function ScannerDebugScreen() {
         footPoints: picked?.foot.length ?? 0,
         metrics,
         photoUri: photo.uri,
-        photoW: photo.width ?? 0,
-        photoH: photo.height ?? 0,
+        photoW: imgW,
+        photoH: imgH,
         quad,
         foot: picked?.foot ?? null,
       });
