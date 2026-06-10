@@ -39,6 +39,7 @@ export default function ScannerDebugScreen() {
   const [result, setResult] = useState<Result | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
+  const [preview, setPreview] = useState<{ width: number; height: number } | null>(null);
   const cameraRef = useRef<CameraView | null>(null);
   const progress = useRef(new Animated.Value(0)).current;
 
@@ -122,8 +123,78 @@ export default function ScannerDebugScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }} edges={['bottom']}>
-      <View style={{ flex: 1 }}>
+      <View
+        style={{ flex: 1 }}
+        onLayout={(e) => setPreview({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })}
+      >
         <CameraView ref={cameraRef} style={{ flex: 1 }} facing="back" />
+        {preview &&
+          (() => {
+            // A4 portrait in frame: foot points away from the wall, wall edge at top
+            const a4Ratio = 210 / 297;
+            let guideH = preview.height * 0.86;
+            let guideW = guideH * a4Ratio;
+            if (guideW > preview.width * 0.82) {
+              guideW = preview.width * 0.82;
+              guideH = guideW / a4Ratio;
+            }
+            return (
+              <View
+                pointerEvents="none"
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <View
+                  style={{
+                    width: guideW,
+                    height: guideH,
+                    borderWidth: 2,
+                    borderStyle: 'dashed',
+                    borderColor: '#7bff9f',
+                    borderRadius: 6,
+                  }}
+                >
+                  <View style={{ height: 4, backgroundColor: '#7bff9f', borderTopLeftRadius: 6, borderTopRightRadius: 6 }} />
+                  <Text
+                    style={{
+                      color: '#7bff9f',
+                      fontSize: 11,
+                      fontWeight: '700',
+                      alignSelf: 'center',
+                      marginTop: 2,
+                      backgroundColor: 'rgba(0,0,0,0.55)',
+                      paddingHorizontal: 6,
+                      paddingVertical: 1,
+                      borderRadius: 4,
+                    }}
+                  >
+                    wall edge
+                  </Text>
+                </View>
+                <Text
+                  style={{
+                    color: '#fff',
+                    fontSize: 12,
+                    fontWeight: '700',
+                    marginTop: 8,
+                    backgroundColor: 'rgba(0,0,0,0.55)',
+                    paddingHorizontal: 8,
+                    paddingVertical: 3,
+                    borderRadius: 6,
+                  }}
+                >
+                  Match the paper to this frame
+                </Text>
+              </View>
+            );
+          })()}
       </View>
 
       <ScrollView style={{ maxHeight: 420 }} contentContainerStyle={{ padding: 16, backgroundColor: '#111' }}>
