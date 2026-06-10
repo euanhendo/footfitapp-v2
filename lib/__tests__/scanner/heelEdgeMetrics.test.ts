@@ -1,4 +1,4 @@
-import { measureFromQuadAndFoot } from '../../scanner/footMetrics';
+import { findHeelEdge, measureFromQuadAndFoot } from '../../scanner/footMetrics';
 import { Point } from '../../scanner/types';
 
 function axisAlignedA4(pxPerMm: number): Point[] {
@@ -70,5 +70,43 @@ describe('measureFromQuadAndFoot', () => {
   it('returns zeros when foot is empty', () => {
     const result = measureFromQuadAndFoot(axisAlignedA4(1), [], 'a4');
     expect(result).toEqual({ lengthMm: 0, widthMm: 0, confidence: 0 });
+  });
+});
+
+describe('findHeelEdge', () => {
+  it('returns the short edge the foot presses against', () => {
+    const quad = axisAlignedA4(1);
+    const foot = footRect(0, 250, 80, 140);
+    const heel = findHeelEdge(quad, foot);
+    expect(heel).not.toBeNull();
+    expect(heel!.a.x).toBe(0);
+    expect(heel!.b.x).toBe(0);
+  });
+
+  it('tracks the heel edge under rotation', () => {
+    const cx = 148.5;
+    const cy = 105;
+    const quad = rotate(axisAlignedA4(1), 30, cx, cy);
+    const foot = rotate(footRect(0, 250, 80, 140), 30, cx, cy);
+    const heel = findHeelEdge(quad, foot);
+    const expected = rotate(
+      [
+        { x: 0, y: 0 },
+        { x: 0, y: 210 },
+      ],
+      30,
+      cx,
+      cy,
+    );
+    expect(heel).not.toBeNull();
+    const ends = [heel!.a, heel!.b];
+    for (const corner of expected) {
+      expect(ends.some((p) => Math.hypot(p.x - corner.x, p.y - corner.y) < 1)).toBe(true);
+    }
+  });
+
+  it('returns null for malformed input', () => {
+    expect(findHeelEdge([{ x: 0, y: 0 }], [{ x: 1, y: 1 }])).toBeNull();
+    expect(findHeelEdge(axisAlignedA4(1), [])).toBeNull();
   });
 });

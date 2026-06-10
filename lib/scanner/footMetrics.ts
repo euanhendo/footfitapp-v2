@@ -154,6 +154,29 @@ function countNearEdge(edge: QuadEdge, points: Point[]): number {
   return count;
 }
 
+function voteHeelEdge(edges: QuadEdge[], foot: Point[]) {
+  const sorted = [...edges].sort((l, r) => l.length - r.length);
+  const shortEdges = [sorted[0], sorted[1]];
+  const longEdges = [sorted[2], sorted[3]];
+  const votesA = countNearEdge(shortEdges[0], foot);
+  const votesB = countNearEdge(shortEdges[1], foot);
+  return {
+    heelEdge: votesA >= votesB ? shortEdges[0] : shortEdges[1],
+    heelVotes: Math.max(votesA, votesB),
+    toeVotes: Math.min(votesA, votesB),
+    shortEdges,
+    longEdges,
+  };
+}
+
+export function findHeelEdge(quad: Point[], foot: Point[]): { a: Point; b: Point } | null {
+  if (!quad || quad.length !== 4 || !foot || foot.length === 0) return null;
+  const edges = buildEdges(quad);
+  if (!edges) return null;
+  const { heelEdge } = voteHeelEdge(edges, foot);
+  return { a: heelEdge.a, b: heelEdge.b };
+}
+
 export function measureFromQuadAndFoot(
   quad: Point[],
   foot: Point[],
@@ -165,15 +188,7 @@ export function measureFromQuadAndFoot(
   const edges = buildEdges(quad);
   if (!edges) return { lengthMm: 0, widthMm: 0, confidence: 0 };
 
-  const sorted = [...edges].sort((l, r) => l.length - r.length);
-  const shortEdges = [sorted[0], sorted[1]];
-  const longEdges = [sorted[2], sorted[3]];
-
-  const votesA = countNearEdge(shortEdges[0], foot);
-  const votesB = countNearEdge(shortEdges[1], foot);
-  const heelEdge = votesA >= votesB ? shortEdges[0] : shortEdges[1];
-  const heelVotes = Math.max(votesA, votesB);
-  const toeVotes = Math.min(votesA, votesB);
+  const { heelEdge, heelVotes, toeVotes, shortEdges, longEdges } = voteHeelEdge(edges, foot);
 
   let maxPerp = 0;
   let minProj = Infinity;

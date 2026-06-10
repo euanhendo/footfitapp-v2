@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { detectScene } from '../../modules/footfit-vision';
 import { pickFootFromQuad } from '../../lib/scanner/contourPicker';
-import { measureFromQuadAndFoot } from '../../lib/scanner/footMetrics';
+import { findHeelEdge, measureFromQuadAndFoot } from '../../lib/scanner/footMetrics';
 import { medianMetrics } from '../../lib/scanner/multiCapture';
 import { FootMetrics, Point, ReferenceKind } from '../../lib/scanner/types';
 
@@ -76,6 +76,7 @@ function SceneOverlay({
 }) {
   const [box, setBox] = useState<{ w: number; h: number } | null>(null);
   const aspect = photoW > 0 && photoH > 0 ? photoW / photoH : 3 / 4;
+  const heel = quad && foot ? findHeelEdge(quad, foot) : null;
   return (
     <View
       style={{ width: '100%', aspectRatio: aspect, borderRadius: 8, overflow: 'hidden', backgroundColor: '#000' }}
@@ -110,6 +111,31 @@ function SceneOverlay({
             />
           );
         })}
+      {box &&
+        heel &&
+        (() => {
+          const ax = heel.a.x * box.w;
+          const ay = (1 - heel.a.y) * box.h;
+          const bx = heel.b.x * box.w;
+          const by = (1 - heel.b.y) * box.h;
+          const len = Math.hypot(bx - ax, by - ay);
+          if (len === 0) return null;
+          const angle = Math.atan2(by - ay, bx - ax);
+          return (
+            <View
+              style={{
+                position: 'absolute',
+                left: (ax + bx) / 2 - len / 2,
+                top: (ay + by) / 2 - 2.5,
+                width: len,
+                height: 5,
+                backgroundColor: '#7bff9f',
+                borderRadius: 3,
+                transform: [{ rotateZ: `${angle}rad` }],
+              }}
+            />
+          );
+        })()}
       {box &&
         foot &&
         (() => {
@@ -443,7 +469,8 @@ export default function ScannerDebugScreen() {
                 />
                 <Text style={{ color: '#888', fontSize: 11, marginTop: 4 }}>
                   <Text style={{ color: '#7b9fff', fontWeight: '700' }}>Blue</Text> = detected paper ·{' '}
-                  <Text style={{ color: '#ffb37b', fontWeight: '700' }}>Orange</Text> = detected foot outline
+                  <Text style={{ color: '#ffb37b', fontWeight: '700' }}>Orange</Text> = detected foot outline ·{' '}
+                  <Text style={{ color: '#7bff9f', fontWeight: '700' }}>Green</Text> = heel edge (wall side)
                 </Text>
               </View>
             )}
