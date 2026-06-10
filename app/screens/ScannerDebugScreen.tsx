@@ -228,7 +228,7 @@ export default function ScannerDebugScreen() {
       const { quad, contours } = await detectScene(photo.uri);
       const picked = quad ? pickFootFromQuad(quad, contours) : null;
       const metrics = picked ? measureFromQuadAndFoot(picked.reference, picked.foot, kind) : null;
-      if (metrics && metrics.lengthMm > 0) {
+      if (metrics && metrics.lengthMm > 0 && metrics.confidence >= 0.3) {
         setSession((prev) => [...prev, metrics]);
       }
       setResult({
@@ -483,7 +483,7 @@ export default function ScannerDebugScreen() {
                 </View>
               );
             })()}
-            {(result.quad || result.foot) && (
+            {!!result.photoUri && (
               <View style={{ marginBottom: 10 }}>
                 <Text style={{ color: '#888', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 6, textTransform: 'uppercase' }}>
                   What the scanner saw
@@ -551,7 +551,7 @@ export default function ScannerDebugScreen() {
             return (
               <View style={{ marginTop: 12, padding: 10, backgroundColor: '#1a1a1a', borderRadius: 8, borderWidth: 1, borderColor: '#3a3a2a' }}>
                 <Text style={{ color: '#ffd97b', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 4, textTransform: 'uppercase' }}>
-                  Session median ({session.length} capture{session.length === 1 ? '' : 's'})
+                  Session median ({session.length} good capture{session.length === 1 ? '' : 's'})
                 </Text>
                 <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>
                   Length: {m.lengthMm.toFixed(1)} mm · Width: {m.widthMm.toFixed(1)} mm
