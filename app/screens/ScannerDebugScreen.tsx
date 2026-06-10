@@ -1,6 +1,6 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Animated, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Animated, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { detectScene } from '../../modules/footfit-vision';
@@ -16,6 +16,11 @@ type Result = {
   referencePoints: number;
   footPoints: number;
   metrics: FootMetrics | null;
+  photoUri: string;
+  photoW: number;
+  photoH: number;
+  quad: Point[] | null;
+  foot: Point[] | null;
 };
 
 const A4_QUAD_ASPECT = 210 / 297; // ≈ 0.707, short/long
@@ -53,6 +58,84 @@ function captureVerdict(r: Result): { ok: boolean; msg: string } {
     };
   }
   return { ok: true, msg: 'Clean capture. Take 2–3 in a row — the session median below is the number that counts.' };
+}
+
+// Vision returns normalized coords with origin bottom-left; view space is top-left, so y flips
+function SceneOverlay({
+  uri,
+  photoW,
+  photoH,
+  quad,
+  foot,
+}: {
+  uri: string;
+  photoW: number;
+  photoH: number;
+  quad: Point[] | null;
+  foot: Point[] | null;
+}) {
+  const [box, setBox] = useState<{ w: number; h: number } | null>(null);
+  const aspect = photoW > 0 && photoH > 0 ? photoW / photoH : 3 / 4;
+  return (
+    <View
+      style={{ width: '100%', aspectRatio: aspect, borderRadius: 8, overflow: 'hidden', backgroundColor: '#000' }}
+      onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+    >
+      <Image source={{ uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+      {box &&
+        quad &&
+        quad.length === 4 &&
+        quad.map((a, i) => {
+          const b = quad[(i + 1) % 4];
+          const ax = a.x * box.w;
+          const ay = (1 - a.y) * box.h;
+          const bx = b.x * box.w;
+          const by = (1 - b.y) * box.h;
+          const len = Math.hypot(bx - ax, by - ay);
+          if (len === 0) return null;
+          const angle = Math.atan2(by - ay, bx - ax);
+          return (
+            <View
+              key={`q${i}`}
+              style={{
+                position: 'absolute',
+                left: (ax + bx) / 2 - len / 2,
+                top: (ay + by) / 2 - 1.5,
+                width: len,
+                height: 3,
+                backgroundColor: '#7b9fff',
+                borderRadius: 2,
+                transform: [{ rotateZ: `${angle}rad` }],
+              }}
+            />
+          );
+        })}
+      {box &&
+        foot &&
+        (() => {
+          const step = Math.max(1, Math.ceil(foot.length / 120));
+          const dots = [];
+          for (let i = 0; i < foot.length; i += step) {
+            const p = foot[i];
+            dots.push(
+              <View
+                key={`f${i}`}
+                style={{
+                  position: 'absolute',
+                  left: p.x * box.w - 2,
+                  top: (1 - p.y) * box.h - 2,
+                  width: 4,
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: '#ffb37b',
+                }}
+              />,
+            );
+          }
+          return dots;
+        })()}
+    </View>
+  );
 }
 
 function quadAspect(quad: Point[]): number | null {
@@ -109,7 +192,8 @@ export default function ScannerDebugScreen() {
     setError(null);
     setResult(null);
     try {
-      const photo = await cameraRef.current.takePictureAsync({ quality: 0.8, skipProcessing: true });
+      // skipProcessing would leave EXIF rotation unbaked, breaking overlay coordinate mapping
+      const photo = await cameraRef.current.takePictureAsync({ quality: 0.8 });
       if (!photo?.uri) {
         setError('Camera returned no image.');
         return;
@@ -127,6 +211,11 @@ export default function ScannerDebugScreen() {
         referencePoints: picked?.reference.length ?? 0,
         footPoints: picked?.foot.length ?? 0,
         metrics,
+        photoUri: photo.uri,
+        photoW: photo.width ?? 0,
+        photoH: photo.height ?? 0,
+        quad,
+        foot: picked?.foot ?? null,
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -340,6 +429,24 @@ export default function ScannerDebugScreen() {
                 </View>
               );
             })()}
+            {(result.quad || result.foot) && (
+              <View style={{ marginBottom: 10 }}>
+                <Text style={{ color: '#888', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 6, textTransform: 'uppercase' }}>
+                  What the scanner saw
+                </Text>
+                <SceneOverlay
+                  uri={result.photoUri}
+                  photoW={result.photoW}
+                  photoH={result.photoH}
+                  quad={result.quad}
+                  foot={result.foot}
+                />
+                <Text style={{ color: '#888', fontSize: 11, marginTop: 4 }}>
+                  <Text style={{ color: '#7b9fff', fontWeight: '700' }}>Blue</Text> = detected paper ·{' '}
+                  <Text style={{ color: '#ffb37b', fontWeight: '700' }}>Orange</Text> = detected foot outline
+                </Text>
+              </View>
+            )}
             <View style={{ marginBottom: 10, padding: 10, backgroundColor: '#1a1a2a', borderRadius: 8, borderWidth: 1, borderColor: '#2a2a4a' }}>
               <Text style={{ color: '#7b9fff', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 4, textTransform: 'uppercase' }}>
                 A4 quad (VNDetectRectanglesRequest)
