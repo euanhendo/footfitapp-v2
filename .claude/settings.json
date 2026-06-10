@@ -10,5 +10,18 @@
       "WebSearch",
       "mcp__*"
     ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "ExitPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cat /Users/euanhenderson/footfitapp-v2/.claude/hooks/post-plan-memory.json"
+          }
+        ]
+      }
+    ]
   }
 }

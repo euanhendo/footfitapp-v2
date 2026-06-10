@@ -1,0 +1,6 @@
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PostToolUse",
+    "additionalContext": "Plan approved — memory refresh pass.\n\nScan the just-completed planning session AND existing memory files at /Users/euanhenderson/.claude/projects/-Users-euanhenderson-footfitapp-v2/memory/.\n\n1. SAVE only if surprising / non-obvious / durable: user feedback (preferences, corrections, validated judgment calls), project facts (deadlines, stakeholders, motivations), reference pointers (external systems). Follow the auto-memory system-prompt rules exactly (types, frontmatter, MEMORY.md index line).\n2. PRUNE stale / superseded / contradicted entries you encounter while reading.\n3. HIGH BAR — when in doubt, do not save. Memory stays lean.\n4. DO NOT SAVE: code patterns, file paths, git history, ephemeral task state, anything already in CLAUDE.md, duplicates of existing memories.\n5. REPORT exactly one short line at the very top of your next response: either `memory: +N saved, -M pruned` (with a brief parenthetical of what) or `memory: no change`.\n6. If nothing qualifies either way, output only `memory: no change` and proceed with the plan."
+  }
+}
