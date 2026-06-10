@@ -27,14 +27,21 @@ public class FootfitVisionModule: Module {
         rectRequest.quadratureTolerance = 25
         rectRequest.maximumObservations = 5
 
-        let contoursRequest = VNDetectContoursRequest()
-        contoursRequest.contrastAdjustment = 3.0
-        contoursRequest.detectsDarkOnLight = false
-        contoursRequest.maximumImageDimension = 1024
+        // Both polarities: dark foot/sock on white paper AND light shapes on
+        // dark floor — the picker decides which contours matter
+        let contoursDark = VNDetectContoursRequest()
+        contoursDark.contrastAdjustment = 3.0
+        contoursDark.detectsDarkOnLight = true
+        contoursDark.maximumImageDimension = 1024
+
+        let contoursLight = VNDetectContoursRequest()
+        contoursLight.contrastAdjustment = 3.0
+        contoursLight.detectsDarkOnLight = false
+        contoursLight.maximumImageDimension = 1024
 
         let handler = VNImageRequestHandler(cgImage: cgImage, orientation: orientation, options: [:])
         do {
-          try handler.perform([rectRequest, contoursRequest])
+          try handler.perform([rectRequest, contoursDark, contoursLight])
         } catch {
           promise.reject("E_VISION", "Vision requests failed: \(error.localizedDescription)")
           return
@@ -58,15 +65,17 @@ public class FootfitVisionModule: Module {
         }
 
         var contours: [[[Double]]] = []
-        if let observation = contoursRequest.results?.first as? VNContoursObservation {
-          do {
-            let flat = try Self.flattenContours(observation)
-            contours = flat.map { contour in
-              contour.normalizedPoints.map { [Double($0.x), Double($0.y)] }
+        for request in [contoursDark, contoursLight] {
+          if let observation = request.results?.first as? VNContoursObservation {
+            do {
+              let flat = try Self.flattenContours(observation)
+              contours.append(contentsOf: flat.map { contour in
+                contour.normalizedPoints.map { [Double($0.x), Double($0.y)] }
+              })
+            } catch {
+              promise.reject("E_CONTOURS", "Failed to walk contours: \(error.localizedDescription)")
+              return
             }
-          } catch {
-            promise.reject("E_CONTOURS", "Failed to walk contours: \(error.localizedDescription)")
-            return
           }
         }
 
