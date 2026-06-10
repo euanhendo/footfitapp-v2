@@ -1,4 +1,4 @@
-import { pickContours, pickFootFromQuad } from '../../scanner/contourPicker';
+import { pickContours, pickFootFromQuad, pickReferenceQuad } from '../../scanner/contourPicker';
 import { minAreaRect } from '../../scanner/orientedBBox';
 import { Point } from '../../scanner/types';
 
@@ -151,5 +151,32 @@ describe('pickFootFromQuad', () => {
     const result = pickFootFromQuad(quad, [speck, foot]);
     expect(result).not.toBeNull();
     expect(result!.foot).toEqual(foot);
+  });
+});
+
+describe('pickReferenceQuad', () => {
+  const paper = { quad: rect(500, 500, 1485, 1050), brightness: 0.88 }; // A4 aspect 0.707, white
+  const tile = { quad: rect(0, 0, 1600, 1032), brightness: 0.22 }; // aspect 0.645, dark
+
+  it('returns null for no candidates', () => {
+    expect(pickReferenceQuad([])).toBeNull();
+  });
+
+  it('returns the only candidate', () => {
+    expect(pickReferenceQuad([tile])).toEqual(tile.quad);
+  });
+
+  it('prefers a bright A4-shaped quad over a dark tile', () => {
+    expect(pickReferenceQuad([tile, paper])).toEqual(paper.quad);
+  });
+
+  it('prefers brightness when aspects are equally plausible', () => {
+    const darkPaperShape = { quad: rect(0, 0, 1485, 1050), brightness: 0.2 };
+    expect(pickReferenceQuad([darkPaperShape, paper])).toEqual(paper.quad);
+  });
+
+  it('ignores degenerate quads', () => {
+    const degenerate = { quad: [{ x: 0, y: 0 }, { x: 1, y: 1 }], brightness: 1 };
+    expect(pickReferenceQuad([degenerate, paper])).toEqual(paper.quad);
   });
 });

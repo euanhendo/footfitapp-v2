@@ -92,6 +92,30 @@ export function pickFootFromQuad(
   return { reference: quad, foot };
 }
 
+export type QuadCandidate = {
+  quad: Point[];
+  brightness: number; // mean luminance inside the quad, [0,1]
+};
+
+const A4_SHORT_OVER_LONG = 210 / 297;
+
+// White paper should out-score dark floor/wall tiles even when a tile's
+// aspect happens to be closer to A4's
+export function pickReferenceQuad(candidates: QuadCandidate[]): Point[] | null {
+  let best: { quad: Point[]; score: number } | null = null;
+  for (const c of candidates) {
+    if (!c.quad || c.quad.length !== 4) continue;
+    const rect = minAreaRect(c.quad);
+    if (rect.lengthMm <= 0) continue;
+    const aspect = rect.widthMm / rect.lengthMm;
+    const score = Math.max(0, c.brightness) / (1 + 8 * Math.abs(aspect - A4_SHORT_OVER_LONG));
+    if (!best || score > best.score) {
+      best = { quad: c.quad, score };
+    }
+  }
+  return best ? best.quad : null;
+}
+
 export function pickContours(
   contours: Point[][],
   referenceKind: ReferenceKind,

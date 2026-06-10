@@ -4,7 +4,7 @@ import { ActivityIndicator, Alert, Animated, Image, Pressable, ScrollView, Text,
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { detectScene } from '../../modules/footfit-vision';
-import { pickFootFromQuad } from '../../lib/scanner/contourPicker';
+import { pickFootFromQuad, pickReferenceQuad } from '../../lib/scanner/contourPicker';
 import { denormalizePoints } from '../../lib/scanner/denormalize';
 import { findHeelEdge, measureFromQuadAndFoot } from '../../lib/scanner/footMetrics';
 import { medianMetrics } from '../../lib/scanner/multiCapture';
@@ -236,8 +236,13 @@ export default function ScannerDebugScreen() {
       const imgW = scene.width > 0 ? scene.width : (photo.width ?? 0);
       const imgH = scene.height > 0 ? scene.height : (photo.height ?? 0);
       const hasDims = imgW > 0 && imgH > 0;
-      const quadNorm = scene.quad;
-      const quad = quadNorm && hasDims ? denormalizePoints(quadNorm, imgW, imgH) : quadNorm;
+      // Choose the paper among candidate rectangles (bright + A4-shaped beats dark tiles);
+      // fall back to Vision's top pick on a stale native build with no candidates
+      const candidatesPx = hasDims
+        ? scene.candidates.map((c) => ({ ...c, quad: denormalizePoints(c.quad, imgW, imgH) }))
+        : scene.candidates;
+      const fallbackQuad = scene.quad && hasDims ? denormalizePoints(scene.quad, imgW, imgH) : scene.quad;
+      const quad = pickReferenceQuad(candidatesPx) ?? fallbackQuad;
       const contours = hasDims
         ? scene.contours.map((c) => denormalizePoints(c, imgW, imgH))
         : scene.contours;
@@ -254,6 +259,7 @@ export default function ScannerDebugScreen() {
           kind,
           flash: flashOn,
           quadFound: !!quad,
+          rectCandidates: scene.candidates.map((c) => Number(c.brightness.toFixed(2))),
           quadAspect: qa === null ? null : Number(qa.toFixed(3)),
           contours: contours.length,
           footPoints: picked?.foot.length ?? 0,

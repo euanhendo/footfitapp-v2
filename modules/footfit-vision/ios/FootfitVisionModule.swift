@@ -1,3 +1,4 @@
+import CoreImage
 import ExpoModulesCore
 import Vision
 import UIKit
@@ -24,7 +25,7 @@ public class FootfitVisionModule: Module {
         rectRequest.maximumAspectRatio = 0.8
         rectRequest.minimumSize = 0.15
         rectRequest.quadratureTolerance = 25
-        rectRequest.maximumObservations = 1
+        rectRequest.maximumObservations = 5
 
         let contoursRequest = VNDetectContoursRequest()
         contoursRequest.contrastAdjustment = 3.0
@@ -39,14 +40,21 @@ public class FootfitVisionModule: Module {
           return
         }
 
+        let orientedImage = CIImage(cgImage: cgImage).oriented(orientation)
         var quad: [[Double]]? = nil
-        if let obs = rectRequest.results?.first {
-          quad = [
+        var candidates: [[String: Any]] = []
+        for obs in rectRequest.results ?? [] {
+          let q: [[Double]] = [
             [Double(obs.topLeft.x), Double(obs.topLeft.y)],
             [Double(obs.topRight.x), Double(obs.topRight.y)],
             [Double(obs.bottomRight.x), Double(obs.bottomRight.y)],
             [Double(obs.bottomLeft.x), Double(obs.bottomLeft.y)],
           ]
+          if quad == nil { quad = q }
+          candidates.append([
+            "quad": q,
+            "brightness": Self.meanBrightness(of: q, in: orientedImage),
+          ])
         }
 
         var contours: [[[Double]]] = []
@@ -72,12 +80,48 @@ public class FootfitVisionModule: Module {
         }
         promise.resolve([
           "quad": quad as Any,
+          "candidates": candidates,
           "contours": contours,
           "width": swapped ? cgImage.height : cgImage.width,
           "height": swapped ? cgImage.width : cgImage.height,
         ])
       }
     }
+  }
+
+  // Mean luminance [0,1] of the quad's bounding box — distinguishes white
+  // paper from dark floor/wall tiles that happen to be rectangular
+  private static func meanBrightness(of quadNorm: [[Double]], in image: CIImage) -> Double {
+    let xs = quadNorm.map { $0[0] }
+    let ys = quadNorm.map { $0[1] }
+    guard let minX = xs.min(), let maxX = xs.max(), let minY = ys.min(), let maxY = ys.max(),
+          maxX > minX, maxY > minY else {
+      return 0
+    }
+    let extent = image.extent
+    let rect = CGRect(
+      x: extent.origin.x + CGFloat(minX) * extent.width,
+      y: extent.origin.y + CGFloat(minY) * extent.height,
+      width: CGFloat(maxX - minX) * extent.width,
+      height: CGFloat(maxY - minY) * extent.height
+    )
+    guard let filter = CIFilter(name: "CIAreaAverage", parameters: [
+      kCIInputImageKey: image,
+      kCIInputExtentKey: CIVector(cgRect: rect),
+    ]), let output = filter.outputImage else {
+      return 0
+    }
+    var pixel = [UInt8](repeating: 0, count: 4)
+    let context = CIContext(options: [.workingColorSpace: NSNull()])
+    context.render(
+      output,
+      toBitmap: &pixel,
+      rowBytes: 4,
+      bounds: CGRect(x: 0, y: 0, width: 1, height: 1),
+      format: .RGBA8,
+      colorSpace: nil
+    )
+    return (0.299 * Double(pixel[0]) + 0.587 * Double(pixel[1]) + 0.114 * Double(pixel[2])) / 255.0
   }
 
   private static func resolveURL(_ uri: String) -> URL? {
