@@ -145,6 +145,28 @@ describe('pickFootFromQuad', () => {
     expect(pickFootFromQuad(quad, [paperOutline])).toBeNull();
   });
 
+  it('excludes a paper-region contour that hugs the quad edges (foot-bite shape)', () => {
+    // white-paper region with a foot-shaped notch: under the 70% area cap,
+    // but most of its points run along the paper border
+    const paperWithBite: Point[] = [
+      { x: 5, y: 5 },
+      { x: 148, y: 5 },
+      { x: 292, y: 5 },
+      { x: 292, y: 105 },
+      { x: 292, y: 205 },
+      { x: 200, y: 205 },
+      { x: 200, y: 60 },
+      { x: 100, y: 60 },
+      { x: 100, y: 205 },
+      { x: 5, y: 205 },
+      { x: 5, y: 105 },
+    ];
+    const foot = footShape(110, 80, 1);
+    const result = pickFootFromQuad(quad, [paperWithBite, foot]);
+    expect(result).not.toBeNull();
+    expect(result!.foot).toEqual(foot);
+  });
+
   it('drops speck noise relative to the quad size', () => {
     const speck = rect(50, 50, 2, 2);
     const foot = footShape(100, 100, 1);

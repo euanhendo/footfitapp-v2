@@ -74,6 +74,35 @@ function statsFor(contour: Point[]): ContourStats | null {
 const MIN_QUAD_AREA_RATIO = 0.001;
 const MAX_QUAD_AREA_RATIO = 0.7;
 
+// The white-paper region (paper minus the foot "bite") mostly traces the quad
+// border; a real foot outline only touches it where the leg crosses
+const NEAR_EDGE_TOLERANCE = 0.05; // of each edge's length
+const MAX_NEAR_EDGE_FRACTION = 0.45;
+
+function nearEdgeFraction(contour: Point[], quad: Point[]): number {
+  const edges: { a: Point; nx: number; ny: number; tol: number }[] = [];
+  for (let i = 0; i < 4; i++) {
+    const a = quad[i];
+    const b = quad[(i + 1) % 4];
+    const vx = b.x - a.x;
+    const vy = b.y - a.y;
+    const len = Math.hypot(vx, vy);
+    if (len === 0) return 1;
+    edges.push({ a, nx: -vy / len, ny: vx / len, tol: len * NEAR_EDGE_TOLERANCE });
+  }
+  let near = 0;
+  for (const p of contour) {
+    for (const e of edges) {
+      const d = Math.abs((p.x - e.a.x) * e.nx + (p.y - e.a.y) * e.ny);
+      if (d <= e.tol) {
+        near++;
+        break;
+      }
+    }
+  }
+  return contour.length === 0 ? 1 : near / contour.length;
+}
+
 export function pickFootFromQuad(
   quad: Point[],
   contours: Point[][],
@@ -86,7 +115,8 @@ export function pickFootFromQuad(
     .filter((s): s is ContourStats => s !== null)
     .filter((s) => s.area >= quadArea * MIN_QUAD_AREA_RATIO)
     .filter((s) => s.area <= quadArea * MAX_QUAD_AREA_RATIO)
-    .filter((s) => pointInPolygon(centroid(s.contour), quad));
+    .filter((s) => pointInPolygon(centroid(s.contour), quad))
+    .filter((s) => nearEdgeFraction(s.contour, quad) <= MAX_NEAR_EDGE_FRACTION);
   if (inside.length === 0) return null;
   const foot = inside.flatMap((s) => s.contour);
   return { reference: quad, foot };
