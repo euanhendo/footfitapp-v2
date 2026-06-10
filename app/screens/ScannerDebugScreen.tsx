@@ -188,6 +188,7 @@ export default function ScannerDebugScreen() {
   const [elapsed, setElapsed] = useState(0);
   const [preview, setPreview] = useState<{ width: number; height: number } | null>(null);
   const [session, setSession] = useState<FootMetrics[]>([]);
+  const [flashOn, setFlashOn] = useState(true);
   const cameraRef = useRef<CameraView | null>(null);
   const progress = useRef(new Animated.Value(0)).current;
 
@@ -284,7 +285,7 @@ export default function ScannerDebugScreen() {
         style={{ flex: 1 }}
         onLayout={(e) => setPreview({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })}
       >
-        <CameraView ref={cameraRef} style={{ flex: 1 }} facing="back" />
+        <CameraView ref={cameraRef} style={{ flex: 1 }} facing="back" flash={flashOn ? 'on' : 'off'} />
         {preview &&
           (() => {
             // A4 portrait in frame: foot points away from the wall, wall edge at top
@@ -391,6 +392,33 @@ export default function ScannerDebugScreen() {
                 }}
               >
                 <Text style={{ fontSize: 12, fontWeight: '700', color: active ? '#111' : '#fff' }}>{label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <Text style={{ color: '#888', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 8, textTransform: 'uppercase' }}>
+          Flash (kills shadows; turn off if paper glares)
+        </Text>
+        <View style={{ flexDirection: 'row', marginBottom: 14 }}>
+          {[true, false].map((option) => {
+            const active = flashOn === option;
+            return (
+              <Pressable
+                key={option ? 'on' : 'off'}
+                onPress={() => setFlashOn(option)}
+                style={{
+                  flex: 1,
+                  backgroundColor: active ? '#fff' : '#222',
+                  borderRadius: 10,
+                  paddingVertical: 8,
+                  marginRight: option ? 6 : 0,
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={{ fontSize: 12, fontWeight: '700', color: active ? '#111' : '#fff' }}>
+                  {option ? 'On' : 'Off'}
+                </Text>
               </Pressable>
             );
           })}
