@@ -596,7 +596,7 @@ export default function ScannerDebugScreen() {
                   Length: {m.lengthMm.toFixed(1)} mm · Width: {m.widthMm.toFixed(1)} mm
                 </Text>
                 <Text style={{ color: '#ccc', fontSize: 12, marginTop: 2 }}>
-                  Median confidence: {(m.confidence * 100).toFixed(0)}%
+                  Lowest capture confidence: {(m.confidence * 100).toFixed(0)}%
                 </Text>
                 <Pressable onPress={() => setSession([])} style={{ marginTop: 8, alignSelf: 'flex-start' }}>
                   <Text style={{ color: '#888', fontSize: 12, fontWeight: '700', textDecorationLine: 'underline' }}>
