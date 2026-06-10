@@ -69,15 +69,23 @@ function statsFor(contour: Point[]): ContourStats | null {
   };
 }
 
+// Bounds relative to the quad area: below = speck noise, above = the paper
+// outline itself (the foot covers roughly a third of an A4)
+const MIN_QUAD_AREA_RATIO = 0.001;
+const MAX_QUAD_AREA_RATIO = 0.7;
+
 export function pickFootFromQuad(
   quad: Point[],
   contours: Point[][],
 ): DetectedContours | null {
   if (!quad || quad.length !== 4) return null;
+  const quadArea = polygonArea(quad);
+  if (quadArea <= 0) return null;
   const inside = contours
     .map(statsFor)
     .filter((s): s is ContourStats => s !== null)
-    .filter((s) => s.area >= MIN_RELATIVE_AREA)
+    .filter((s) => s.area >= quadArea * MIN_QUAD_AREA_RATIO)
+    .filter((s) => s.area <= quadArea * MAX_QUAD_AREA_RATIO)
     .filter((s) => pointInPolygon(centroid(s.contour), quad));
   if (inside.length === 0) return null;
   const foot = inside.flatMap((s) => s.contour);

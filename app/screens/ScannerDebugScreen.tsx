@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { detectScene } from '../../modules/footfit-vision';
 import { pickFootFromQuad } from '../../lib/scanner/contourPicker';
+import { denormalizePoints } from '../../lib/scanner/denormalize';
 import { findHeelEdge, measureFromQuadAndFoot } from '../../lib/scanner/footMetrics';
 import { medianMetrics } from '../../lib/scanner/multiCapture';
 import { FootMetrics, Point, ReferenceKind } from '../../lib/scanner/types';
@@ -60,7 +61,7 @@ function captureVerdict(r: Result): { ok: boolean; msg: string } {
   return { ok: true, msg: 'Clean capture. Take 2–3 in a row — the session median below is the number that counts.' };
 }
 
-// Vision returns normalized coords with origin bottom-left; view space is top-left, so y flips
+// Points arrive in pixel coords with origin bottom-left; view space is top-left, so y flips
 function SceneOverlay({
   uri,
   photoW,
@@ -75,8 +76,13 @@ function SceneOverlay({
   foot: Point[] | null;
 }) {
   const [box, setBox] = useState<{ w: number; h: number } | null>(null);
-  const aspect = photoW > 0 && photoH > 0 ? photoW / photoH : 3 / 4;
+  const hasDims = photoW > 0 && photoH > 0;
+  const aspect = hasDims ? photoW / photoH : 3 / 4;
   const heel = quad && foot ? findHeelEdge(quad, foot) : null;
+  const toView = (p: Point, b: { w: number; h: number }) => ({
+    x: (p.x / photoW) * b.w,
+    y: (1 - p.y / photoH) * b.h,
+  });
   return (
     <View
       style={{ width: '100%', aspectRatio: aspect, borderRadius: 8, overflow: 'hidden', backgroundColor: '#000' }}
@@ -84,14 +90,13 @@ function SceneOverlay({
     >
       <Image source={{ uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
       {box &&
+        hasDims &&
         quad &&
         quad.length === 4 &&
         quad.map((a, i) => {
           const b = quad[(i + 1) % 4];
-          const ax = a.x * box.w;
-          const ay = (1 - a.y) * box.h;
-          const bx = b.x * box.w;
-          const by = (1 - b.y) * box.h;
+          const { x: ax, y: ay } = toView(a, box);
+          const { x: bx, y: by } = toView(b, box);
           const len = Math.hypot(bx - ax, by - ay);
           if (len === 0) return null;
           const angle = Math.atan2(by - ay, bx - ax);
@@ -112,12 +117,11 @@ function SceneOverlay({
           );
         })}
       {box &&
+        hasDims &&
         heel &&
         (() => {
-          const ax = heel.a.x * box.w;
-          const ay = (1 - heel.a.y) * box.h;
-          const bx = heel.b.x * box.w;
-          const by = (1 - heel.b.y) * box.h;
+          const { x: ax, y: ay } = toView(heel.a, box);
+          const { x: bx, y: by } = toView(heel.b, box);
           const len = Math.hypot(bx - ax, by - ay);
           if (len === 0) return null;
           const angle = Math.atan2(by - ay, bx - ax);
@@ -137,19 +141,20 @@ function SceneOverlay({
           );
         })()}
       {box &&
+        hasDims &&
         foot &&
         (() => {
           const step = Math.max(1, Math.ceil(foot.length / 120));
           const dots = [];
           for (let i = 0; i < foot.length; i += step) {
-            const p = foot[i];
+            const p = toView(foot[i], box);
             dots.push(
               <View
                 key={`f${i}`}
                 style={{
                   position: 'absolute',
-                  left: p.x * box.w - 2,
-                  top: (1 - p.y) * box.h - 2,
+                  left: p.x - 2,
+                  top: p.y - 2,
                   width: 4,
                   height: 4,
                   borderRadius: 2,
@@ -225,7 +230,13 @@ export default function ScannerDebugScreen() {
         setError('Camera returned no image.');
         return;
       }
-      const { quad, contours } = await detectScene(photo.uri);
+      const { quad: quadNorm, contours: contoursNorm } = await detectScene(photo.uri);
+      // Vision coords are normalized to a unit square — convert to pixels before any math
+      const hasDims = (photo.width ?? 0) > 0 && (photo.height ?? 0) > 0;
+      const quad = quadNorm && hasDims ? denormalizePoints(quadNorm, photo.width, photo.height) : quadNorm;
+      const contours = hasDims
+        ? contoursNorm.map((c) => denormalizePoints(c, photo.width, photo.height))
+        : contoursNorm;
       const picked = quad ? pickFootFromQuad(quad, contours) : null;
       const metrics = picked ? measureFromQuadAndFoot(picked.reference, picked.foot, kind) : null;
       if (metrics && metrics.lengthMm > 0 && metrics.confidence >= 0.3) {

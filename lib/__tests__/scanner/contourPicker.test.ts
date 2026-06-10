@@ -131,4 +131,25 @@ describe('pickFootFromQuad', () => {
     const outside = footShape(2000, 2000, 3);
     expect(pickFootFromQuad(quad, [outside])).toBeNull();
   });
+
+  it('excludes the paper outline itself from the foot union', () => {
+    const paperOutline = rect(1, 1, 295, 208);
+    const foot = footShape(100, 100, 1);
+    const result = pickFootFromQuad(quad, [paperOutline, foot]);
+    expect(result).not.toBeNull();
+    expect(result!.foot).toEqual(foot);
+  });
+
+  it('returns null when only the paper outline is inside the quad', () => {
+    const paperOutline = rect(1, 1, 295, 208);
+    expect(pickFootFromQuad(quad, [paperOutline])).toBeNull();
+  });
+
+  it('drops speck noise relative to the quad size', () => {
+    const speck = rect(50, 50, 2, 2);
+    const foot = footShape(100, 100, 1);
+    const result = pickFootFromQuad(quad, [speck, foot]);
+    expect(result).not.toBeNull();
+    expect(result!.foot).toEqual(foot);
+  });
 });
