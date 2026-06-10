@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { detectScene } from '../../modules/footfit-vision';
 import { pickFootFromQuad } from '../../lib/scanner/contourPicker';
 import { measureFromQuadAndFoot } from '../../lib/scanner/footMetrics';
+import { medianMetrics } from '../../lib/scanner/multiCapture';
 import { FootMetrics, Point, ReferenceKind } from '../../lib/scanner/types';
 
 type Result = {
@@ -16,6 +17,43 @@ type Result = {
   footPoints: number;
   metrics: FootMetrics | null;
 };
+
+const A4_QUAD_ASPECT = 210 / 297; // ≈ 0.707, short/long
+
+function captureVerdict(r: Result): { ok: boolean; msg: string } {
+  if (!r.quadFound) {
+    return {
+      ok: false,
+      msg: "Can't find the paper. Get the whole sheet in frame and avoid glare or shadows across it.",
+    };
+  }
+  if (r.quadAspect !== null && Math.abs(r.quadAspect - A4_QUAD_ASPECT) > 0.12) {
+    return {
+      ok: false,
+      msg: `Paper shape looks skewed (${r.quadAspect.toFixed(2)} vs 0.71) — the phone probably isn't level. Hold it flat, directly overhead.`,
+    };
+  }
+  if (!r.metrics || r.metrics.widthMm <= 0) {
+    return {
+      ok: false,
+      msg: 'Paper found, but no foot outline inside it. Bare foot or a light sock gives better contrast against the paper.',
+    };
+  }
+  const aspect = r.metrics.lengthMm / r.metrics.widthMm;
+  if (aspect < 1.8 || aspect > 4) {
+    return {
+      ok: false,
+      msg: `Foot outline looks wrong (aspect ${aspect.toFixed(1)}, expected ~2.0–3.8). Check the paper is flat on the floor and your whole foot is on it.`,
+    };
+  }
+  if (r.metrics.confidence < 0.5) {
+    return {
+      ok: false,
+      msg: 'Low confidence — retake. Phone level, even light, heel pressed to the wall.',
+    };
+  }
+  return { ok: true, msg: 'Clean capture. Take 2–3 in a row — the session median below is the number that counts.' };
+}
 
 function quadAspect(quad: Point[]): number | null {
   if (!quad || quad.length !== 4) return null;
@@ -40,6 +78,7 @@ export default function ScannerDebugScreen() {
   const [error, setError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [preview, setPreview] = useState<{ width: number; height: number } | null>(null);
+  const [session, setSession] = useState<FootMetrics[]>([]);
   const cameraRef = useRef<CameraView | null>(null);
   const progress = useRef(new Animated.Value(0)).current;
 
@@ -78,6 +117,9 @@ export default function ScannerDebugScreen() {
       const { quad, contours } = await detectScene(photo.uri);
       const picked = quad ? pickFootFromQuad(quad, contours) : null;
       const metrics = picked ? measureFromQuadAndFoot(picked.reference, picked.foot, kind) : null;
+      if (metrics && metrics.lengthMm > 0) {
+        setSession((prev) => [...prev, metrics]);
+      }
       setResult({
         totalContours: contours.length,
         quadFound: !!quad,
@@ -220,7 +262,10 @@ export default function ScannerDebugScreen() {
             return (
               <Pressable
                 key={option}
-                onPress={() => setKind(option)}
+                onPress={() => {
+                  setKind(option);
+                  setSession([]);
+                }}
                 style={{
                   flex: 1,
                   backgroundColor: active ? '#fff' : '#222',
@@ -275,6 +320,26 @@ export default function ScannerDebugScreen() {
 
         {result && (
           <View>
+            {(() => {
+              const v = captureVerdict(result);
+              return (
+                <View
+                  style={{
+                    marginBottom: 10,
+                    padding: 10,
+                    backgroundColor: v.ok ? '#1a2a1a' : '#2a1a1a',
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: v.ok ? '#2a4a2a' : '#4a2a2a',
+                  }}
+                >
+                  <Text style={{ color: v.ok ? '#7bff9f' : '#ff7b7b', fontSize: 13, fontWeight: '700', lineHeight: 18 }}>
+                    {v.ok ? '✓ ' : '✕ '}
+                    {v.msg}
+                  </Text>
+                </View>
+              );
+            })()}
             <View style={{ marginBottom: 10, padding: 10, backgroundColor: '#1a1a2a', borderRadius: 8, borderWidth: 1, borderColor: '#2a2a4a' }}>
               <Text style={{ color: '#7b9fff', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 4, textTransform: 'uppercase' }}>
                 A4 quad (VNDetectRectanglesRequest)
@@ -306,7 +371,7 @@ export default function ScannerDebugScreen() {
                 </Text>
                 {result.metrics.widthMm > 0 && (
                   <Text style={{ color: '#888', fontSize: 11, marginTop: 2 }}>
-                    Foot aspect: {(result.metrics.lengthMm / result.metrics.widthMm).toFixed(2)} (expected 2.2–2.8)
+                    Foot aspect: {(result.metrics.lengthMm / result.metrics.widthMm).toFixed(2)} (expected ~2.0–3.8)
                   </Text>
                 )}
               </View>
@@ -317,6 +382,29 @@ export default function ScannerDebugScreen() {
             )}
           </View>
         )}
+
+        {session.length > 0 &&
+          (() => {
+            const m = medianMetrics(session);
+            return (
+              <View style={{ marginTop: 12, padding: 10, backgroundColor: '#1a1a1a', borderRadius: 8, borderWidth: 1, borderColor: '#3a3a2a' }}>
+                <Text style={{ color: '#ffd97b', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 4, textTransform: 'uppercase' }}>
+                  Session median ({session.length} capture{session.length === 1 ? '' : 's'})
+                </Text>
+                <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>
+                  Length: {m.lengthMm.toFixed(1)} mm · Width: {m.widthMm.toFixed(1)} mm
+                </Text>
+                <Text style={{ color: '#ccc', fontSize: 12, marginTop: 2 }}>
+                  Median confidence: {(m.confidence * 100).toFixed(0)}%
+                </Text>
+                <Pressable onPress={() => setSession([])} style={{ marginTop: 8, alignSelf: 'flex-start' }}>
+                  <Text style={{ color: '#888', fontSize: 12, fontWeight: '700', textDecorationLine: 'underline' }}>
+                    Reset session
+                  </Text>
+                </Pressable>
+              </View>
+            );
+          })()}
       </ScrollView>
     </SafeAreaView>
   );
