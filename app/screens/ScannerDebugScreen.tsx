@@ -317,24 +317,25 @@ export default function ScannerDebugScreen() {
                     borderStyle: 'dashed',
                     borderColor: '#7bff9f',
                     borderRadius: 6,
+                    justifyContent: 'flex-end',
                   }}
                 >
-                  <View style={{ height: 4, backgroundColor: '#7bff9f', borderTopLeftRadius: 6, borderTopRightRadius: 6 }} />
                   <Text
                     style={{
                       color: '#7bff9f',
                       fontSize: 11,
                       fontWeight: '700',
                       alignSelf: 'center',
-                      marginTop: 2,
+                      marginBottom: 2,
                       backgroundColor: 'rgba(0,0,0,0.55)',
                       paddingHorizontal: 6,
                       paddingVertical: 1,
                       borderRadius: 4,
                     }}
                   >
-                    wall edge
+                    wall edge (behind you)
                   </Text>
+                  <View style={{ height: 4, backgroundColor: '#7bff9f', borderBottomLeftRadius: 6, borderBottomRightRadius: 6 }} />
                 </View>
                 <Text
                   style={{
@@ -362,9 +363,11 @@ export default function ScannerDebugScreen() {
           </Text>
           <Text style={{ color: '#ddd', fontSize: 12, lineHeight: 18 }}>
             1. Lay A4 flat on the floor with one <Text style={{ fontWeight: '800' }}>short edge pressed against a wall</Text>.{'\n'}
-            2. Stand facing the wall. Slide your foot onto the paper so your <Text style={{ fontWeight: '800' }}>heel presses against the wall</Text> (and the paper edge).{'\n'}
-            3. Hold the phone directly overhead, parallel to the floor. Frame the whole A4 and your foot with ~10% margin.{'\n'}
-            4. Even light, no shadow of you or the phone on the paper. Tap Capture.
+            2. Stand with your <Text style={{ fontWeight: '800' }}>back to the wall</Text>, heel pressed against it on the paper&apos;s edge. You should see{' '}
+            <Text style={{ fontWeight: '800' }}>white paper beyond your toes</Text> — if not, re-jam your heel.{'\n'}
+            3. Hold the phone overhead, parallel to the floor, normal grip — the green{' '}
+            <Text style={{ fontWeight: '800' }}>wall-edge bar sits at the bottom</Text>, towards the wall behind you.{'\n'}
+            4. Match the paper to the dashed frame, no shadows across it. Tap Capture.
           </Text>
         </View>
 
