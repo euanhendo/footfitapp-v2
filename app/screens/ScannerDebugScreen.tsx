@@ -344,16 +344,16 @@ export default function ScannerDebugScreen() {
                     borderStyle: 'dashed',
                     borderColor: '#7bff9f',
                     borderRadius: 6,
-                    justifyContent: 'flex-end',
                   }}
                 >
+                  <View style={{ height: 4, backgroundColor: '#7bff9f', borderTopLeftRadius: 6, borderTopRightRadius: 6 }} />
                   <Text
                     style={{
                       color: '#7bff9f',
                       fontSize: 11,
                       fontWeight: '700',
                       alignSelf: 'center',
-                      marginBottom: 2,
+                      marginTop: 2,
                       backgroundColor: 'rgba(0,0,0,0.55)',
                       paddingHorizontal: 6,
                       paddingVertical: 1,
@@ -362,7 +362,6 @@ export default function ScannerDebugScreen() {
                   >
                     wall edge (behind you)
                   </Text>
-                  <View style={{ height: 4, backgroundColor: '#7bff9f', borderBottomLeftRadius: 6, borderBottomRightRadius: 6 }} />
                 </View>
                 <Text
                   style={{
@@ -392,8 +391,8 @@ export default function ScannerDebugScreen() {
             1. Lay A4 flat on the floor with one <Text style={{ fontWeight: '800' }}>short edge pressed against a wall</Text>.{'\n'}
             2. Stand with your <Text style={{ fontWeight: '800' }}>back to the wall</Text>, heel pressed against it on the paper&apos;s edge. You should see{' '}
             <Text style={{ fontWeight: '800' }}>white paper beyond your toes</Text> — if not, re-jam your heel.{'\n'}
-            3. Hold the phone overhead, parallel to the floor, normal grip — the green{' '}
-            <Text style={{ fontWeight: '800' }}>wall-edge bar sits at the bottom</Text>, towards the wall behind you.{'\n'}
+            3. Hold the phone overhead, parallel to the floor, with the{' '}
+            <Text style={{ fontWeight: '800' }}>camera end pointing down your leg</Text> — the green wall-edge bar sits at the top.{'\n'}
             4. Match the paper to the dashed frame, no shadows across it. Tap Capture.
           </Text>
         </View>
