@@ -231,10 +231,26 @@ export default function ScannerDebugScreen() {
       if (metrics && metrics.lengthMm > 0 && metrics.confidence >= 0.3) {
         setSession((prev) => [...prev, metrics]);
       }
+      const qa = quad ? quadAspect(quad) : null;
+      // streams to Metro on the dev machine so capture results can be read remotely
+      console.log(
+        '[scan-capture]',
+        JSON.stringify({
+          kind,
+          flash: flashOn,
+          quadFound: !!quad,
+          quadAspect: qa === null ? null : Number(qa.toFixed(3)),
+          contours: contours.length,
+          footPoints: picked?.foot.length ?? 0,
+          lengthMm: metrics === null ? null : Number(metrics.lengthMm.toFixed(1)),
+          widthMm: metrics === null ? null : Number(metrics.widthMm.toFixed(1)),
+          confidence: metrics === null ? null : Number(metrics.confidence.toFixed(2)),
+        }),
+      );
       setResult({
         totalContours: contours.length,
         quadFound: !!quad,
-        quadAspect: quad ? quadAspect(quad) : null,
+        quadAspect: qa,
         referencePoints: picked?.reference.length ?? 0,
         footPoints: picked?.foot.length ?? 0,
         metrics,
