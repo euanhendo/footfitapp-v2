@@ -102,6 +102,7 @@ export default function ManualInputScreen() {
           sport,
           gender,
           widthProfile: '',
+          measureSource: 'manual',
         },
       });
 
@@ -129,6 +130,7 @@ export default function ManualInputScreen() {
         sport,
         gender,
         widthProfile,
+        measureSource: 'estimated',
       },
     });
   };

@@ -82,13 +82,15 @@ function SockThumb({ uri, brand }: { uri: string; brand: string }) {
 export default function SockSelectionScreen() {
   const [sockType, setSockType] = useState('');
   const [query, setQuery] = useState('');
-  const { footLength, footWidth, sport, gender, widthProfile } = useLocalSearchParams<{
-    footLength: string;
-    footWidth: string;
-    sport: string;
-    gender: string;
-    widthProfile: string;
-  }>();
+  const { footLength, footWidth, sport, gender, widthProfile, measureSource } =
+    useLocalSearchParams<{
+      footLength: string;
+      footWidth: string;
+      sport: string;
+      gender: string;
+      widthProfile: string;
+      measureSource: string;
+    }>();
 
   const sockOptions = useMemo(() => getSocksForSport(socks, sport ?? ''), [sport]);
 
@@ -113,6 +115,7 @@ export default function SockSelectionScreen() {
         sport,
         gender,
         widthProfile: widthProfile ?? '',
+        measureSource: measureSource ?? '',
       },
     });
   };

@@ -1,3 +1,7 @@
+// How the measurements were obtained — a scan is real data, a size-label
+// estimate is the guess the app exists to replace
+export type MeasureSource = 'scanned' | 'manual' | 'estimated';
+
 export type FitProfile = {
   version: 1;
   sport: string;
@@ -6,7 +10,14 @@ export type FitProfile = {
   footWidth: number;
   sockType: string;
   savedAt: string;
+  // optional so v1 profiles saved before provenance existed still load
+  source?: MeasureSource;
 };
+
+// Route params are strings — validate before trusting what arrives
+export function parseMeasureSource(value: string | undefined): MeasureSource | undefined {
+  return value === 'scanned' || value === 'manual' || value === 'estimated' ? value : undefined;
+}
 
 export type StorageAdapter = {
   getItem: (key: string) => Promise<string | null>;

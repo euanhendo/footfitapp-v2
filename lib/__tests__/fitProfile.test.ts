@@ -1,4 +1,4 @@
-import { createFitProfileStore, StorageAdapter, FitProfile } from '../fitProfile';
+import { createFitProfileStore, parseMeasureSource, StorageAdapter, FitProfile } from '../fitProfile';
 
 function createMemoryStorage(): StorageAdapter {
   const store: Record<string, string> = {};
@@ -32,6 +32,20 @@ describe('fitProfile', () => {
   it('returns null when no profile saved', async () => {
     const store = createFitProfileStore(createMemoryStorage());
     expect(await store.load()).toBeNull();
+  });
+
+  it('round-trips the measurement source', async () => {
+    const store = createFitProfileStore(createMemoryStorage());
+    await store.save({ ...sampleData, source: 'scanned' });
+    expect((await store.load())!.source).toBe('scanned');
+  });
+
+  it('loads legacy profiles that have no source', async () => {
+    const store = createFitProfileStore(createMemoryStorage());
+    await store.save(sampleData);
+    const loaded = await store.load();
+    expect(loaded).not.toBeNull();
+    expect(loaded!.source).toBeUndefined();
   });
 
   it('returns null for corrupt JSON', async () => {
@@ -77,5 +91,19 @@ describe('fitProfile', () => {
     const loaded = await store.load();
     const parsed = new Date(loaded!.savedAt);
     expect(parsed.getTime()).not.toBeNaN();
+  });
+});
+
+describe('parseMeasureSource', () => {
+  it('accepts the three known sources', () => {
+    expect(parseMeasureSource('scanned')).toBe('scanned');
+    expect(parseMeasureSource('manual')).toBe('manual');
+    expect(parseMeasureSource('estimated')).toBe('estimated');
+  });
+
+  it('returns undefined for unknown or empty route-param values', () => {
+    expect(parseMeasureSource('')).toBeUndefined();
+    expect(parseMeasureSource('banana')).toBeUndefined();
+    expect(parseMeasureSource(undefined)).toBeUndefined();
   });
 });

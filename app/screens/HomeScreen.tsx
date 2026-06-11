@@ -103,6 +103,16 @@ export default function HomeScreen() {
               <Text style={{ fontSize: 13, color: '#888', marginBottom: 2 }}>
                 {genderLabel} {sportLabel}
               </Text>
+              <Text style={{ fontSize: 13, color: '#bbb', marginBottom: 2 }}>
+                {savedProfile.footLength} × {savedProfile.footWidth} mm
+                {savedProfile.source === 'scanned'
+                  ? ' · scanned'
+                  : savedProfile.source === 'estimated'
+                  ? ' · from shoe size'
+                  : savedProfile.source === 'manual'
+                  ? ' · typed in'
+                  : ''}
+              </Text>
               <Text style={{ fontSize: 12, color: '#666' }}>
                 {daysAgo(savedProfile.savedAt)}
               </Text>

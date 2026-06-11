@@ -5,7 +5,7 @@ import * as SecureStore from 'expo-secure-store';
 import { applySocketAdjustment, Boot, effectiveSizeOffset, recommendSize, SockEntry } from '../../lib/fitting';
 import { computePersonalOffsetMm } from '../../lib/fitCalibration';
 import { computeAffinityBoost, getScoreBreakdown, scoreAndRankBoots, ScoredBoot } from '../../lib/fitScore';
-import { createFitProfileStore, StorageAdapter } from '../../lib/fitProfile';
+import { createFitProfileStore, parseMeasureSource, StorageAdapter } from '../../lib/fitProfile';
 import { createOwnedShoesStore, OwnedShoe } from '../../lib/ownedShoes';
 import {
   applyBootListControls,
@@ -229,14 +229,16 @@ function BootCard({
 }
 
 export default function ResultScreen() {
-  const { footLength, footWidth, sockType, sport, gender, widthProfile } = useLocalSearchParams<{
-    footLength: string;
-    footWidth: string;
-    sockType: string;
-    sport: string;
-    gender: string;
-    widthProfile: string;
-  }>();
+  const { footLength, footWidth, sockType, sport, gender, widthProfile, measureSource } =
+    useLocalSearchParams<{
+      footLength: string;
+      footWidth: string;
+      sockType: string;
+      sport: string;
+      gender: string;
+      widthProfile: string;
+      measureSource: string;
+    }>();
 
   const length = Number(footLength);
   const width = Number(footWidth);
@@ -346,9 +348,10 @@ export default function ResultScreen() {
         footLength: safeLength,
         footWidth: safeWidth,
         sockType: safeSockType,
+        source: parseMeasureSource(measureSource),
       });
     }
-  }, [sport, gender, safeLength, safeWidth, safeSockType]);
+  }, [sport, gender, safeLength, safeWidth, safeSockType, measureSource]);
 
   const sportLabel =
     sport === 'football'

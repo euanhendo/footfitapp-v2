@@ -70,6 +70,7 @@ export default function ScanReviewScreen() {
         sport: sport ?? '',
         gender: gender ?? '',
         widthProfile: '',
+        measureSource: 'scanned',
       },
     });
   };
