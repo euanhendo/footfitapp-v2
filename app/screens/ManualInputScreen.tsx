@@ -159,6 +159,29 @@ export default function ManualInputScreen() {
               </Text>
             </Pressable>
 
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: '/screens/ScannerScreen',
+                  params: { sport: sport ?? '', gender: gender ?? '' },
+                })
+              }
+              style={{
+                backgroundColor: '#111',
+                borderRadius: 14,
+                paddingVertical: 14,
+                paddingHorizontal: 16,
+                marginBottom: 16,
+              }}
+            >
+              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>
+                Scan with your phone
+              </Text>
+              <Text style={{ color: '#bbb', fontSize: 12, marginTop: 3 }}>
+                Stand on A4 paper against a wall — measures your foot in mm automatically
+              </Text>
+            </Pressable>
+
             <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 10 }}>
               Input method
             </Text>

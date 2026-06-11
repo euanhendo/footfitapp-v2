@@ -7,6 +7,7 @@ import { detectScene } from '../../modules/footfit-vision';
 import { pickFootFromQuad, pickReferenceQuad } from '../../lib/scanner/contourPicker';
 import { denormalizePoints } from '../../lib/scanner/denormalize';
 import { calibrateFootMetrics, findHeelEdge, measureFromQuadAndFoot } from '../../lib/scanner/footMetrics';
+import { assessGuideFit, GuideFitStatus, quadAspect } from '../../lib/scanner/guideFit';
 import { isTrustedCapture, medianMetrics, TRUST_MIN_CONFIDENCE } from '../../lib/scanner/multiCapture';
 import { FootMetrics, Point, ReferenceKind } from '../../lib/scanner/types';
 
@@ -169,21 +170,6 @@ function SceneOverlay({
   );
 }
 
-function quadAspect(quad: Point[]): number | null {
-  if (!quad || quad.length !== 4) return null;
-  const [tl, tr, br, bl] = quad;
-  const top = Math.hypot(tr.x - tl.x, tr.y - tl.y);
-  const right = Math.hypot(br.x - tr.x, br.y - tr.y);
-  const bottom = Math.hypot(br.x - bl.x, br.y - bl.y);
-  const left = Math.hypot(bl.x - tl.x, bl.y - tl.y);
-  const horiz = (top + bottom) / 2;
-  const vert = (right + left) / 2;
-  const long = Math.max(horiz, vert);
-  const short = Math.min(horiz, vert);
-  if (long === 0) return null;
-  return short / long;
-}
-
 export default function ScannerDebugScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [kind, setKind] = useState<ReferenceKind>('a4');
@@ -315,8 +301,7 @@ export default function ScannerDebugScreen() {
     let cancelled = false;
     const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-    type ProbeStatus = 'no-paper' | 'tilted' | 'too-small' | 'too-close' | 'off-centre' | 'locked';
-    const COACHING: Record<ProbeStatus, string> = {
+    const COACHING: Record<GuideFitStatus, string> = {
       'no-paper': 'Searching for the paper…',
       tilted: 'Paper seen — hold the phone flat and level',
       'too-small': 'Paper seen — bring the phone closer',
@@ -326,7 +311,7 @@ export default function ScannerDebugScreen() {
     };
 
     // Locked = the paper genuinely fills the guide: level, centred, right size
-    const probe = async (): Promise<ProbeStatus> => {
+    const probe = async (): Promise<GuideFitStatus> => {
       if (!cameraRef.current) return 'no-paper';
       const photo = await cameraRef.current.takePictureAsync({ quality: 0.2 });
       if (!photo?.uri) return 'no-paper';
@@ -340,18 +325,7 @@ export default function ScannerDebugScreen() {
       }));
       const fallback = scene.quad ? denormalizePoints(scene.quad, imgW, imgH) : null;
       const quad = pickReferenceQuad(candidatesPx) ?? fallback;
-      if (!quad) return 'no-paper';
-      const aspect = quadAspect(quad);
-      if (aspect === null || aspect < 0.66 || aspect > 0.78) return 'tilted';
-      const xs = quad.map((p) => p.x);
-      const ys = quad.map((p) => p.y);
-      const heightFrac = (Math.max(...ys) - Math.min(...ys)) / imgH;
-      if (heightFrac < 0.4) return 'too-small';
-      if (heightFrac > 0.8) return 'too-close';
-      const cx = (Math.min(...xs) + Math.max(...xs)) / 2 / imgW;
-      const cy = (Math.min(...ys) + Math.max(...ys)) / 2 / imgH;
-      if (cx < 0.3 || cx > 0.7 || cy < 0.28 || cy > 0.72) return 'off-centre';
-      return 'locked';
+      return assessGuideFit(quad, imgW, imgH);
     };
 
     (async () => {
@@ -362,7 +336,7 @@ export default function ScannerDebugScreen() {
           await delay(400);
           continue;
         }
-        let status: ProbeStatus = 'no-paper';
+        let status: GuideFitStatus = 'no-paper';
         try {
           status = await probe();
         } catch {
