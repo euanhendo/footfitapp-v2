@@ -194,6 +194,10 @@ export default function ScannerDebugScreen() {
   const [preview, setPreview] = useState<{ width: number; height: number } | null>(null);
   const [session, setSession] = useState<FootMetrics[]>([]);
   const [flashOn, setFlashOn] = useState(true);
+  const [auto, setAuto] = useState(false);
+  const [bursting, setBursting] = useState(false);
+  const [autoStatus, setAutoStatus] = useState<string | null>(null);
+  const busyRef = useRef(false);
   const cameraRef = useRef<CameraView | null>(null);
   const progress = useRef(new Animated.Value(0)).current;
 
@@ -219,7 +223,8 @@ export default function ScannerDebugScreen() {
   }, [busy, progress]);
 
   const handleCapture = async () => {
-    if (busy || !cameraRef.current) return;
+    if (busyRef.current || !cameraRef.current) return;
+    busyRef.current = true;
     setBusy(true);
     setError(null);
     setResult(null);
@@ -288,9 +293,88 @@ export default function ScannerDebugScreen() {
       setError(message);
       Alert.alert('Debug capture failed', message);
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   };
+
+  const handleCaptureRef = useRef(handleCapture);
+  handleCaptureRef.current = handleCapture;
+
+  // Auto mode: probe ~1/s with flash off; when the paper looks like a steady
+  // A4 twice in a row, fire a 3-capture burst into the session median
+  useEffect(() => {
+    if (!auto) {
+      setAutoStatus(null);
+      setBursting(false);
+      return;
+    }
+    let cancelled = false;
+    const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+    const probeLocked = async (): Promise<boolean> => {
+      if (!cameraRef.current) return false;
+      const photo = await cameraRef.current.takePictureAsync({ quality: 0.2 });
+      if (!photo?.uri) return false;
+      const scene = await detectScene(photo.uri);
+      const imgW = scene.width > 0 ? scene.width : (photo.width ?? 0);
+      const imgH = scene.height > 0 ? scene.height : (photo.height ?? 0);
+      if (imgW <= 0 || imgH <= 0) return false;
+      const candidatesPx = scene.candidates.map((c) => ({
+        ...c,
+        quad: denormalizePoints(c.quad, imgW, imgH),
+      }));
+      const fallback = scene.quad ? denormalizePoints(scene.quad, imgW, imgH) : null;
+      const quad = pickReferenceQuad(candidatesPx) ?? fallback;
+      const aspect = quad ? quadAspect(quad) : null;
+      return aspect !== null && aspect >= 0.66 && aspect <= 0.78;
+    };
+
+    (async () => {
+      let hits = 0;
+      setAutoStatus('Searching for the paper…');
+      while (!cancelled) {
+        if (busyRef.current) {
+          await delay(400);
+          continue;
+        }
+        let locked = false;
+        try {
+          locked = await probeLocked();
+        } catch {
+          locked = false;
+        }
+        if (cancelled) return;
+        if (locked) {
+          hits += 1;
+          setAutoStatus(hits >= 2 ? 'Locked — capturing…' : 'Paper found — hold steady…');
+        } else {
+          hits = 0;
+          setAutoStatus('Searching for the paper…');
+        }
+        if (hits >= 2) {
+          setBursting(true);
+          await delay(300); // let the flash setting take effect
+          for (let i = 0; i < 3 && !cancelled; i++) {
+            setAutoStatus(`Capturing ${i + 1} of 3…`);
+            await handleCaptureRef.current();
+            await delay(400);
+          }
+          setBursting(false);
+          if (!cancelled) {
+            setAutoStatus('Done — check the session median below');
+            setAuto(false);
+          }
+          return;
+        }
+        await delay(700);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [auto]);
 
   if (!permission) {
     return (
@@ -324,7 +408,12 @@ export default function ScannerDebugScreen() {
         style={{ flex: 1 }}
         onLayout={(e) => setPreview({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })}
       >
-        <CameraView ref={cameraRef} style={{ flex: 1 }} facing="back" flash={flashOn ? 'on' : 'off'} />
+        <CameraView
+          ref={cameraRef}
+          style={{ flex: 1 }}
+          facing="back"
+          flash={auto && !bursting ? 'off' : flashOn ? 'on' : 'off'}
+        />
         {preview &&
           (() => {
             // A4 portrait in frame: foot points away from the wall, wall edge at top
@@ -466,10 +555,30 @@ export default function ScannerDebugScreen() {
         </View>
 
         <Pressable
-          onPress={handleCapture}
-          disabled={busy}
+          onPress={() => setAuto((a) => !a)}
           style={{
-            backgroundColor: busy ? '#555' : '#fff',
+            backgroundColor: auto ? '#7bff9f' : '#222',
+            borderRadius: 14,
+            paddingVertical: 14,
+            alignItems: 'center',
+            marginBottom: 8,
+          }}
+        >
+          <Text style={{ color: auto ? '#111' : '#fff', fontSize: 15, fontWeight: '700' }}>
+            {auto ? 'Auto-capture ON — tap to cancel' : 'Auto-capture (hands-free)'}
+          </Text>
+        </Pressable>
+        {autoStatus && (
+          <Text style={{ color: '#7bff9f', fontSize: 13, fontWeight: '700', textAlign: 'center', marginBottom: 8 }}>
+            {autoStatus}
+          </Text>
+        )}
+
+        <Pressable
+          onPress={handleCapture}
+          disabled={busy || auto}
+          style={{
+            backgroundColor: busy || auto ? '#555' : '#fff',
             borderRadius: 14,
             paddingVertical: 16,
             alignItems: 'center',
@@ -477,7 +586,7 @@ export default function ScannerDebugScreen() {
           }}
         >
           <Text style={{ color: '#111', fontSize: 15, fontWeight: '700' }}>
-            {busy ? 'Detecting…' : 'Capture & detect'}
+            {busy ? 'Detecting…' : 'Capture & detect (manual)'}
           </Text>
         </Pressable>
 
