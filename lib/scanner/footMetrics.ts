@@ -1,3 +1,4 @@
+import { applyHomography, solveHomography } from './homography';
 import { minAreaRect } from './orientedBBox';
 import { getReferenceObject } from './referenceObjects';
 import { BBox, DetectedContours, FootMetrics, Mask, Point, ReferenceKind } from './types';
@@ -190,34 +191,46 @@ export function measureFromQuadAndFoot(
 
   const { heelEdge, heelVotes, toeVotes, shortEdges, longEdges } = voteHeelEdge(edges, foot);
 
-  let maxPerp = 0;
-  for (const p of foot) {
-    const vx = p.x - heelEdge.a.x;
-    const vy = p.y - heelEdge.a.y;
-    const perp = vx * heelEdge.nx + vy * heelEdge.ny;
-    if (perp > maxPerp) maxPerp = perp;
+  // Rectify: map the quad corners onto the paper's true mm rectangle with the
+  // heel edge at y = 0, then measure the foot in paper coordinates. A tilted
+  // camera compresses the wall end of the photo, so any single px-per-mm scale
+  // systematically under-reads length — the homography removes that exactly.
+  const ref = getReferenceObject(referenceKind);
+  const heelIndex = edges.indexOf(heelEdge);
+  const srcCorners = [
+    heelEdge.a,
+    heelEdge.b,
+    quad[(heelIndex + 2) % 4],
+    quad[(heelIndex + 3) % 4],
+  ];
+  const dstCorners = [
+    { x: 0, y: 0 },
+    { x: ref.shortMm, y: 0 },
+    { x: ref.shortMm, y: ref.longMm },
+    { x: 0, y: ref.longMm },
+  ];
+  const h = solveHomography(srcCorners, dstCorners);
+  if (!h) return { lengthMm: 0, widthMm: 0, confidence: 0 };
+  const footMm = foot.map((p) => applyHomography(h, p));
+
+  let maxPerpMm = 0;
+  for (const p of footMm) {
+    if (p.y > maxPerpMm) maxPerpMm = p.y;
   }
   // Width across the foot's own axis (oriented box short side), so a foot
   // angled on the paper doesn't leak length into width; length gets the
-  // matching cosine correction for the same angle
-  const footBox = minAreaRect(foot);
-  const axisDotNormal = Math.abs(
-    Math.cos(footBox.angleRad) * heelEdge.nx + Math.sin(footBox.angleRad) * heelEdge.ny,
-  );
-  const lengthPx = Math.max(0, maxPerp) / Math.max(axisDotNormal, 0.7);
-  const widthPx = footBox.widthMm;
-  if (lengthPx <= 0 || widthPx <= 0) {
+  // matching cosine correction for the same angle. The heel line is y = 0 in
+  // paper space, so its inward normal is +y.
+  const footBox = minAreaRect(footMm);
+  const axisDotNormal = Math.abs(Math.sin(footBox.angleRad));
+  const lengthMm = maxPerpMm / Math.max(axisDotNormal, 0.7);
+  const widthMm = footBox.widthMm;
+  if (lengthMm <= 0 || widthMm <= 0) {
     return { lengthMm: 0, widthMm: 0, confidence: 0 };
   }
 
-  const ref = getReferenceObject(referenceKind);
   const longAvgPx = (longEdges[0].length + longEdges[1].length) / 2;
   const shortAvgPx = (shortEdges[0].length + shortEdges[1].length) / 2;
-  const pxPerMm = (longAvgPx / ref.longMm + shortAvgPx / ref.shortMm) / 2;
-  if (pxPerMm <= 0) return { lengthMm: 0, widthMm: 0, confidence: 0 };
-
-  const lengthMm = lengthPx / pxPerMm;
-  const widthMm = widthPx / pxPerMm;
 
   const detectedRatio = shortAvgPx / longAvgPx;
   const expectedRatio = ref.shortMm / ref.longMm;

@@ -1,4 +1,5 @@
 import { findHeelEdge, measureFromQuadAndFoot } from '../../scanner/footMetrics';
+import { applyHomography, solveHomography } from '../../scanner/homography';
 import { Point } from '../../scanner/types';
 
 function axisAlignedA4(pxPerMm: number): Point[] {
@@ -79,6 +80,38 @@ describe('measureFromQuadAndFoot', () => {
     const result = measureFromQuadAndFoot(quad, foot, 'a4');
     expect(Math.abs(result.widthMm - 60)).toBeLessThanOrEqual(1);
     expect(Math.abs(result.lengthMm - 250)).toBeLessThanOrEqual(5);
+    expect(result.confidence).toBeGreaterThan(0);
+  });
+
+  it('recovers true size under perspective foreshortening (tilted camera)', () => {
+    // Paper in its own mm coordinates: heel edge (wall side) at y = 0
+    const paperMm: Point[] = [
+      { x: 0, y: 0 },
+      { x: 210, y: 0 },
+      { x: 210, y: 297 },
+      { x: 0, y: 297 },
+    ];
+    // The photo: wall end farther from the camera, so it appears compressed
+    const quadPx: Point[] = [
+      { x: 320, y: 100 },
+      { x: 700, y: 110 },
+      { x: 860, y: 1500 },
+      { x: 180, y: 1480 },
+    ];
+    const project = solveHomography(paperMm, quadPx)!;
+    // 275 × 110 mm foot, heel on the wall edge — corners plus side midpoints
+    const footMmTruth: Point[] = [
+      { x: 70, y: 0 },
+      { x: 180, y: 0 },
+      { x: 180, y: 137 },
+      { x: 180, y: 275 },
+      { x: 70, y: 275 },
+      { x: 70, y: 137 },
+    ];
+    const footPx = footMmTruth.map((p) => applyHomography(project, p));
+    const result = measureFromQuadAndFoot(quadPx, footPx, 'a4');
+    expect(Math.abs(result.lengthMm - 275)).toBeLessThanOrEqual(1);
+    expect(Math.abs(result.widthMm - 110)).toBeLessThanOrEqual(1);
     expect(result.confidence).toBeGreaterThan(0);
   });
 });
