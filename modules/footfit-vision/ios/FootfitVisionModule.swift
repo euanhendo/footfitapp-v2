@@ -39,11 +39,29 @@ public class FootfitVisionModule: Module {
         contoursLight.detectsDarkOnLight = false
         contoursLight.maximumImageDimension = 1024
 
+        // Rect detection sees the original image (brightness scoring needs real
+        // luminance); contour detection sees an illumination-normalized copy
+        // (image ÷ blurred image) so soft shadows vanish while sharp foot/paper
+        // edges survive
         let handler = VNImageRequestHandler(cgImage: cgImage, orientation: orientation, options: [:])
         do {
-          try handler.perform([rectRequest, contoursDark, contoursLight])
+          try handler.perform([rectRequest])
         } catch {
-          promise.reject("E_VISION", "Vision requests failed: \(error.localizedDescription)")
+          promise.reject("E_VISION", "Vision rectangle request failed: \(error.localizedDescription)")
+          return
+        }
+
+        let upright = CIImage(cgImage: cgImage).oriented(orientation)
+        do {
+          if let normalized = Self.illuminationNormalized(upright) {
+            let contourHandler = VNImageRequestHandler(cgImage: normalized, options: [:])
+            try contourHandler.perform([contoursDark, contoursLight])
+          } else {
+            let contourHandler = VNImageRequestHandler(cgImage: cgImage, orientation: orientation, options: [:])
+            try contourHandler.perform([contoursDark, contoursLight])
+          }
+        } catch {
+          promise.reject("E_VISION", "Vision contour requests failed: \(error.localizedDescription)")
           return
         }
 
@@ -96,6 +114,32 @@ public class FootfitVisionModule: Module {
         ])
       }
     }
+  }
+
+  // Divide the image by a heavily blurred copy of itself: soft illumination
+  // gradients (shadows) flatten out, sharp edges (foot on paper) survive.
+  // Downscaled to Vision's working size first to keep the blur cheap.
+  private static func illuminationNormalized(_ image: CIImage) -> CGImage? {
+    let maxDim = max(image.extent.width, image.extent.height)
+    guard maxDim > 0 else { return nil }
+    let scale = min(1.0, 1024.0 / maxDim)
+    let scaled = scale < 1.0
+      ? image.applyingFilter("CILanczosScaleTransform", parameters: [
+          kCIInputScaleKey: scale,
+          kCIInputAspectRatioKey: 1.0,
+        ])
+      : image
+    let blurred = scaled
+      .clampedToExtent()
+      .applyingFilter("CIGaussianBlur", parameters: [
+        kCIInputRadiusKey: max(scaled.extent.width, scaled.extent.height) * 0.05,
+      ])
+      .cropped(to: scaled.extent)
+    let normalized = blurred.applyingFilter("CIDivideBlendMode", parameters: [
+      kCIInputBackgroundImageKey: scaled,
+    ])
+    let context = CIContext(options: [.workingColorSpace: NSNull()])
+    return context.createCGImage(normalized, from: scaled.extent)
   }
 
   // Mean luminance [0,1] of the quad's bounding box — distinguishes white
