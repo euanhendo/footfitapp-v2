@@ -312,22 +312,43 @@ export default function ScannerDebugScreen() {
     let cancelled = false;
     const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-    const probeLocked = async (): Promise<boolean> => {
-      if (!cameraRef.current) return false;
+    type ProbeStatus = 'no-paper' | 'tilted' | 'too-small' | 'too-close' | 'off-centre' | 'locked';
+    const COACHING: Record<ProbeStatus, string> = {
+      'no-paper': 'Searching for the paper…',
+      tilted: 'Paper seen — hold the phone flat and level',
+      'too-small': 'Paper seen — bring the phone closer',
+      'too-close': 'Too close — lift the phone higher',
+      'off-centre': 'Centre the paper in the frame',
+      locked: 'Hold steady…',
+    };
+
+    // Locked = the paper genuinely fills the guide: level, centred, right size
+    const probe = async (): Promise<ProbeStatus> => {
+      if (!cameraRef.current) return 'no-paper';
       const photo = await cameraRef.current.takePictureAsync({ quality: 0.2 });
-      if (!photo?.uri) return false;
+      if (!photo?.uri) return 'no-paper';
       const scene = await detectScene(photo.uri);
       const imgW = scene.width > 0 ? scene.width : (photo.width ?? 0);
       const imgH = scene.height > 0 ? scene.height : (photo.height ?? 0);
-      if (imgW <= 0 || imgH <= 0) return false;
+      if (imgW <= 0 || imgH <= 0) return 'no-paper';
       const candidatesPx = scene.candidates.map((c) => ({
         ...c,
         quad: denormalizePoints(c.quad, imgW, imgH),
       }));
       const fallback = scene.quad ? denormalizePoints(scene.quad, imgW, imgH) : null;
       const quad = pickReferenceQuad(candidatesPx) ?? fallback;
-      const aspect = quad ? quadAspect(quad) : null;
-      return aspect !== null && aspect >= 0.66 && aspect <= 0.78;
+      if (!quad) return 'no-paper';
+      const aspect = quadAspect(quad);
+      if (aspect === null || aspect < 0.66 || aspect > 0.78) return 'tilted';
+      const xs = quad.map((p) => p.x);
+      const ys = quad.map((p) => p.y);
+      const heightFrac = (Math.max(...ys) - Math.min(...ys)) / imgH;
+      if (heightFrac < 0.4) return 'too-small';
+      if (heightFrac > 0.8) return 'too-close';
+      const cx = (Math.min(...xs) + Math.max(...xs)) / 2 / imgW;
+      const cy = (Math.min(...ys) + Math.max(...ys)) / 2 / imgH;
+      if (cx < 0.3 || cx > 0.7 || cy < 0.28 || cy > 0.72) return 'off-centre';
+      return 'locked';
     };
 
     (async () => {
@@ -338,19 +359,19 @@ export default function ScannerDebugScreen() {
           await delay(400);
           continue;
         }
-        let locked = false;
+        let status: ProbeStatus = 'no-paper';
         try {
-          locked = await probeLocked();
+          status = await probe();
         } catch {
-          locked = false;
+          status = 'no-paper';
         }
         if (cancelled) return;
-        if (locked) {
+        if (status === 'locked') {
           hits += 1;
-          setAutoStatus(hits >= 2 ? 'Locked — capturing…' : 'Paper found — hold steady…');
+          setAutoStatus(hits >= 2 ? 'Locked — capturing…' : COACHING.locked);
         } else {
           hits = 0;
-          setAutoStatus('Searching for the paper…');
+          setAutoStatus(COACHING[status]);
         }
         if (hits >= 2) {
           setBursting(true);
@@ -412,7 +433,8 @@ export default function ScannerDebugScreen() {
           ref={cameraRef}
           style={{ flex: 1 }}
           facing="back"
-          flash={auto && !bursting ? 'off' : flashOn ? 'on' : 'off'}
+          // auto mode standardizes illumination: flash off while probing, always on for the burst
+          flash={auto ? (bursting ? 'on' : 'off') : flashOn ? 'on' : 'off'}
         />
         {preview &&
           (() => {
