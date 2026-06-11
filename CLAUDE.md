@@ -10,7 +10,7 @@ Three rules are load-bearing enough to inline here:
 
 - **Route params are strings.** Parse with `Number()` on the receiving screen. Never type a param as `number`. Scanner outputs (`lengthMm`, `widthMm`, `confidence`) follow the same rule on the way out of `ScannerScreen`.
 - **Persistence goes through `StorageAdapter`.** Components and screens never import `expo-secure-store` directly — inject the adapter so tests can swap it.
-- **Vision goes through `VisionAdapter`.** Scanner screens never import `react-native-fast-tflite` or camera/ML modules directly — inject the adapter so tests can swap it. Math in `lib/scanner/*` stays pure.
+- **Vision goes through `VisionAdapter`.** Scanner screens never import native vision/ML modules directly — `ScannerScreen` talks to `visionKitAdapter`; only `lib/scanner/visionKitAdapter.ts` may import `modules/footfit-vision`, and only `lib/scanner/tfliteVisionAdapter.ts` (legacy) may import `react-native-fast-tflite`. Math in `lib/scanner/*` stays pure. (`ScannerDebugScreen` deliberately pokes the raw pipeline — it is the one exception.)
 
 ## Slash commands
 
@@ -43,7 +43,7 @@ Or just run `/verify` to fire all three checks in parallel and get a summary.
 
 ### Dev client (required — native modules present)
 
-`react-native-fast-tflite` is linked into the app (even though the scanner is currently abandoned, see below). Expo Go cannot load it. Use a local dev client:
+Native modules are linked into the app (`modules/footfit-vision` for the live scanner; `react-native-fast-tflite` is legacy from the abandoned ML spike). Expo Go cannot load them. Use a local dev client:
 
 ```bash
 npm run ios            # npx expo run:ios (simulator)
@@ -52,9 +52,9 @@ npx expo run:ios --device   # plugged-in iPhone, free Apple ID signing OK
 
 ### Scanner status
 
-The camera-scan spike (`ScannerScreen`, `tfliteVisionAdapter`, `lib/scanner/*`) is **parked as of 2026-04-20** — Phase 3 died on the `react-native-fast-tflite` op resolver, see [.claude/decisions/roadmap-2026-04.md](.claude/decisions/roadmap-2026-04.md) for the failure mode.
+**Shipped 2026-06-11: classical-CV scanner v2** — Nike-style A4-reference flow on Apple Vision (`VNDetectRectanglesRequest` + dual-polarity `VNDetectContoursRequest` + a redness-map contour pass for bare skin) via the native `modules/footfit-vision` bridge. **Validated against pen-and-tape ground truth**: scanner median 256.1 mm vs physically measured 255–256 mm. The mechanisms that made it accurate: hands-free auto-capture that only fires when the paper fills the on-screen guide (`assessGuideFit`), a trust gate (`TRUST_MIN_CONFIDENCE = 0.85`) that rejects shadow-inflated captures and reshoots, and homography rectification of the foot contour into paper-mm coordinates (kills perspective error). Flow: ManualInput → "Scan with your phone" → ScannerScreen (auto) → ScanReview → SockSelection.
 
-**Revival is an explicit product goal**, not a dead spike. The preferred next attempt is **classical CV, not ML** — Nike-style A4-reference edge detection via Apple Vision `VNDetectContoursRequest`, reusing the pure-math scaffolding in `lib/scanner/referenceObjects.ts` and `lib/scanner/footMetrics.ts`. Do not revive via another TFLite-segmentation route. Keep `lib/scanner/*`, the `VisionAdapter` boundary, and `ScannerScreen`/`ScanReviewScreen` intact — they are the revival foundation, not dead code. The "Scan with phone" entry point in `ManualInputScreen` stays removed until a revival clears an isolated CV smoke test. Do not add links back to `ScannerScreen` without reading the abandon + revival note first.
+The ML route stays dead — the 2026-04-20 TFLite op-resolver failure is documented in [.claude/decisions/roadmap-2026-04.md](.claude/decisions/roadmap-2026-04.md); do not attempt segmentation models again. `lib/scanner/tfliteVisionAdapter.ts` is legacy and unused by screens. **Do not re-tune scanner optics or thresholds without a new pen-measured ground truth.** Scanner v3 (LiDAR paperless) is deferred until v2 sees real use.
 
 ## Key Files
 
@@ -65,15 +65,18 @@ The camera-scan spike (`ScannerScreen`, `tfliteVisionAdapter`, `lib/scanner/*`) 
 | `lib/fitProfile.ts` | Persisted profile — StorageAdapter pattern, versioned schema |
 | `lib/ownedShoes.ts` | Persisted list of owned shoes — StorageAdapter pattern |
 | `lib/bootListControls.ts` | Result-screen filter/sort + width-preference boost |
-| `lib/scanner/*` | Foot-scan CV math: calibration, foot metrics, reference objects, VisionAdapter boundary |
-| `lib/scanner/tfliteVisionAdapter.ts` | Concrete `VisionAdapter` — only file allowed to import `react-native-fast-tflite` / `expo-image-manipulator` |
-| `assets/models/` | Bundled `.tflite` weights (gitignored — download per `assets/models/README.md`) |
+| `lib/scanner/*` | Foot-scan CV math (pure): contour picking, foot metrics, homography rectification, guide-fit lock, trust gate, reference objects |
+| `lib/scanner/visionKitAdapter.ts` | Concrete `VisionAdapter` over Apple Vision — only file allowed to import `modules/footfit-vision`; exposes `detectQuad` (probe) + `measureFoot` (full pipeline) |
+| `modules/footfit-vision/` | Native Expo module (Swift): `VNDetectRectanglesRequest` candidates + brightness, dual-polarity + redness-map contours, EXIF-upright dims |
+| `lib/scanner/tfliteVisionAdapter.ts` | Legacy `VisionAdapter` from the dead ML spike — only file allowed to import `react-native-fast-tflite`; unused by screens |
+| `assets/models/` | Bundled `.tflite` weights (gitignored — legacy, see scanner status) |
 | `lib/__tests__/` | Unit tests (Jest + ts-jest) |
 | `bootDatabase.json` | Boot inventory (mm) — use `/add-boot` |
 | `sockDatabase.json` | Sock thickness map (mm, with `sport`) — use `/add-sock` |
-| `app/screens/*` | HomeScreen (entry), ManualInput, MeasureGuide, SockSelection, Result, OwnedShoes, Scanner, ScanReview |
-| `app/screens/ScannerScreen.tsx` | `expo-camera` preview + reference-object overlay; captures photo and runs it through `VisionAdapter` |
+| `app/screens/*` | HomeScreen (entry), ManualInput, MeasureGuide, SockSelection, Result, OwnedShoes, Scanner, ScanReview, ScannerDebug |
+| `app/screens/ScannerScreen.tsx` | Hands-free auto-scan: A4 guide overlay, probe loop, trust-gated burst → median → ScanReview |
 | `app/screens/ScanReviewScreen.tsx` | Shows detected mm + confidence; low-confidence routes to ManualInput with prefilled values |
+| `app/screens/ScannerDebugScreen.tsx` | Instrumented scanner: what-the-scanner-saw overlays, per-capture verdicts, session medians, manual controls |
 | `app/_layout.tsx` | Stack navigator, route param types |
 
 ## Mistakes to Avoid
@@ -86,5 +89,5 @@ _Prune during `/retro` when entries become stale or internalised._
 - For persistence, inject a `StorageAdapter` in tests — don't mock native modules directly
 - For vision, inject a `VisionAdapter` in tests — no `react-native-fast-tflite` or `expo-camera` imports inside `lib/scanner/*`
 - Scanner math (`lib/scanner/*`) is pure TypeScript — if you need RN or native APIs in there, you're on the wrong side of the boundary
-- `react-native-fast-tflite` breaks Expo Go — even with scanner abandoned, the native module is linked; use `npm run ios` / `expo run:ios --device`, not Expo Go
+- Native modules (`modules/footfit-vision`, legacy `react-native-fast-tflite`) break Expo Go — use `npm run ios` / `expo run:ios --device`, not Expo Go
 - Installing native Expo modules hits `~/.expo/native-modules-cache/` (outside sandbox) — expect `EPERM`, retry with sandbox disabled
