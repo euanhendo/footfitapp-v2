@@ -71,6 +71,16 @@ describe('measureFromQuadAndFoot', () => {
     const result = measureFromQuadAndFoot(axisAlignedA4(1), [], 'a4');
     expect(result).toEqual({ lengthMm: 0, widthMm: 0, confidence: 0 });
   });
+
+  it('measures width across the foot axis, not the paper, when the foot is angled', () => {
+    const quad = axisAlignedA4(1);
+    // 250×60 foot angled 8° on the paper, heel still crossing the short edge
+    const foot = rotate(footRect(0, 250, 80, 140), 8, 0, 110);
+    const result = measureFromQuadAndFoot(quad, foot, 'a4');
+    expect(Math.abs(result.widthMm - 60)).toBeLessThanOrEqual(1);
+    expect(Math.abs(result.lengthMm - 250)).toBeLessThanOrEqual(5);
+    expect(result.confidence).toBeGreaterThan(0);
+  });
 });
 
 describe('findHeelEdge', () => {

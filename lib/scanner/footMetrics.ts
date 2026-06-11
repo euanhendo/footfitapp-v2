@@ -191,19 +191,21 @@ export function measureFromQuadAndFoot(
   const { heelEdge, heelVotes, toeVotes, shortEdges, longEdges } = voteHeelEdge(edges, foot);
 
   let maxPerp = 0;
-  let minProj = Infinity;
-  let maxProj = -Infinity;
   for (const p of foot) {
     const vx = p.x - heelEdge.a.x;
     const vy = p.y - heelEdge.a.y;
     const perp = vx * heelEdge.nx + vy * heelEdge.ny;
     if (perp > maxPerp) maxPerp = perp;
-    const proj = vx * heelEdge.dx + vy * heelEdge.dy;
-    if (proj < minProj) minProj = proj;
-    if (proj > maxProj) maxProj = proj;
   }
-  const lengthPx = Math.max(0, maxPerp);
-  const widthPx = Math.max(0, maxProj - minProj);
+  // Width across the foot's own axis (oriented box short side), so a foot
+  // angled on the paper doesn't leak length into width; length gets the
+  // matching cosine correction for the same angle
+  const footBox = minAreaRect(foot);
+  const axisDotNormal = Math.abs(
+    Math.cos(footBox.angleRad) * heelEdge.nx + Math.sin(footBox.angleRad) * heelEdge.ny,
+  );
+  const lengthPx = Math.max(0, maxPerp) / Math.max(axisDotNormal, 0.7);
+  const widthPx = footBox.widthMm;
   if (lengthPx <= 0 || widthPx <= 0) {
     return { lengthMm: 0, widthMm: 0, confidence: 0 };
   }
