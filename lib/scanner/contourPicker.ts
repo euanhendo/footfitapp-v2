@@ -80,10 +80,19 @@ const NEAR_EDGE_TOLERANCE = 0.05; // of each edge's length
 const MAX_NEAR_EDGE_FRACTION = 0.45;
 
 // Bare skin yields hundreds of speckle fragments (texture, hair, shadow).
-// The foot is the largest blob; only fragments whose outline nearly touches
-// it (a broken-off toe cap) belong to the foot — scattered speckle does not.
+// The foot core is the most foot-plausible blob (big AND foot-shaped — a
+// shadow-merged blob is bigger but squatter); only fragments whose outline
+// nearly touches the core (a broken-off toe cap) get merged, and never a
+// blob big enough to be a rival reading of the same region.
 const FRAGMENT_GAP_RATIO = 0.05; // of the core blob's length
 const CORE_SAMPLE_TARGET = 256;
+const FOOT_ASPECT_TARGET = 2.6;
+const ASPECT_PENALTY = 2;
+const MAX_FRAGMENT_AREA_RATIO = 0.5; // of the core's area
+
+function footPlausibility(s: ContourStats): number {
+  return s.area / (1 + ASPECT_PENALTY * Math.abs(s.aspect - FOOT_ASPECT_TARGET));
+}
 
 function minGapToCore(fragment: Point[], core: Point[]): number {
   const step = Math.max(1, Math.floor(core.length / CORE_SAMPLE_TARGET));
@@ -137,10 +146,15 @@ export function pickFootFromQuad(
     .filter((s) => pointInPolygon(centroid(s.contour), quad))
     .filter((s) => nearEdgeFraction(s.contour, quad) <= MAX_NEAR_EDGE_FRACTION);
   if (inside.length === 0) return null;
-  const core = inside.reduce((a, b) => (b.area > a.area ? b : a));
+  const core = inside.reduce((a, b) => (footPlausibility(b) > footPlausibility(a) ? b : a));
   const gapTolerance = minAreaRect(core.contour).lengthMm * FRAGMENT_GAP_RATIO;
   const foot = inside
-    .filter((s) => s === core || minGapToCore(s.contour, core.contour) <= gapTolerance)
+    .filter(
+      (s) =>
+        s === core ||
+        (s.area <= core.area * MAX_FRAGMENT_AREA_RATIO &&
+          minGapToCore(s.contour, core.contour) <= gapTolerance),
+    )
     .flatMap((s) => s.contour);
   return { reference: quad, foot };
 }

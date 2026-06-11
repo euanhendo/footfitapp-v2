@@ -48,6 +48,17 @@ public class FootfitVisionModule: Module {
         }
 
         let orientedImage = CIImage(cgImage: cgImage).oriented(orientation)
+
+        // Third pass on a chroma map: shadows and paper are achromatic and go
+        // black, skin keeps its colour and glows — shadow-proof bare-foot outline
+        let contoursChroma = VNDetectContoursRequest()
+        contoursChroma.contrastAdjustment = 2.0
+        contoursChroma.detectsDarkOnLight = false
+        contoursChroma.maximumImageDimension = 1024
+        if let chromaCG = Self.chromaEmphasis(orientedImage) {
+          let chromaHandler = VNImageRequestHandler(cgImage: chromaCG, options: [:])
+          try? chromaHandler.perform([contoursChroma])
+        }
         var quad: [[Double]]? = nil
         var candidates: [[String: Any]] = []
         for obs in rectRequest.results ?? [] {
@@ -65,7 +76,7 @@ public class FootfitVisionModule: Module {
         }
 
         var contours: [[[Double]]] = []
-        for request in [contoursDark, contoursLight] {
+        for request in [contoursDark, contoursLight, contoursChroma] {
           if let observation = request.results?.first as? VNContoursObservation {
             do {
               let flat = try Self.flattenContours(observation)
@@ -96,6 +107,33 @@ public class FootfitVisionModule: Module {
         ])
       }
     }
+  }
+
+  // Chroma map: |image − grayscale(image)|, boosted. Achromatic content
+  // (white paper, grey shadows, black socks) goes black; coloured content
+  // (skin) stays bright — a shadow-immune channel for bare-foot contours.
+  private static func chromaEmphasis(_ image: CIImage) -> CGImage? {
+    let maxDim = max(image.extent.width, image.extent.height)
+    guard maxDim > 0 else { return nil }
+    let scale = min(1.0, 1024.0 / maxDim)
+    let scaled = scale < 1.0
+      ? image.applyingFilter("CILanczosScaleTransform", parameters: [
+          kCIInputScaleKey: scale,
+          kCIInputAspectRatioKey: 1.0,
+        ])
+      : image
+    let gray = scaled.applyingFilter("CIColorControls", parameters: [kCIInputSaturationKey: 0.0])
+    let diff = scaled.applyingFilter("CIDifferenceBlendMode", parameters: [
+      kCIInputBackgroundImageKey: gray,
+    ])
+    let boosted = diff.applyingFilter("CIColorMatrix", parameters: [
+      "inputRVector": CIVector(x: 4, y: 0, z: 0, w: 0),
+      "inputGVector": CIVector(x: 0, y: 4, z: 0, w: 0),
+      "inputBVector": CIVector(x: 0, y: 0, z: 4, w: 0),
+      "inputAVector": CIVector(x: 0, y: 0, z: 0, w: 1),
+    ])
+    let context = CIContext(options: [.workingColorSpace: NSNull()])
+    return context.createCGImage(boosted, from: scaled.extent)
   }
 
   // Mean luminance [0,1] of the quad's bounding box — distinguishes white

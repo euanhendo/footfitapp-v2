@@ -135,6 +135,16 @@ describe('pickFootFromQuad', () => {
     expect(result!.foot).toHaveLength(mainBlob.length + toeCap.length);
   });
 
+  it('prefers a foot-shaped blob over a larger shadow-merged blob of the same region', () => {
+    // same foot seen by two detector passes: clean chroma outline vs
+    // shadow-inflated luminance outline — overlapping, the fatter one bigger
+    const clean = rect(24, 55, 250, 100); // aspect 2.5
+    const shadowMerged = rect(24, 45, 250, 135); // aspect 1.85, larger area
+    const result = pickFootFromQuad(quad, [shadowMerged, clean]);
+    expect(result).not.toBeNull();
+    expect(result!.foot).toEqual(clean);
+  });
+
   it('drops scattered speckle while keeping the foot blob intact', () => {
     const foot = footShape(100, 80, 1);
     const speckleA = rect(250, 20, 15, 15);
