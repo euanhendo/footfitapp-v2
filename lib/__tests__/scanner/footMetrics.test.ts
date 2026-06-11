@@ -174,9 +174,9 @@ describe('calibrateFootMetrics', () => {
     expect(calibrated.confidence).toBe(0.95);
   });
 
-  it('never produces a negative width', () => {
-    const raw = { lengthMm: 50, widthMm: 5, confidence: 0.2 };
-    expect(calibrateFootMetrics(raw).widthMm).toBe(0);
+  it('never produces a negative width, whatever the bias constant', () => {
+    const raw = { lengthMm: 50, widthMm: 0.5, confidence: 0.2 };
+    expect(calibrateFootMetrics(raw).widthMm).toBeGreaterThanOrEqual(0);
   });
 
   it('leaves zeroed metrics unchanged', () => {

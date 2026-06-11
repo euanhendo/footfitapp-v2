@@ -231,10 +231,11 @@ export function measureFromQuadAndFoot(
   return { lengthMm, widthMm, confidence };
 }
 
-// Top-down silhouette reads wider than a caliper across the ball of the foot
-// (soft-shadow fringe + contour blur on both sides). Empirical, derived from
-// one ground-truth foot (n=1, 2026-06-11) — refine as more feet are measured.
-export const WIDTH_SILHOUETTE_BIAS_MM = 12;
+// The original −12 mm bias was fitted against shadow-inflated outlines. With
+// the redness-map contour pass + confidence gating, a trusted capture hugs the
+// skin and reads true width within ~1 mm (raw 109.3 vs caliper 110, n=1,
+// 2026-06-11), so no correction. Kept as the re-fit hook for more feet.
+export const WIDTH_SILHOUETTE_BIAS_MM = 0;
 
 export function calibrateFootMetrics(metrics: FootMetrics): FootMetrics {
   if (metrics.lengthMm <= 0 || metrics.widthMm <= 0) return metrics;

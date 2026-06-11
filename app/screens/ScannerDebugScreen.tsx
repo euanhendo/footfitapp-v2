@@ -7,7 +7,7 @@ import { detectScene } from '../../modules/footfit-vision';
 import { pickFootFromQuad, pickReferenceQuad } from '../../lib/scanner/contourPicker';
 import { denormalizePoints } from '../../lib/scanner/denormalize';
 import { calibrateFootMetrics, findHeelEdge, measureFromQuadAndFoot } from '../../lib/scanner/footMetrics';
-import { medianMetrics } from '../../lib/scanner/multiCapture';
+import { isTrustedCapture, medianMetrics, TRUST_MIN_CONFIDENCE } from '../../lib/scanner/multiCapture';
 import { FootMetrics, Point, ReferenceKind } from '../../lib/scanner/types';
 
 type Result = {
@@ -222,8 +222,8 @@ export default function ScannerDebugScreen() {
     };
   }, [busy, progress]);
 
-  const handleCapture = async () => {
-    if (busyRef.current || !cameraRef.current) return;
+  const handleCapture = async (): Promise<FootMetrics | null> => {
+    if (busyRef.current || !cameraRef.current) return null;
     busyRef.current = true;
     setBusy(true);
     setError(null);
@@ -233,7 +233,7 @@ export default function ScannerDebugScreen() {
       const photo = await cameraRef.current.takePictureAsync({ quality: 0.8 });
       if (!photo?.uri) {
         setError('Camera returned no image.');
-        return;
+        return null;
       }
       const scene = await detectScene(photo.uri);
       // Vision coords are normalized to a unit square — convert to pixels before any math.
@@ -255,7 +255,8 @@ export default function ScannerDebugScreen() {
       const metrics = picked
         ? calibrateFootMetrics(measureFromQuadAndFoot(picked.reference, picked.foot, kind))
         : null;
-      if (metrics && metrics.lengthMm > 0 && metrics.confidence >= 0.3) {
+      // Only shadow-free outlines count — shadow-inflated ones score ~0.76
+      if (metrics && isTrustedCapture(metrics)) {
         setSession((prev) => [...prev, metrics]);
       }
       const qa = quad ? quadAspect(quad) : null;
@@ -288,10 +289,12 @@ export default function ScannerDebugScreen() {
         quad,
         foot: picked?.foot ?? null,
       });
+      return metrics;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setError(message);
       Alert.alert('Debug capture failed', message);
+      return null;
     } finally {
       busyRef.current = false;
       setBusy(false);
@@ -376,14 +379,26 @@ export default function ScannerDebugScreen() {
         if (hits >= 2) {
           setBursting(true);
           await delay(300); // let the flash setting take effect
-          for (let i = 0; i < 3 && !cancelled; i++) {
-            setAutoStatus(`Capturing ${i + 1} of 3…`);
-            await handleCaptureRef.current();
+          // Keep shooting until 3 captures clear the trust gate — shadow-inflated
+          // outlines (confidence below the threshold) are rejected and retried
+          let trusted = 0;
+          for (let shot = 0; shot < 7 && trusted < 3 && !cancelled; shot++) {
+            setAutoStatus(`Capturing — ${trusted} of 3 trusted…`);
+            const metrics = await handleCaptureRef.current();
+            if (metrics && isTrustedCapture(metrics)) {
+              trusted += 1;
+            } else if (metrics && metrics.lengthMm > 0) {
+              setAutoStatus('Shadow suspected — rejected that capture, going again…');
+            }
             await delay(400);
           }
           setBursting(false);
           if (!cancelled) {
-            setAutoStatus('Done — check the session median below');
+            setAutoStatus(
+              trusted >= 3
+                ? 'Done — 3 trusted captures, check the session median below'
+                : `Stopped at ${trusted} trusted capture${trusted === 1 ? '' : 's'} — shift so your shadow falls away from the paper, then try again`,
+            );
             setAuto(false);
           }
           return;
@@ -702,6 +717,9 @@ export default function ScannerDebugScreen() {
                 </Text>
                 <Text style={{ color: '#ccc', fontSize: 12, marginTop: 2 }}>
                   Confidence: {(result.metrics.confidence * 100).toFixed(0)}%
+                  {isTrustedCapture(result.metrics)
+                    ? ' · counted'
+                    : ` · rejected (needs ≥${(TRUST_MIN_CONFIDENCE * 100).toFixed(0)}% — shadow?)`}
                 </Text>
                 {result.metrics.widthMm > 0 && (
                   <Text style={{ color: '#888', fontSize: 11, marginTop: 2 }}>
@@ -723,7 +741,7 @@ export default function ScannerDebugScreen() {
             return (
               <View style={{ marginTop: 12, padding: 10, backgroundColor: '#1a1a1a', borderRadius: 8, borderWidth: 1, borderColor: '#3a3a2a' }}>
                 <Text style={{ color: '#ffd97b', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 4, textTransform: 'uppercase' }}>
-                  Session median ({session.length} good capture{session.length === 1 ? '' : 's'})
+                  Session median ({session.length} trusted capture{session.length === 1 ? '' : 's'})
                 </Text>
                 <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>
                   Length: {m.lengthMm.toFixed(1)} mm · Width: {m.widthMm.toFixed(1)} mm

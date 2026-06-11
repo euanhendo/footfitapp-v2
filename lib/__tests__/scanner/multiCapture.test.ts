@@ -1,5 +1,28 @@
-import { medianMetrics } from '../../scanner/multiCapture';
+import { isTrustedCapture, medianMetrics, TRUST_MIN_CONFIDENCE } from '../../scanner/multiCapture';
 import { FootMetrics } from '../../scanner/types';
+
+describe('isTrustedCapture', () => {
+  it('accepts a clean capture at the observed shadow-free confidence', () => {
+    const clean: FootMetrics = { lengthMm: 250, widthMm: 109, confidence: 0.95 };
+    expect(isTrustedCapture(clean)).toBe(true);
+  });
+
+  it('rejects a shadow-inflated capture at the observed shadow confidence', () => {
+    const shadowed: FootMetrics = { lengthMm: 260, widthMm: 145, confidence: 0.76 };
+    expect(isTrustedCapture(shadowed)).toBe(false);
+  });
+
+  it('accepts exactly at the threshold', () => {
+    const edge: FootMetrics = { lengthMm: 250, widthMm: 109, confidence: TRUST_MIN_CONFIDENCE };
+    expect(isTrustedCapture(edge)).toBe(true);
+  });
+
+  it('rejects zeroed metrics regardless of confidence', () => {
+    expect(isTrustedCapture({ lengthMm: 0, widthMm: 0, confidence: 1 })).toBe(false);
+    expect(isTrustedCapture({ lengthMm: 250, widthMm: 0, confidence: 1 })).toBe(false);
+    expect(isTrustedCapture({ lengthMm: 0, widthMm: 109, confidence: 1 })).toBe(false);
+  });
+});
 
 describe('medianMetrics', () => {
   it('passes a single result through unchanged', () => {
