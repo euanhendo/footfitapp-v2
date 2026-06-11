@@ -119,12 +119,29 @@ describe('pickFootFromQuad', () => {
     expect(result!.foot).toEqual(inside);
   });
 
-  it('unions multiple inside contours into a single foot', () => {
-    const fragA = rect(30, 30, 20, 20);
+  it('keeps only the largest blob when fragments are far apart (speckle)', () => {
+    const fragA = rect(30, 30, 40, 30);
     const fragB = rect(210, 110, 20, 20);
     const result = pickFootFromQuad(quad, [fragA, fragB]);
     expect(result).not.toBeNull();
-    expect(result!.foot).toHaveLength(fragA.length + fragB.length);
+    expect(result!.foot).toEqual(fragA);
+  });
+
+  it('merges a fragment that nearly touches the largest blob (broken toe cap)', () => {
+    const mainBlob = rect(20, 80, 150, 60);
+    const toeCap = rect(172, 80, 40, 40); // 2px gap off the blob's end
+    const result = pickFootFromQuad(quad, [toeCap, mainBlob]);
+    expect(result).not.toBeNull();
+    expect(result!.foot).toHaveLength(mainBlob.length + toeCap.length);
+  });
+
+  it('drops scattered speckle while keeping the foot blob intact', () => {
+    const foot = footShape(100, 80, 1);
+    const speckleA = rect(250, 20, 15, 15);
+    const speckleB = rect(20, 170, 15, 15);
+    const result = pickFootFromQuad(quad, [speckleA, foot, speckleB]);
+    expect(result).not.toBeNull();
+    expect(result!.foot).toEqual(foot);
   });
 
   it('returns null when no contour is inside the quad', () => {
