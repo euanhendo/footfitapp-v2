@@ -109,9 +109,10 @@ public class FootfitVisionModule: Module {
     }
   }
 
-  // Chroma map: |image − grayscale(image)|, boosted. Achromatic content
-  // (white paper, grey shadows, black socks) goes black; coloured content
-  // (skin) stays bright — a shadow-immune channel for bare-foot contours.
+  // Redness map: R dominates G and B in every human skin tone, while paper,
+  // floors and even warm-tinted shadows are far less red-dominant. Generic
+  // chroma failed here — mixed flash + warm ambient light makes shadows
+  // slightly orange, so "has colour" wrongly included them.
   private static func chromaEmphasis(_ image: CIImage) -> CGImage? {
     let maxDim = max(image.extent.width, image.extent.height)
     guard maxDim > 0 else { return nil }
@@ -122,18 +123,15 @@ public class FootfitVisionModule: Module {
           kCIInputAspectRatioKey: 1.0,
         ])
       : image
-    let gray = scaled.applyingFilter("CIColorControls", parameters: [kCIInputSaturationKey: 0.0])
-    let diff = scaled.applyingFilter("CIDifferenceBlendMode", parameters: [
-      kCIInputBackgroundImageKey: gray,
-    ])
-    let boosted = diff.applyingFilter("CIColorMatrix", parameters: [
-      "inputRVector": CIVector(x: 4, y: 0, z: 0, w: 0),
-      "inputGVector": CIVector(x: 0, y: 4, z: 0, w: 0),
-      "inputBVector": CIVector(x: 0, y: 0, z: 4, w: 0),
+    // every output channel = 3R − 1.5G − 1.5B (negatives clamp to black)
+    let redness = scaled.applyingFilter("CIColorMatrix", parameters: [
+      "inputRVector": CIVector(x: 3, y: 3, z: 3, w: 0),
+      "inputGVector": CIVector(x: -1.5, y: -1.5, z: -1.5, w: 0),
+      "inputBVector": CIVector(x: -1.5, y: -1.5, z: -1.5, w: 0),
       "inputAVector": CIVector(x: 0, y: 0, z: 0, w: 1),
     ])
     let context = CIContext(options: [.workingColorSpace: NSNull()])
-    return context.createCGImage(boosted, from: scaled.extent)
+    return context.createCGImage(redness, from: scaled.extent)
   }
 
   // Mean luminance [0,1] of the quad's bounding box — distinguishes white
