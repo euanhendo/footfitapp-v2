@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { detectScene } from '../../modules/footfit-vision';
 import { pickFootFromQuad, pickReferenceQuad } from '../../lib/scanner/contourPicker';
 import { denormalizePoints } from '../../lib/scanner/denormalize';
-import { findHeelEdge, measureFromQuadAndFoot } from '../../lib/scanner/footMetrics';
+import { calibrateFootMetrics, findHeelEdge, measureFromQuadAndFoot } from '../../lib/scanner/footMetrics';
 import { medianMetrics } from '../../lib/scanner/multiCapture';
 import { FootMetrics, Point, ReferenceKind } from '../../lib/scanner/types';
 
@@ -247,7 +247,9 @@ export default function ScannerDebugScreen() {
         ? scene.contours.map((c) => denormalizePoints(c, imgW, imgH))
         : scene.contours;
       const picked = quad ? pickFootFromQuad(quad, contours) : null;
-      const metrics = picked ? measureFromQuadAndFoot(picked.reference, picked.foot, kind) : null;
+      const metrics = picked
+        ? calibrateFootMetrics(measureFromQuadAndFoot(picked.reference, picked.foot, kind))
+        : null;
       if (metrics && metrics.lengthMm > 0 && metrics.confidence >= 0.3) {
         setSession((prev) => [...prev, metrics]);
       }

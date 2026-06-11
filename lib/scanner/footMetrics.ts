@@ -231,6 +231,19 @@ export function measureFromQuadAndFoot(
   return { lengthMm, widthMm, confidence };
 }
 
+// Top-down silhouette reads wider than a caliper across the ball of the foot
+// (soft-shadow fringe + contour blur on both sides). Empirical, derived from
+// one ground-truth foot (n=1, 2026-06-11) — refine as more feet are measured.
+export const WIDTH_SILHOUETTE_BIAS_MM = 12;
+
+export function calibrateFootMetrics(metrics: FootMetrics): FootMetrics {
+  if (metrics.lengthMm <= 0 || metrics.widthMm <= 0) return metrics;
+  return {
+    ...metrics,
+    widthMm: Math.max(0, metrics.widthMm - WIDTH_SILHOUETTE_BIAS_MM),
+  };
+}
+
 function scoreConfidence(fillRatio: number, aspect: number): number {
   const fill = rangeScore(fillRatio, EXPECTED_FILL_MIN, EXPECTED_FILL_MAX);
   const ratio = rangeScore(aspect, EXPECTED_ASPECT_MIN, EXPECTED_ASPECT_MAX);

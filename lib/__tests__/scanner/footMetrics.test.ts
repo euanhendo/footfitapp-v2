@@ -1,9 +1,11 @@
 import {
+  calibrateFootMetrics,
   computeFootMetrics,
   computeFootMetricsFromContour,
   maskBoundingBox,
   maskPixelCount,
   measureFromContours,
+  WIDTH_SILHOUETTE_BIAS_MM,
 } from '../../scanner/footMetrics';
 import { Mask, Point } from '../../scanner/types';
 
@@ -160,6 +162,26 @@ describe('computeFootMetricsFromContour', () => {
     const m = computeFootMetricsFromContour(contour);
     expect(m.confidence).toBeGreaterThanOrEqual(0);
     expect(m.confidence).toBeLessThanOrEqual(1);
+  });
+});
+
+describe('calibrateFootMetrics', () => {
+  it('subtracts the silhouette width bias, leaving length untouched', () => {
+    const raw = { lengthMm: 270, widthMm: 122, confidence: 0.95 };
+    const calibrated = calibrateFootMetrics(raw);
+    expect(calibrated.lengthMm).toBe(270);
+    expect(calibrated.widthMm).toBe(122 - WIDTH_SILHOUETTE_BIAS_MM);
+    expect(calibrated.confidence).toBe(0.95);
+  });
+
+  it('never produces a negative width', () => {
+    const raw = { lengthMm: 50, widthMm: 5, confidence: 0.2 };
+    expect(calibrateFootMetrics(raw).widthMm).toBe(0);
+  });
+
+  it('leaves zeroed metrics unchanged', () => {
+    const zero = { lengthMm: 0, widthMm: 0, confidence: 0 };
+    expect(calibrateFootMetrics(zero)).toEqual(zero);
   });
 });
 
