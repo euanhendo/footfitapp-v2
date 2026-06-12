@@ -39,21 +39,24 @@ const LIGHT: Palette = {
   heroBorder: '#111',
 };
 
+// Lifted one notch from the original pure-greys (2026-06-12, user feedback:
+// "a wee bit too black") — bg stays true black, but surfaces and borders sit
+// brighter so cards visibly separate from the background.
 const DARK: Palette = {
   dark: true,
   bg: '#000',
-  card: '#141414',
-  cardBorder: '#262626',
-  chipBorder: '#3a3a3a',
-  panel: '#1d1d1d',
+  card: '#1a1a1a',
+  cardBorder: '#333',
+  chipBorder: '#4d4d4d',
+  panel: '#232323',
   text: '#fff',
-  muted: '#a3a3a3',
-  faint: '#8a8a8a',
-  hairline: '#262626',
+  muted: '#b3b3b3',
+  faint: '#969696',
+  hairline: '#2e2e2e',
   ctaBg: '#fff',
   ctaText: '#111',
-  heroBg: '#161616',
-  heroBorder: '#2a2a2a',
+  heroBg: '#1c1c1c',
+  heroBorder: '#3a3a3a',
 };
 
 export function usePalette(): Palette {
