@@ -301,6 +301,31 @@ export default function HomeScreen() {
           })}
         </View>
 
+        {!scannedReady && (!savedProfile || savedProfile.source !== 'scanned') && (
+          <Pressable
+            onPress={() => router.push('/screens/ScannerScreen')}
+            style={{
+              backgroundColor: '#111',
+              borderRadius: 16,
+              padding: 18,
+              marginBottom: 24,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <View>
+              <Text style={{ fontSize: 12, fontWeight: '800', color: '#fff', letterSpacing: 1.5, marginBottom: 3 }}>
+                SCAN YOUR FEET
+              </Text>
+              <Text style={{ fontSize: 12, color: '#888' }}>
+                Phone camera + a sheet of A4 — accurate to the millimetre
+              </Text>
+            </View>
+            <Text style={{ fontSize: 16, fontWeight: '800', color: '#fff' }}>→</Text>
+          </Pressable>
+        )}
+
         {scannedReady && (
           <View style={{
             backgroundColor: '#fff',
