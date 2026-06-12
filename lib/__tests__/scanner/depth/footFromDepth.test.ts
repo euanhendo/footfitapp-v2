@@ -1,8 +1,10 @@
 import {
+  FootSample,
   measureFootFromDepthFrame,
   measureFootFromDepthFrameDebug,
   orientHeelAtOrigin,
   segmentFootPoints,
+  trimLegShadow,
 } from '../../../scanner/depth/footFromDepth';
 import { depthFrameToPoints } from '../../../scanner/depth/pointCloud';
 import { fitFloorPlane } from '../../../scanner/depth/planeFit';
@@ -67,6 +69,32 @@ const ankleLobe: Shape = {
 
 const OPTS = { seed: 42, iterations: 60 };
 
+describe('trimLegShadow', () => {
+  it('cuts hovering rear slices and re-zeroes the heel', () => {
+    const samples: FootSample[] = [];
+    // Leg shadow: y 0–79, lowest point 100 mm up.
+    for (let y = 0; y < 80; y += 5) {
+      for (let x = -30; x <= 30; x += 10) samples.push({ x, y, hMm: 100 });
+    }
+    // Foot: y 80–335, plenty of low points.
+    for (let y = 80; y <= 335; y += 5) {
+      for (let x = -50; x <= 50; x += 10) samples.push({ x, y, hMm: 8 + (y % 30) });
+    }
+    const trimmed = trimLegShadow(samples);
+    const ys = trimmed.map((p) => p.y);
+    expect(Math.min(...ys)).toBe(0);
+    expect(Math.max(...ys)).toBe(255);
+    expect(trimmed.every((p) => p.hMm < 100)).toBe(true);
+  });
+
+  it('leaves a clean foot untouched', () => {
+    const samples: FootSample[] = [];
+    for (let y = 0; y <= 250; y += 5) samples.push({ x: 0, y, hMm: 20 });
+    expect(trimLegShadow(samples)).toHaveLength(samples.length);
+    expect(trimLegShadow([])).toEqual([]);
+  });
+});
+
 describe('measureFootFromDepthFrame', () => {
   it('measures a clean foot to within a few mm', () => {
     const metrics = measureFootFromDepthFrame(makeScene([ellipseFoot]), OPTS);
@@ -129,6 +157,20 @@ describe('measureFootFromDepthFrame', () => {
     expect(debug.bandPoints).toBeGreaterThan(debug.footPoints);
     expect(Math.abs(debug.metrics.lengthMm - 255)).toBeLessThanOrEqual(7);
     expect(Math.abs(debug.metrics.widthMm - 110)).toBeLessThanOrEqual(6);
+  });
+
+  it('amputates the leg occlusion shadow but keeps the heel', () => {
+    // Bare shin leaning into frame: a high (105 mm) slab joined to the heel,
+    // hovering off the floor — the real capture that read 353 mm median
+    // against a 265 mm foot.
+    const shinShadow: Shape = {
+      heightMm: 105,
+      contains: (x, y) => x >= -215 && x <= -115 && Math.abs(y - 10) <= 40,
+    };
+    const scene = makeScene([ellipseFoot, shinShadow], 180);
+    const metrics = measureFootFromDepthFrame(scene, OPTS);
+    expect(Math.abs(metrics.lengthMm - 255)).toBeLessThanOrEqual(10);
+    expect(Math.abs(metrics.widthMm - 110)).toBeLessThanOrEqual(6);
   });
 
   it('measures the same foot whichever way the toes point', () => {

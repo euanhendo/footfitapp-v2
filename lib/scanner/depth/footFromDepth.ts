@@ -39,7 +39,10 @@ const ZERO: FootMetrics = { lengthMm: 0, widthMm: 0, confidence: 0 };
 const CLUSTER_CELL_MM = 25;
 const CLUSTER_TARGET_RADIUS_MM = 200;
 
-export function pickAimedCluster(points: Point[], target: Point): Point[] {
+/** A flattened floor point that remembers how high above the floor it was. */
+export type FootSample = Point & { hMm: number };
+
+export function pickAimedCluster<P extends Point>(points: P[], target: Point): P[] {
   if (points.length === 0) return points;
 
   const cellIndex = new Map<string, number[]>();
@@ -96,16 +99,46 @@ export function pickAimedCluster(points: Point[], target: Point): Point[] {
   return chosen.pointIndices.map((i) => points[i]);
 }
 
-/** Points 10–120 mm above the floor, flattened onto it in floor-mm coordinates. */
-export function segmentFootPoints(points: Vec3[], plane: FloorPlane): Point[] {
+/** Points 6–120 mm above the floor, flattened onto it in floor-mm coordinates. */
+export function segmentFootPoints(points: Vec3[], plane: FloorPlane): FootSample[] {
   const basis = planeBasis(plane.normal);
-  const foot: Point[] = [];
+  const foot: FootSample[] = [];
   for (const p of points) {
     const h = heightAboveFloorMm(plane, p);
     if (h < FOOT_MIN_HEIGHT_MM || h > FOOT_MAX_HEIGHT_MM) continue;
-    foot.push(projectToFloorMm(plane, basis, p));
+    foot.push({ ...projectToFloorMm(plane, basis, p), hMm: h });
   }
   return foot;
+}
+
+// The ankle/shin is connected to the foot, so clustering can't remove it and
+// it stretches length backward (device 2026-06-12: bare leg read 353 median
+// against a 265 foot, and the bent foot+shin axis poisoned the yaw correction
+// so width under-read). The discriminator: real foot slices contain points
+// near floor level (toes ~10 mm, heel pad ~25 mm), while the leg's occlusion
+// shadow hovers — its lowest point stays high. Walking from the rear, slices
+// whose minimum height stays above 55 mm are leg, and are amputated; the
+// first slice with a genuinely low point is the back of the heel.
+const TRIM_SLICE_MM = 10;
+const LEG_ONLY_MIN_HEIGHT_MM = 55;
+
+export function trimLegShadow(points: FootSample[]): FootSample[] {
+  if (points.length === 0) return points;
+  let maxY = 0;
+  for (const p of points) {
+    if (p.y > maxY) maxY = p.y;
+  }
+  const bins = Math.max(1, Math.ceil(maxY / TRIM_SLICE_MM));
+  const minH = new Array<number>(bins).fill(Infinity);
+  for (const p of points) {
+    const bin = Math.min(bins - 1, Math.floor(p.y / TRIM_SLICE_MM));
+    if (p.hMm < minH[bin]) minH[bin] = p.hMm;
+  }
+  let cut = 0;
+  while (cut < bins && minH[cut] > LEG_ONLY_MIN_HEIGHT_MM) cut++;
+  if (cut === 0) return points;
+  const yCut = cut * TRIM_SLICE_MM;
+  return points.filter((p) => p.y >= yCut).map((p) => ({ ...p, y: p.y - yCut }));
 }
 
 /**
@@ -114,7 +147,7 @@ export function segmentFootPoints(points: Vec3[], plane: FloorPlane): Point[] {
  * Heel/toe disambiguation: the foot's widest cross-section (the ball) sits in
  * the front half, so if the widest slice lands in the rear half we flip.
  */
-export function orientHeelAtOrigin(points: Point[]): Point[] {
+export function orientHeelAtOrigin<P extends Point>(points: P[]): P[] {
   if (points.length < 3) return points;
   const n = points.length;
   let mx = 0;
@@ -140,6 +173,7 @@ export function orientHeelAtOrigin(points: Point[]): Point[] {
   const cos = Math.cos(phi);
   const sin = Math.sin(phi);
   let rotated = points.map((p) => ({
+    ...p,
     x: p.x * cos - p.y * sin,
     y: p.x * sin + p.y * cos,
   }));
@@ -150,7 +184,7 @@ export function orientHeelAtOrigin(points: Point[]): Point[] {
     if (p.y < minY) minY = p.y;
     if (p.y > maxY) maxY = p.y;
   }
-  rotated = rotated.map((p) => ({ x: p.x, y: p.y - minY }));
+  rotated = rotated.map((p) => ({ ...p, y: p.y - minY }));
   const span = maxY - minY;
   if (span <= 0) return rotated;
 
@@ -174,7 +208,7 @@ export function orientHeelAtOrigin(points: Point[]): Point[] {
     }
   }
   if (widestBin >= 0 && (widestBin + 0.5) / ORIENT_BINS < 0.5) {
-    rotated = rotated.map((p) => ({ x: p.x, y: span - p.y }));
+    rotated = rotated.map((p) => ({ ...p, y: span - p.y }));
   }
   return rotated;
 }
@@ -278,7 +312,14 @@ export function measureFootFromDepthFrameDebug(
     return { ...partial, metrics: ZERO, bandPoints: band.length, footPoints: foot.length };
   }
 
-  const oriented = orientHeelAtOrigin(foot);
+  // Orient, amputate the leg's occlusion shadow off the rear, then re-orient:
+  // the shin skews the first PCA axis, so the axis is re-derived from the
+  // surviving foot-only points before measuring.
+  const trimmed = trimLegShadow(orientHeelAtOrigin(foot));
+  if (trimmed.length < MIN_FOOT_POINTS) {
+    return { ...partial, metrics: ZERO, bandPoints: band.length, footPoints: trimmed.length };
+  }
+  const oriented = orientHeelAtOrigin(trimmed);
   let lengthMm = 0;
   for (const p of oriented) {
     if (p.y > lengthMm) lengthMm = p.y;
@@ -296,7 +337,7 @@ export function measureFootFromDepthFrameDebug(
     ...partial,
     metrics: { lengthMm, widthMm, confidence },
     bandPoints: band.length,
-    footPoints: foot.length,
+    footPoints: trimmed.length,
   };
 }
 
