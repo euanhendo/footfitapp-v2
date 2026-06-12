@@ -240,6 +240,22 @@ for (const group of groups.values()) {
     return (b.published_at ?? '').localeCompare(a.published_at ?? '');
   })[0];
 
+  // Which surface categories this model is sold in, normalised to the five
+  // standard football categories. MG (multi-ground) plays on firm + artificial.
+  const surfaceSet = new Set();
+  for (const p of group.products) {
+    for (const raw of (p.surface || 'FG').split('/')) {
+      const tok = raw.replace(/-PRO|ANTI-CLOG/g, '').trim();
+      if (tok === 'FG' || tok === 'HG') surfaceSet.add('FG');
+      else if (tok === 'SG') surfaceSet.add('SG');
+      else if (tok === 'AG') surfaceSet.add('AG');
+      else if (tok === 'TF' || tok === 'ASTRO' || tok === 'TURF') surfaceSet.add('TF');
+      else if (tok === 'IC' || tok === 'IN' || tok === 'INDOOR' || tok === 'COURT') surfaceSet.add('IC');
+      else surfaceSet.add('FG');
+    }
+  }
+  const surfaces = ['FG', 'SG', 'AG', 'TF', 'IC'].filter((s) => surfaceSet.has(s));
+
   const kidsProduct = group.gender === 'kids';
   let minLength;
   let maxLength;
@@ -278,6 +294,7 @@ for (const group of groups.values()) {
     existing.purchaseUrl = purchaseUrl;
     if (imageUrl) existing.imageUrl = imageUrl;
     if (price > 0) existing.price = price;
+    if (surfaces.length > 0) existing.surfaces = surfaces;
     upgrades.push(`${group.brand} ${group.model} (${group.gender})`);
     continue;
   }
@@ -309,7 +326,14 @@ for (const group of groups.values()) {
     notes,
     purchaseUrl,
     imageUrl,
+    surfaces,
   });
+}
+
+// Football entries never seen in the feed (hand-curated models) are firm-ground
+// designs — default them so the surface filter never silently hides them.
+for (const b of curated) {
+  if (b.sport === 'football' && !b.surfaces) b.surfaces = ['FG'];
 }
 
 newEntries.sort(
