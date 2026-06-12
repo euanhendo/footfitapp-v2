@@ -67,7 +67,9 @@ const ankleLobe: Shape = {
   contains: (x, y) => (x + 85) ** 2 + (y - 35) ** 2 <= 35 ** 2,
 };
 
-const OPTS = { seed: 42, iterations: 60 };
+// Synthetic frames have perfect edges, so geometry tests disable the
+// edge-erosion calibration fitted for real sensor captures.
+const OPTS = { seed: 42, iterations: 60, calibrate: false };
 
 describe('trimLegShadow', () => {
   it('cuts hovering rear slices and re-zeroes the heel', () => {
@@ -146,6 +148,15 @@ describe('measureFootFromDepthFrame', () => {
     const metrics = measureFootFromDepthFrame(scene, OPTS);
     expect(Math.abs(metrics.widthMm - 110)).toBeLessThanOrEqual(4);
     expect(Math.abs(metrics.lengthMm - 255)).toBeLessThanOrEqual(6);
+  });
+
+  it('compensates edge erosion in proportion to pixel pitch', () => {
+    const scene = makeScene([ellipseFoot]);
+    const raw = measureFootFromDepthFrame(scene, OPTS);
+    const calibrated = measureFootFromDepthFrame(scene, { seed: 42, iterations: 60 });
+    // Pixel pitch here: 600 mm floor / fx 500 = 1.2 mm per pixel.
+    expect(calibrated.widthMm - raw.widthMm).toBeCloseTo(2.5 * 1.2, 0);
+    expect(calibrated.lengthMm - raw.lengthMm).toBeCloseTo(1.2 * 1.2, 0);
   });
 
   it('exposes pipeline internals through the debug variant', () => {

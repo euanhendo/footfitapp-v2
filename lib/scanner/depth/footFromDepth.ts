@@ -30,6 +30,18 @@ const FLOOR_INLIER_GOOD_MIN = 0.35;
 
 const ZERO: FootMetrics = { lengthMm: 0, widthMm: 0, confidence: 0 };
 
+// Edge-erosion compensation — the depth twin of v2's WIDTH_SILHOUETTE_BIAS_MM.
+// Boundary pixels blend object and floor depth, so they fail the height and
+// confidence gates and the silhouette erodes by roughly a pixel per side.
+// Erosion is in PIXELS, so the mm correction scales with pixel pitch
+// (cameraHeight / fx). Fitted 2026-06-12 against pen+ruler ground truth
+// 263 × 107 vs raw medians 258.8 × 98.3 at ~3.5 mm/px (one foot, 7 captures,
+// hard floor, good light) — re-fit as more measured feet accumulate.
+// Synthetic test frames have perfect edges, so geometry tests disable this
+// via calibrate: false.
+const WIDTH_EDGE_EROSION_PX = 2.5;
+const LENGTH_EDGE_EROSION_PX = 1.2;
+
 // Everything 10–120 mm off the floor is "raised", but not all of it is the
 // aimed foot: the user's other foot, a trouser hem, furniture legs and
 // carpet-pile noise all qualify (first real captures, 2026-06-12: foot +
@@ -266,9 +278,9 @@ function gravityTilt(plane: FloorPlane, frame: DepthFrame): number | null {
  */
 export function measureFootFromDepthFrameDebug(
   frame: DepthFrame,
-  options: PlaneFitOptions & { stride?: number } = {},
+  options: PlaneFitOptions & { stride?: number; calibrate?: boolean } = {},
 ): DepthMeasureDebug {
-  const { stride = 1, ...planeOptions } = options;
+  const { stride = 1, calibrate = true, ...planeOptions } = options;
   const diagnostics = frameDiagnostics(frame);
   const points = depthFrameToPoints(frame, stride);
   const plane = fitFloorPlane(points, planeOptions);
@@ -328,9 +340,14 @@ export function measureFootFromDepthFrameDebug(
   for (const p of oriented) {
     if (p.y > lengthMm) lengthMm = p.y;
   }
-  const widthMm = widthAcrossFootBand(oriented, lengthMm);
+  let widthMm = widthAcrossFootBand(oriented, lengthMm);
   if (lengthMm <= 0 || widthMm <= 0) {
     return { ...partial, metrics: ZERO, bandPoints: band.length, footPoints: foot.length };
+  }
+  if (calibrate) {
+    const pixelPitchMm = plane.dMm / frame.intrinsics.fx;
+    lengthMm += LENGTH_EDGE_EROSION_PX * pixelPitchMm;
+    widthMm += WIDTH_EDGE_EROSION_PX * pixelPitchMm;
   }
 
   const aspect = lengthMm / Math.max(widthMm, 1);
@@ -347,7 +364,7 @@ export function measureFootFromDepthFrameDebug(
 
 export function measureFootFromDepthFrame(
   frame: DepthFrame,
-  options: PlaneFitOptions & { stride?: number } = {},
+  options: PlaneFitOptions & { stride?: number; calibrate?: boolean } = {},
 ): FootMetrics {
   return measureFootFromDepthFrameDebug(frame, options).metrics;
 }
