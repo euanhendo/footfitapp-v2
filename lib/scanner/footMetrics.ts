@@ -178,6 +178,72 @@ export function findHeelEdge(quad: Point[], foot: Point[]): { a: Point; b: Point
   return { a: heelEdge.a, b: heelEdge.b };
 }
 
+// Anatomical width band: a real capture's contour includes the ankle and
+// lower leg seen from above, and minAreaRect's short side inflates with that
+// lobe (tape 110 mm read as 130 mm, 2026-06-12). The foot's true widest
+// cross-section — inside ball to outside ball — sits in the front half, where
+// leg contamination can't reach. So: slice the contour perpendicular to the
+// heel-edge normal (paper +y), keep only slices 30–95% of the way to the toe,
+// and take the widest left-edge-to-right-edge span. Yaw is corrected from the
+// drift of the slice midlines, not from minAreaRect, so a contaminated rect
+// can't poison the width.
+const WIDTH_BAND_START = 0.3;
+const WIDTH_BAND_END = 0.95;
+const WIDTH_BAND_BINS = 24;
+const WIDTH_BAND_MIN_POINTS_PER_BIN = 2;
+const WIDTH_BAND_MAX_YAW_SLOPE = 0.47; // tan ~25°; guide-locked feet sit well under this
+
+export function widthAcrossFootBand(footMm: Point[], toeDistanceMm: number): number {
+  if (!footMm || footMm.length < 3 || toeDistanceMm <= 0) return 0;
+
+  const minX = new Array<number>(WIDTH_BAND_BINS).fill(Infinity);
+  const maxX = new Array<number>(WIDTH_BAND_BINS).fill(-Infinity);
+  const counts = new Array<number>(WIDTH_BAND_BINS).fill(0);
+  const bandSpan = WIDTH_BAND_END - WIDTH_BAND_START;
+
+  for (const p of footMm) {
+    const t = p.y / toeDistanceMm;
+    if (t < WIDTH_BAND_START || t > WIDTH_BAND_END) continue;
+    const bin = Math.min(
+      WIDTH_BAND_BINS - 1,
+      Math.floor(((t - WIDTH_BAND_START) / bandSpan) * WIDTH_BAND_BINS),
+    );
+    if (p.x < minX[bin]) minX[bin] = p.x;
+    if (p.x > maxX[bin]) maxX[bin] = p.x;
+    counts[bin]++;
+  }
+
+  // Widest qualifying slice, plus a least-squares fit of slice midlines to
+  // estimate foot yaw — a yawed foot's horizontal slices read wide by 1/cos.
+  let widest = 0;
+  let n = 0;
+  let sumY = 0;
+  let sumMid = 0;
+  let sumYY = 0;
+  let sumYMid = 0;
+  for (let i = 0; i < WIDTH_BAND_BINS; i++) {
+    if (counts[i] < WIDTH_BAND_MIN_POINTS_PER_BIN) continue;
+    const sliceWidth = maxX[i] - minX[i];
+    if (sliceWidth > widest) widest = sliceWidth;
+    const yCentre = (WIDTH_BAND_START + ((i + 0.5) / WIDTH_BAND_BINS) * bandSpan) * toeDistanceMm;
+    const mid = (minX[i] + maxX[i]) / 2;
+    n++;
+    sumY += yCentre;
+    sumMid += mid;
+    sumYY += yCentre * yCentre;
+    sumYMid += yCentre * mid;
+  }
+  if (widest <= 0) return 0;
+
+  let yawSlope = 0;
+  const denom = n * sumYY - sumY * sumY;
+  if (n >= 3 && Math.abs(denom) > 1e-9) {
+    yawSlope = (n * sumYMid - sumY * sumMid) / denom;
+    yawSlope = Math.max(-WIDTH_BAND_MAX_YAW_SLOPE, Math.min(WIDTH_BAND_MAX_YAW_SLOPE, yawSlope));
+  }
+  return widest / Math.sqrt(1 + yawSlope * yawSlope);
+}
+
 export function measureFromQuadAndFoot(
   quad: Point[],
   foot: Point[],
@@ -217,14 +283,14 @@ export function measureFromQuadAndFoot(
   for (const p of footMm) {
     if (p.y > maxPerpMm) maxPerpMm = p.y;
   }
-  // Width across the foot's own axis (oriented box short side), so a foot
-  // angled on the paper doesn't leak length into width; length gets the
-  // matching cosine correction for the same angle. The heel line is y = 0 in
-  // paper space, so its inward normal is +y.
   const footBox = minAreaRect(footMm);
   const axisDotNormal = Math.abs(Math.sin(footBox.angleRad));
   const lengthMm = maxPerpMm / Math.max(axisDotNormal, 0.7);
-  const widthMm = footBox.widthMm;
+  // Width from the anatomical band, not the oriented box: the box's short
+  // side inflates when the contour includes the ankle/leg. Sparse synthetic
+  // contours (tests) can miss every band bin — fall back to the box there.
+  const bandWidthMm = widthAcrossFootBand(footMm, maxPerpMm);
+  const widthMm = bandWidthMm > 0 ? bandWidthMm : footBox.widthMm;
   if (lengthMm <= 0 || widthMm <= 0) {
     return { lengthMm: 0, widthMm: 0, confidence: 0 };
   }

@@ -1,4 +1,4 @@
-import { findHeelEdge, measureFromQuadAndFoot } from '../../scanner/footMetrics';
+import { findHeelEdge, measureFromQuadAndFoot, widthAcrossFootBand } from '../../scanner/footMetrics';
 import { applyHomography, solveHomography } from '../../scanner/homography';
 import { Point } from '../../scanner/types';
 
@@ -113,6 +113,59 @@ describe('measureFromQuadAndFoot', () => {
     expect(Math.abs(result.lengthMm - 275)).toBeLessThanOrEqual(1);
     expect(Math.abs(result.widthMm - 110)).toBeLessThanOrEqual(1);
     expect(result.confidence).toBeGreaterThan(0);
+  });
+});
+
+// Real Vision contours are dense (hundreds of points); sample rect edges
+// every ~2mm to match, since the band-width path needs populated slices.
+function densifyEdges(corners: Point[], stepMm: number): Point[] {
+  const out: Point[] = [];
+  for (let i = 0; i < corners.length; i++) {
+    const a = corners[i];
+    const b = corners[(i + 1) % corners.length];
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    const steps = Math.max(1, Math.ceil(len / stepMm));
+    for (let s = 0; s < steps; s++) {
+      out.push({ x: a.x + ((b.x - a.x) * s) / steps, y: a.y + ((b.y - a.y) * s) / steps });
+    }
+  }
+  return out;
+}
+
+describe('width from the anatomical band', () => {
+  it('measures a dense clean foot accurately', () => {
+    const quad = axisAlignedA4(1);
+    const foot = densifyEdges(footRect(0, 250, 80, 140), 2);
+    const result = measureFromQuadAndFoot(quad, foot, 'a4');
+    expect(Math.abs(result.lengthMm - 250)).toBeLessThanOrEqual(2);
+    expect(Math.abs(result.widthMm - 60)).toBeLessThanOrEqual(2);
+    expect(result.confidence).toBeGreaterThan(0);
+  });
+
+  it('ignores the ankle/leg lobe near the heel (the 130mm width bug)', () => {
+    const quad = axisAlignedA4(1);
+    // 255 × 110 mm foot with a 150mm-wide leg/ankle lobe over the heel zone —
+    // the situation that read a tape-measured 110mm foot as 130mm on device.
+    const foot = [
+      ...densifyEdges(footRect(0, 255, 55, 165), 2),
+      ...densifyEdges(footRect(0, 40, 35, 185), 2),
+    ];
+    const result = measureFromQuadAndFoot(quad, foot, 'a4');
+    expect(Math.abs(result.lengthMm - 255)).toBeLessThanOrEqual(2);
+    expect(Math.abs(result.widthMm - 110)).toBeLessThanOrEqual(2);
+  });
+
+  it('corrects slice width for a yawed foot via midline drift', () => {
+    const quad = axisAlignedA4(1);
+    const foot = densifyEdges(rotate(footRect(0, 250, 80, 140), 8, 0, 110), 2);
+    const result = measureFromQuadAndFoot(quad, foot, 'a4');
+    expect(Math.abs(result.widthMm - 60)).toBeLessThanOrEqual(1.5);
+    expect(Math.abs(result.lengthMm - 250)).toBeLessThanOrEqual(5);
+  });
+
+  it('returns 0 for degenerate input so callers can fall back', () => {
+    expect(widthAcrossFootBand([], 100)).toBe(0);
+    expect(widthAcrossFootBand([{ x: 0, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 2 }], 0)).toBe(0);
   });
 });
 
