@@ -73,7 +73,7 @@ The ML route stays dead — the 2026-04-20 TFLite op-resolver failure is documen
 | `lib/__tests__/` | Unit tests (Jest + ts-jest) |
 | `bootDatabase.json` | Boot inventory (mm) — use `/add-boot` |
 | `sockDatabase.json` | Sock thickness map (mm, with `sport`) — use `/add-sock` |
-| `app/screens/*` | HomeScreen (entry), ManualInput, MeasureGuide, SockSelection, Result, OwnedShoes, Scanner, ScanReview, ScannerDebug |
+| `app/screens/*` | Welcome (onboarding), HomeScreen (entry), ManualInput, MeasureGuide, SockSelection, Result, BootDetail (per-boot fit breakdown + buy), OwnedShoes, Scanner, ScanReview, ScannerDebug |
 | `app/screens/ScannerScreen.tsx` | Hands-free auto-scan: A4 guide overlay, probe loop, trust-gated burst → median → ScanReview |
 | `app/screens/ScanReviewScreen.tsx` | Shows detected mm + confidence; low-confidence routes to ManualInput with prefilled values |
 | `app/screens/ScannerDebugScreen.tsx` | Instrumented scanner: what-the-scanner-saw overlays, per-capture verdicts, session medians, manual controls |

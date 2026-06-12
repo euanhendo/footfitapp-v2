@@ -1,9 +1,8 @@
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
   Image,
-  Linking,
   Pressable,
   ScrollView,
   Text,
@@ -12,11 +11,8 @@ import {
 } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { applySocketAdjustment, Boot, effectiveSizeOffset, recommendSize, SockEntry } from '../../lib/fitting';
-import { computePersonalOffsetMm } from '../../lib/fitCalibration';
 import {
   computeAffinityBoost,
-  describeLengthFit,
-  describeWidthFit,
   getScoreBreakdown,
   scoreAndRankBoots,
   ScoredBoot,
@@ -146,26 +142,23 @@ function SurfaceCard({ title, desc, imageUrl, width, active }: {
   );
 }
 
-function nextHalfSize(uk: string): string {
-  const n = Number(uk);
-  if (!Number.isFinite(n)) return uk;
-  const next = n + 0.5;
-  return Number.isInteger(next) ? String(next) : next.toFixed(1);
-}
-
-function BootImage({ uri, label }: { uri: string; label: string }) {
+function BootImage({ uri, brand, model }: { uri: string; brand: string; model: string }) {
   const [failed, setFailed] = useState(false);
-  if (failed) {
+  const usable = !!uri && !uri.includes('via.placeholder.com') && !failed;
+  if (!usable) {
     return (
-      <View style={{ width: '100%', height: 160, backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center' }}>
-        <Text style={{ color: '#aaa', fontSize: 13 }}>{label}</Text>
+      <View style={{ width: '100%', height: 230, backgroundColor: '#efefef', justifyContent: 'center', alignItems: 'center' }}>
+        <Text style={{ color: '#999', fontSize: 12, fontWeight: '800', letterSpacing: 2 }}>
+          {brand.toUpperCase()}
+        </Text>
+        <Text style={{ color: '#bbb', fontSize: 11, marginTop: 3 }}>{model}</Text>
       </View>
     );
   }
   return (
     <Image
       source={{ uri }}
-      style={{ width: '100%', height: 160, backgroundColor: '#f5f5f5' }}
+      style={{ width: '100%', height: 230, backgroundColor: '#f5f5f5' }}
       resizeMode="contain"
       onError={() => setFailed(true)}
     />
@@ -175,43 +168,38 @@ function BootImage({ uri, label }: { uri: string; label: string }) {
 function BootCard({
   item,
   muted,
-  matchedShoe,
   affinityBoost,
-  sockAdjustment,
-  sockLabel,
   adjustedLength,
-  adjustedWidth,
   ownedShoes,
+  onPress,
 }: {
   item: ScoredBoot;
   muted?: boolean;
-  matchedShoe?: OwnedShoe | null;
   affinityBoost: number;
-  sockAdjustment: number;
-  sockLabel: string;
   adjustedLength: number;
-  adjustedWidth: number;
   ownedShoes: OwnedShoe[];
+  onPress: () => void;
 }) {
   const boot = item.boot;
   const p = usePalette();
-  const [expanded, setExpanded] = useState(false);
   const breakdown = getScoreBreakdown(item);
   const total = Math.min(100, breakdown.baseScore + affinityBoost);
-  const personalOffset = computePersonalOffsetMm(ownedShoes, boot.brand);
   const suggestedSize = recommendSize(adjustedLength, effectiveSizeOffset(boot, ownedShoes));
   return (
-    <View style={{
-      backgroundColor: p.card,
-      borderRadius: 16,
-      marginBottom: 14,
-      overflow: 'hidden',
-      borderWidth: 1,
-      borderColor: p.cardBorder,
-      opacity: muted ? 0.85 : 1,
-    }}>
+    <Pressable
+      onPress={onPress}
+      style={{
+        backgroundColor: p.card,
+        borderRadius: 16,
+        marginBottom: 14,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: p.cardBorder,
+        opacity: muted ? 0.85 : 1,
+      }}
+    >
       <View>
-        <BootImage uri={boot.imageUrl} label={`${boot.brand} ${boot.model}`} />
+        <BootImage uri={boot.imageUrl} brand={boot.brand} model={boot.model} />
         <View style={{
           position: 'absolute',
           top: 10,
@@ -227,13 +215,18 @@ function BootCard({
         </View>
       </View>
       <View style={{ padding: 14 }}>
-        <Text style={{ fontSize: 11, fontWeight: '800', color: p.faint, letterSpacing: 1.5, marginBottom: 3 }}>
-          {boot.brand.toUpperCase()}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 }}>
+          <Text style={{ fontSize: 11, fontWeight: '800', color: p.faint, letterSpacing: 1.5 }}>
+            {boot.brand.toUpperCase()}
+          </Text>
+          <Text style={{ fontSize: 11, fontWeight: '800', color: p.text, letterSpacing: 1 }}>
+            YOUR SIZE · UK {suggestedSize.uk}
+          </Text>
+        </View>
         <Text style={{ fontSize: 17, fontWeight: '800', color: p.text, marginBottom: 6 }}>
           {boot.model}
         </Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 10 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <Text style={{ fontSize: 18, fontWeight: '700', color: p.text }}>
             £{boot.price}
           </Text>
@@ -248,96 +241,8 @@ function BootCard({
             </Text>
           </View>
         </View>
-        <Text style={{ fontSize: 13, fontWeight: '700', color: p.text, marginBottom: 4 }}>
-          Suggested size: UK {suggestedSize.uk} · EU {suggestedSize.eu} · US {suggestedSize.us}
-        </Text>
-        {personalOffset !== 0 && (
-          <Text style={{ fontSize: 11, color: p.muted, marginBottom: 4, fontStyle: 'italic' }}>
-            Adjusted for your {boot.brand} fits
-          </Text>
-        )}
-        {suggestedSize.borderlineTight && (
-          <Text style={{ fontSize: 12, color: '#b55a1a', marginBottom: 6 }}>
-            With these socks, UK {nextHalfSize(suggestedSize.uk)} may feel better in this boot.
-          </Text>
-        )}
-        <Text style={{ color: p.muted, fontSize: 13, lineHeight: 18, marginBottom: 4 }}>
-          {boot.notes}
-        </Text>
-        <Text style={{ color: muted ? '#b55a1a' : p.faint, fontSize: 12, lineHeight: 16, marginBottom: matchedShoe ? 6 : 12 }}>
-          {item.explanation}
-        </Text>
-        {matchedShoe && (
-          <View style={{
-            backgroundColor: '#2a8a3a18',
-            borderRadius: 6,
-            paddingHorizontal: 8,
-            paddingVertical: 4,
-            alignSelf: 'flex-start',
-            marginBottom: 12,
-          }}>
-            <Text style={{ fontSize: 11, fontWeight: '700', color: '#2a8a3a' }}>
-              Similar fit to your {matchedShoe.brand} {matchedShoe.model}
-            </Text>
-          </View>
-        )}
-        <Pressable onPress={() => setExpanded((v) => !v)} style={{ marginBottom: 10 }}>
-          <Text style={{ fontSize: 12, color: '#1a6bb5', fontWeight: '700' }}>
-            {expanded ? 'Hide breakdown' : 'Why this score?'}
-          </Text>
-        </Pressable>
-        {expanded && (
-          <View style={{
-            backgroundColor: p.panel,
-            borderRadius: 10,
-            padding: 12,
-            marginBottom: 12,
-            gap: 4,
-          }}>
-            <Text style={{ fontSize: 12, color: p.text }}>
-              Length fit: {breakdown.lengthContribution} / {breakdown.lengthMax}
-            </Text>
-            <Text style={{ fontSize: 11, color: p.muted, lineHeight: 15, marginBottom: 2 }}>
-              {describeLengthFit(boot, adjustedLength, ownedShoes)}
-            </Text>
-            <Text style={{ fontSize: 12, color: p.text }}>
-              Width fit: {breakdown.widthContribution} / {breakdown.widthMax}
-            </Text>
-            <Text style={{ fontSize: 11, color: p.muted, lineHeight: 15 }}>
-              {describeWidthFit(boot, adjustedWidth)}
-            </Text>
-            {sockAdjustment > 0 && (
-              <Text style={{ fontSize: 12, color: p.muted }}>
-                Sock adjustment: +{sockAdjustment} mm ({sockLabel})
-              </Text>
-            )}
-            {affinityBoost > 0 && (
-              <Text style={{ fontSize: 12, color: '#2a8a3a' }}>
-                Affinity boost: +{affinityBoost}
-                {matchedShoe ? ` (you own ${matchedShoe.brand} ${matchedShoe.model})` : ''}
-              </Text>
-            )}
-            <View style={{ height: 1, backgroundColor: p.hairline, marginVertical: 4 }} />
-            <Text style={{ fontSize: 13, color: p.text, fontWeight: '700' }}>
-              Total: {total} / 100
-            </Text>
-          </View>
-        )}
-        <Pressable
-          onPress={() => Linking.openURL(boot.purchaseUrl)}
-          style={{
-            backgroundColor: p.ctaBg,
-            borderRadius: 999,
-            paddingVertical: 12,
-            alignItems: 'center',
-          }}
-        >
-          <Text style={{ color: p.ctaText, fontWeight: '700', fontSize: 14 }}>
-            Buy now
-          </Text>
-        </Pressable>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -495,15 +400,30 @@ export default function ResultScreen() {
       ? `No exact matches — ${nearMisses.length} close alternative${nearMisses.length === 1 ? '' : 's'} below`
       : 'No matches found';
 
-  return (
-    <View style={{ flex: 1, backgroundColor: p.bg }}>
+  const openBoot = (boot: Boot) =>
+    router.push({
+      pathname: '/screens/BootDetailScreen',
+      params: {
+        brand: boot.brand,
+        model: boot.model,
+        bootGender: boot.gender,
+        sport: boot.sport,
+        footLength: String(safeLength),
+        footWidth: String(safeWidth),
+        sockType: safeSockType,
+      },
+    });
+
+  // Everything above the boot list scrolls away with it (Adidas-style), so
+  // once the user starts browsing, the screen belongs to the boots.
+  const listHeader = (
+    <View>
       <View style={{
         backgroundColor: p.heroBg,
         borderWidth: 1,
         borderColor: p.heroBorder,
         paddingVertical: 12,
         paddingHorizontal: 16,
-        marginHorizontal: 16,
         marginTop: 12,
         marginBottom: 12,
         borderRadius: 14,
@@ -525,7 +445,7 @@ export default function ResultScreen() {
         </Text>
       </View>
 
-      <Text style={{ fontSize: 18, fontWeight: '700', color: p.text, paddingHorizontal: 16, marginBottom: 10 }}>
+      <Text style={{ fontSize: 18, fontWeight: '700', color: p.text, marginBottom: 10 }}>
         {headerText}
       </Text>
 
@@ -534,7 +454,6 @@ export default function ResultScreen() {
           backgroundColor: p.card,
           borderRadius: 14,
           padding: 14,
-          marginHorizontal: 16,
           marginBottom: 12,
           borderWidth: 1,
           borderColor: p.cardBorder,
@@ -555,7 +474,7 @@ export default function ResultScreen() {
           snapToInterval={surfaceCardWidth + 12}
           decelerationRate="fast"
           contentContainerStyle={{ paddingHorizontal: 16, paddingRight: windowWidth - surfaceCardWidth }}
-          style={{ flexGrow: 0, marginBottom: 12 }}
+          style={{ flexGrow: 0, marginBottom: 12, marginHorizontal: -16 }}
           onMomentumScrollEnd={(e) => {
             const i = Math.round(e.nativeEvent.contentOffset.x / (surfaceCardWidth + 12));
             const page = SURFACE_PAGES[Math.min(Math.max(i, 0), SURFACE_PAGES.length - 1)];
@@ -573,7 +492,7 @@ export default function ResultScreen() {
         />
       )}
 
-      <View style={{ paddingHorizontal: 16, marginBottom: 10 }}>
+      <View style={{ marginBottom: 6 }}>
         <Pressable
           onPress={() => setFiltersOpen((v) => !v)}
           style={{
@@ -676,22 +595,24 @@ export default function ResultScreen() {
         </>
         )}
       </View>
+    </View>
+  );
 
+  return (
+    <View style={{ flex: 1, backgroundColor: p.bg }}>
       <FlatList
         data={matches}
         keyExtractor={({ scored }) => `${scored.boot.brand}-${scored.boot.model}-${scored.boot.gender}`}
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }}
+        ListHeaderComponent={listHeader}
         renderItem={({ item }) => (
           <BootCard
             item={item.scored}
-            matchedShoe={item.matchedShoe}
             affinityBoost={item.boost}
-            sockAdjustment={sockAdjustment}
-            sockLabel={sockLabel}
             adjustedLength={adjustedLength}
-            adjustedWidth={adjustedWidth}
             ownedShoes={ownedShoes}
+            onPress={() => openBoot(item.scored.boot)}
           />
         )}
         ListFooterComponent={
@@ -708,17 +629,14 @@ export default function ResultScreen() {
               }}>
                 Close matches
               </Text>
-              {nearMisses.map(({ scored, matchedShoe, boost }) => (
+              {nearMisses.map(({ scored, boost }) => (
                 <BootCard
                   key={`${scored.boot.brand}-${scored.boot.model}-${scored.boot.gender}-near`}
                   item={scored}
-                  matchedShoe={matchedShoe}
                   affinityBoost={boost}
-                  sockAdjustment={sockAdjustment}
-                  sockLabel={sockLabel}
                   adjustedLength={adjustedLength}
-                  adjustedWidth={adjustedWidth}
                   ownedShoes={ownedShoes}
+                  onPress={() => openBoot(scored.boot)}
                   muted
                 />
               ))}
