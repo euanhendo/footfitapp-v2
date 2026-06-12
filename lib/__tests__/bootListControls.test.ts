@@ -55,6 +55,31 @@ describe('applyBootListControls', () => {
     expect(out.map((i) => i.scored.boot.model)).toEqual(['A', 'B', 'C']);
   });
 
+  it('score sort never lets a width-profile match outrank a higher total', () => {
+    const wide92 = item(makeBoot({ brand: 'Puma', model: 'WideLower', width: 'wide', price: 100 }), 92);
+    const std94 = item(makeBoot({ brand: 'Nike', model: 'StdHigher', width: 'standard', price: 100 }), 94);
+    const out = applyBootListControls(
+      [wide92, std94],
+      { widths: allWidths, brands: allBrands },
+      'score',
+      'wide',
+    );
+    expect(out.map((i) => i.scored.boot.model)).toEqual(['StdHigher', 'WideLower']);
+  });
+
+  it('score ties break by width-profile match, then cheaper price', () => {
+    const stdTie = item(makeBoot({ brand: 'Nike', model: 'StdTie', width: 'standard', price: 80 }), 90);
+    const wideTie = item(makeBoot({ brand: 'Puma', model: 'WideTie', width: 'wide', price: 200 }), 90);
+    const wideTieCheap = item(makeBoot({ brand: 'Adidas', model: 'WideTieCheap', width: 'wide', price: 120 }), 90);
+    const out = applyBootListControls(
+      [stdTie, wideTie, wideTieCheap],
+      { widths: allWidths, brands: allBrands },
+      'score',
+      'wide',
+    );
+    expect(out.map((i) => i.scored.boot.model)).toEqual(['WideTieCheap', 'WideTie', 'StdTie']);
+  });
+
   it('price-asc: lowest price first', () => {
     const out = applyBootListControls(items, { widths: allWidths, brands: allBrands }, 'price-asc');
     expect(out.map((i) => i.scored.boot.price)).toEqual([100, 150, 200]);

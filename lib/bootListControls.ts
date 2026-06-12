@@ -19,8 +19,6 @@ export type BootListFilters = {
   surface?: SurfaceFilter | null;
 };
 
-export const WIDTH_PROFILE_TIEBREAK_BOOST = 3;
-
 export function applyBootListControls<T extends ScoredBootWithTotal>(
   items: T[],
   filters: BootListFilters,
@@ -40,10 +38,18 @@ export function applyBootListControls<T extends ScoredBootWithTotal>(
   } else if (sort === 'price-desc') {
     sorted.sort((a, b) => b.scored.boot.price - a.scored.boot.price);
   } else {
+    // Best displayed score always leads — the ordering must never contradict
+    // the % badge the user sees. Width-profile match and price only separate
+    // genuinely equal scores.
     const profile = widthProfile ?? '';
-    const sortKey = (item: T) =>
-      item.total + (profile && item.scored.boot.width === profile ? WIDTH_PROFILE_TIEBREAK_BOOST : 0);
-    sorted.sort((a, b) => sortKey(b) - sortKey(a));
+    const widthMatch = (item: T) =>
+      profile && item.scored.boot.width === profile ? 1 : 0;
+    sorted.sort(
+      (a, b) =>
+        b.total - a.total ||
+        widthMatch(b) - widthMatch(a) ||
+        a.scored.boot.price - b.scored.boot.price,
+    );
   }
   return sorted;
 }
