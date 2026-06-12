@@ -1,4 +1,4 @@
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { useCameraPermissions } from 'expo-camera';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
@@ -12,18 +12,22 @@ import {
   DepthMeasureDebug,
   measureFootFromDepthFrameDebug,
 } from '../../lib/scanner/depth/footFromDepth';
+import FootfitDepthView, { DepthStatus } from '../../modules/footfit-vision/depthView';
 
 // Scanner v3 instrumentation — like ScannerDebugScreen, this deliberately
 // pokes the raw pipeline so device captures can be judged against tape
-// measurements before any production flow exists. The camera preview is for
-// aiming only: ARKit needs the camera to itself, so on capture the preview
-// unmounts, the depth session takes over for ~a second, then the preview
-// returns.
+// measurements before any production flow exists. The live AR view streams
+// centre depth + phone tilt so the user can hold the 50–70 cm sweet spot;
+// capture grabs the running session's current frame instantly.
 type CaptureRow = {
   id: number;
   debug?: DepthMeasureDebug;
   error?: string;
 };
+
+const HEIGHT_MIN_MM = 500;
+const HEIGHT_MAX_MM = 700;
+const FLAT_MAX_DEG = 12;
 
 function median(values: number[]): number {
   const sorted = [...values].sort((a, b) => a - b);
@@ -31,20 +35,29 @@ function median(values: number[]): number {
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
-const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+function coach(status: DepthStatus | null): { text: string; ready: boolean } {
+  if (!status || !status.hasDepth || status.centerDepthMm <= 0) {
+    return { text: 'Waiting for the depth sensor…', ready: false };
+  }
+  if (status.centerDepthMm < 280) return { text: 'Too close — lift higher', ready: false };
+  if (status.centerDepthMm < HEIGHT_MIN_MM) return { text: 'Lift a little higher', ready: false };
+  if (status.centerDepthMm > HEIGHT_MAX_MM) return { text: 'Lower a little', ready: false };
+  if (status.flatTiltDeg > FLAT_MAX_DEG) return { text: 'Hold the phone flat', ready: false };
+  return { text: 'Good — hold steady', ready: true };
+}
 
 export default function DepthDebugScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [rows, setRows] = useState<CaptureRow[]>([]);
   const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<DepthStatus | null>(null);
   const [preview, setPreview] = useState<{ width: number; height: number } | null>(null);
   const supported = isDepthScanSupported();
 
   const capture = async () => {
-    setBusy(true); // unmounts the CameraView so ARKit can take the camera
+    setBusy(true);
     const id = Date.now();
     try {
-      await delay(500); // let the preview session release the camera
       const frame = await arkitDepthAdapter.captureDepthFrame();
       if (!frame) {
         setRows((prev) => [{ id, error: 'Bridge returned no frame' }, ...prev]);
@@ -65,6 +78,8 @@ export default function DepthDebugScreen() {
   const medianLength = good.length ? median(good.map((d) => d.metrics.lengthMm)) : 0;
   const medianWidth = good.length ? median(good.map((d) => d.metrics.widthMm)) : 0;
   const latest = rows[0];
+  const { text: coaching, ready } = coach(status);
+  const guideColor = ready ? '#7bff9f' : '#ffcc66';
 
   if (!supported) {
     return (
@@ -140,24 +155,11 @@ export default function DepthDebugScreen() {
           setPreview({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })
         }
       >
-        {busy ? (
-          <View
-            style={{
-              flex: 1,
-              backgroundColor: '#000',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <ActivityIndicator color="#7bff9f" size="large" />
-            <Text style={{ color: '#7bff9f', fontSize: 13, fontWeight: '700', marginTop: 12 }}>
-              Depth sensor measuring — hold still…
-            </Text>
-          </View>
-        ) : (
-          <CameraView style={{ flex: 1 }} facing="back" />
-        )}
-        {preview && !busy && (
+        <FootfitDepthView
+          style={{ flex: 1 }}
+          onDepthStatus={(e) => setStatus(e.nativeEvent)}
+        />
+        {preview && (
           <View
             pointerEvents="none"
             style={{
@@ -176,15 +178,15 @@ export default function DepthDebugScreen() {
                 height: preview.height * 0.62,
                 borderWidth: 2,
                 borderStyle: 'dashed',
-                borderColor: '#7bff9f',
+                borderColor: guideColor,
                 borderRadius: 40,
               }}
             />
             <Text
               style={{
-                color: '#fff',
-                fontSize: 13,
-                fontWeight: '700',
+                color: guideColor,
+                fontSize: 14,
+                fontWeight: '800',
                 marginTop: 10,
                 backgroundColor: 'rgba(0,0,0,0.65)',
                 paddingHorizontal: 12,
@@ -192,8 +194,25 @@ export default function DepthDebugScreen() {
                 borderRadius: 8,
               }}
             >
-              Foot in the box · phone flat · ~60 cm up
+              {coaching}
             </Text>
+            {status && status.centerDepthMm > 0 && (
+              <Text
+                style={{
+                  color: '#fff',
+                  fontSize: 12,
+                  fontWeight: '700',
+                  marginTop: 6,
+                  backgroundColor: 'rgba(0,0,0,0.55)',
+                  paddingHorizontal: 10,
+                  paddingVertical: 4,
+                  borderRadius: 6,
+                }}
+              >
+                height {(status.centerDepthMm / 10).toFixed(0)} cm · tilt{' '}
+                {status.flatTiltDeg.toFixed(0)}°
+              </Text>
+            )}
           </View>
         )}
       </View>
@@ -227,14 +246,16 @@ export default function DepthDebugScreen() {
           onPress={capture}
           disabled={busy}
           style={{
-            backgroundColor: busy ? '#555' : '#fff',
+            backgroundColor: busy ? '#555' : ready ? '#7bff9f' : '#fff',
             borderRadius: 14,
             paddingVertical: 16,
             alignItems: 'center',
           }}
         >
           <Text style={{ color: '#111', fontSize: 15, fontWeight: '800' }}>
-            {busy ? 'Measuring…' : `Capture depth frame${rows.length ? ` (${rows.length + 1})` : ''}`}
+            {busy
+              ? 'Measuring…'
+              : `Capture depth frame${rows.length ? ` (${rows.length + 1})` : ''}`}
           </Text>
         </Pressable>
       </View>

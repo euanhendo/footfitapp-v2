@@ -11,12 +11,25 @@ public class FootfitDepthModule: Module {
       ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth)
     }
 
+    // Live AR preview with a streamed depth status (centre depth + phone
+    // flatness) so screens can coach the user to the right capture height.
+    View(FootfitDepthARView.self) {
+      Events("onDepthStatus")
+    }
+
     AsyncFunction("captureDepthFrame") { (promise: Promise) in
       DispatchQueue.main.async {
         guard ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) else {
           promise.reject("E_NO_LIDAR", "This device does not support scene depth")
           return
         }
+
+        // Instant path: a mounted live view already owns a running session.
+        if let live = FootfitDepthARView.active, let payload = live.currentPayload() {
+          promise.resolve(payload)
+          return
+        }
+
         if self.capture != nil {
           promise.reject("E_BUSY", "A depth capture is already in progress")
           return
@@ -36,6 +49,87 @@ public class FootfitDepthModule: Module {
         capture.start()
       }
     }
+  }
+}
+
+// Live ARKit preview view: renders the camera feed and streams a ~4 Hz depth
+// status event. Only one is expected on screen at a time; the active one also
+// serves captureDepthFrame instantly from its running session.
+final class FootfitDepthARView: ExpoView, ARSessionDelegate {
+  static weak var active: FootfitDepthARView?
+
+  private let arView = ARSCNView()
+  private let session = ARSession()
+  private var lastEventAt: TimeInterval = 0
+  let onDepthStatus = EventDispatcher()
+
+  required init(appContext: AppContext? = nil) {
+    super.init(appContext: appContext)
+    arView.session = session
+    session.delegate = self
+    addSubview(arView)
+  }
+
+  override func layoutSubviews() {
+    super.layoutSubviews()
+    arView.frame = bounds
+  }
+
+  override func willMove(toWindow newWindow: UIWindow?) {
+    super.willMove(toWindow: newWindow)
+    if newWindow == nil {
+      session.pause()
+      if Self.active === self { Self.active = nil }
+    } else {
+      guard ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) else { return }
+      let config = ARWorldTrackingConfiguration()
+      config.frameSemantics = .sceneDepth
+      config.worldAlignment = .gravity
+      session.run(config)
+      Self.active = self
+    }
+  }
+
+  func session(_ session: ARSession, didUpdate frame: ARFrame) {
+    guard frame.timestamp - lastEventAt > 0.25 else { return }
+    lastEventAt = frame.timestamp
+
+    var centerDepthMm: Float = 0
+    if let depth = frame.sceneDepth {
+      centerDepthMm = Self.centerDepthMetres(depth.depthMap) * 1000
+    }
+    // How far the phone is from pointing straight down: angle between the
+    // camera's look direction and gravity (world −y under .gravity alignment).
+    let look = -simd_make_float3(frame.camera.transform.columns.2)
+    let cosA = simd_dot(simd_normalize(look), simd_float3(0, -1, 0))
+    let flatTiltDeg = acos(max(-1, min(1, cosA))) * 180 / .pi
+
+    let payload: [String: Any] = [
+      "centerDepthMm": centerDepthMm,
+      "flatTiltDeg": flatTiltDeg,
+      "hasDepth": frame.sceneDepth != nil,
+    ]
+    DispatchQueue.main.async { [weak self] in
+      self?.onDepthStatus(payload)
+    }
+  }
+
+  func currentPayload() -> [String: Any]? {
+    guard let frame = session.currentFrame, let depth = frame.sceneDepth else { return nil }
+    return DepthCapture.serialise(frame: frame, depth: depth)
+  }
+
+  private static func centerDepthMetres(_ map: CVPixelBuffer) -> Float {
+    guard CVPixelBufferGetPixelFormatType(map) == kCVPixelFormatType_DepthFloat32 else { return 0 }
+    CVPixelBufferLockBaseAddress(map, .readOnly)
+    defer { CVPixelBufferUnlockBaseAddress(map, .readOnly) }
+    guard let base = CVPixelBufferGetBaseAddress(map) else { return 0 }
+    let width = CVPixelBufferGetWidth(map)
+    let height = CVPixelBufferGetHeight(map)
+    let bytesPerRow = CVPixelBufferGetBytesPerRow(map)
+    let rowPointer = base.advanced(by: (height / 2) * bytesPerRow)
+    let value = rowPointer.assumingMemoryBound(to: Float32.self)[width / 2]
+    return value.isFinite ? value : 0
   }
 }
 
@@ -85,7 +179,7 @@ final class DepthCapture: NSObject, ARSessionDelegate {
     completion(result)
   }
 
-  private static func serialise(frame: ARFrame, depth: ARDepthData) -> [String: Any]? {
+  static func serialise(frame: ARFrame, depth: ARDepthData) -> [String: Any]? {
     let map = depth.depthMap
     guard CVPixelBufferGetPixelFormatType(map) == kCVPixelFormatType_DepthFloat32 else { return nil }
     CVPixelBufferLockBaseAddress(map, .readOnly)
