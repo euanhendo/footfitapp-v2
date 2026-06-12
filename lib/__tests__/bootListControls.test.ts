@@ -165,14 +165,16 @@ describe('applyBootListControls', () => {
     const standardC = item(makeBoot({ brand: 'Puma', model: 'StandardC', width: 'standard', price: 150 }), 95);
     const allBrandsSet = new Set(['Nike', 'Adidas', 'Puma']);
 
-    it('floats close-scoring matching-width boot above non-matching', () => {
+    it('close-but-lower score never outranks a higher one, even on width match', () => {
+      // Changed 2026-06-12: ordering must agree with the % badge the user
+      // sees — width-profile match only separates genuinely equal scores.
       const out = applyBootListControls(
         [standardB, narrowA],
         { widths: allWidths, brands: allBrandsSet },
         'score',
         'narrow',
       );
-      expect(out.map((i) => i.scored.boot.model)).toEqual(['NarrowA', 'StandardB']);
+      expect(out.map((i) => i.scored.boot.model)).toEqual(['StandardB', 'NarrowA']);
     });
 
     it('does not override a clearly higher-scoring non-matching boot', () => {
