@@ -4,6 +4,7 @@ import { Animated, Image, Pressable, ScrollView, Text, View } from 'react-native
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import { createFitProfileStore, FitProfile, StorageAdapter } from '../../lib/fitProfile';
+import { usePalette } from '../../lib/theme';
 
 type Sport = 'football' | 'running' | 'rugby';
 type Gender = 'mens' | 'womens' | 'kids';
@@ -180,6 +181,7 @@ function SportBand({
 }
 
 export default function HomeScreen() {
+  const p = usePalette();
   const { footLength, footWidth, measureSource } = useLocalSearchParams<{
     footLength: string;
     footWidth: string;
@@ -258,16 +260,16 @@ export default function HomeScreen() {
       : 'Unisex';
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#f9f9f9' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: p.bg }}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 24, paddingBottom: 48 }}>
 
-        <Text style={{ fontSize: 12, fontWeight: '900', color: '#111', letterSpacing: 4, marginBottom: 16 }}>
+        <Text style={{ fontSize: 12, fontWeight: '900', color: p.text, letterSpacing: 4, marginBottom: 16 }}>
           FOOTFIT
         </Text>
-        <Text style={{ fontSize: 32, fontWeight: '800', color: '#111', marginBottom: 4 }}>
+        <Text style={{ fontSize: 32, fontWeight: '800', color: p.text, marginBottom: 4 }}>
           Find your fit.
         </Text>
-        <Text style={{ fontSize: 15, color: '#666', lineHeight: 21, marginBottom: 24 }}>
+        <Text style={{ fontSize: 15, color: p.muted, lineHeight: 21, marginBottom: 24 }}>
           Footwear matched to your measured feet — not the size on the box.
         </Text>
 
@@ -275,11 +277,12 @@ export default function HomeScreen() {
           flexDirection: 'row',
           gap: 24,
           borderBottomWidth: 1,
-          borderBottomColor: '#e8e8e8',
+          borderBottomColor: p.hairline,
           marginBottom: 24,
         }}>
           {GENDER_TABS.map((tab) => {
             const active = tab.enabled && genderTab === tab.id;
+            const disabledColor = p.dark ? '#555' : '#ccc';
             return (
               <Pressable
                 key={tab.id}
@@ -287,7 +290,7 @@ export default function HomeScreen() {
                 style={{
                   paddingBottom: 10,
                   borderBottomWidth: 2,
-                  borderBottomColor: active ? '#111' : 'transparent',
+                  borderBottomColor: active ? p.text : 'transparent',
                   flexDirection: 'row',
                   alignItems: 'flex-start',
                 }}
@@ -296,12 +299,12 @@ export default function HomeScreen() {
                   fontSize: 13,
                   fontWeight: '800',
                   letterSpacing: 1.5,
-                  color: !tab.enabled ? '#ccc' : active ? '#111' : '#999',
+                  color: !tab.enabled ? disabledColor : active ? p.text : p.faint,
                 }}>
                   {tab.label}
                 </Text>
                 {!tab.enabled && (
-                  <Text style={{ fontSize: 8, fontWeight: '800', letterSpacing: 1, color: '#ccc', marginLeft: 3 }}>
+                  <Text style={{ fontSize: 8, fontWeight: '800', letterSpacing: 1, color: disabledColor, marginLeft: 3 }}>
                     SOON
                   </Text>
                 )}
@@ -314,7 +317,9 @@ export default function HomeScreen() {
           <Pressable
             onPress={() => router.push('/screens/ScannerScreen')}
             style={{
-              backgroundColor: '#111',
+              backgroundColor: p.heroBg,
+              borderWidth: 1,
+              borderColor: p.heroBorder,
               borderRadius: 16,
               padding: 18,
               marginBottom: 24,
@@ -337,21 +342,21 @@ export default function HomeScreen() {
 
         {scannedReady && (
           <View style={{
-            backgroundColor: '#fff',
+            backgroundColor: p.card,
             borderRadius: 16,
             borderWidth: 1,
-            borderColor: '#ebebeb',
+            borderColor: p.cardBorder,
             padding: 16,
             marginBottom: 24,
           }}>
             <Text style={{ fontSize: 11, fontWeight: '800', color: '#2a8a3a', letterSpacing: 1.5, marginBottom: 4 }}>
               ✓ FEET MEASURED
             </Text>
-            <Text style={{ fontSize: 20, fontWeight: '800', color: '#111', marginBottom: 4 }}>
+            <Text style={{ fontSize: 20, fontWeight: '800', color: p.text, marginBottom: 4 }}>
               {scannedLength} × {scannedWidth}
-              <Text style={{ fontSize: 13, fontWeight: '700', color: '#999' }}>  mm</Text>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: p.faint }}>  mm</Text>
             </Text>
-            <Text style={{ fontSize: 13, color: '#666' }}>
+            <Text style={{ fontSize: 13, color: p.muted }}>
               Pick a sport below to see what fits.
             </Text>
           </View>
@@ -361,7 +366,7 @@ export default function HomeScreen() {
           <View style={{ marginBottom: 28 }}>
             <Pressable
               onPress={handleContinue}
-              style={{ backgroundColor: '#111', borderRadius: 16, padding: 20 }}
+              style={{ backgroundColor: p.heroBg, borderWidth: 1, borderColor: p.heroBorder, borderRadius: 16, padding: 20 }}
             >
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                 <Text style={{ fontSize: 11, fontWeight: '800', color: '#888', letterSpacing: 1.5 }}>
@@ -404,35 +409,35 @@ export default function HomeScreen() {
                 })}
                 style={{
                   flex: 1,
-                  backgroundColor: '#fff',
+                  backgroundColor: p.card,
                   borderWidth: 1,
-                  borderColor: '#d5d5d5',
+                  borderColor: p.chipBorder,
                   borderRadius: 4,
                   paddingVertical: 12,
                   alignItems: 'center',
                 }}
               >
-                <Text style={{ fontSize: 11, fontWeight: '800', color: '#111', letterSpacing: 1 }}>MY SHOES</Text>
+                <Text style={{ fontSize: 11, fontWeight: '800', color: p.text, letterSpacing: 1 }}>MY SHOES</Text>
               </Pressable>
               <Pressable
                 onPress={handleStartFresh}
                 style={{
                   flex: 1,
-                  backgroundColor: '#fff',
+                  backgroundColor: p.card,
                   borderWidth: 1,
-                  borderColor: '#d5d5d5',
+                  borderColor: p.chipBorder,
                   borderRadius: 4,
                   paddingVertical: 12,
                   alignItems: 'center',
                 }}
               >
-                <Text style={{ fontSize: 11, fontWeight: '800', color: '#111', letterSpacing: 1 }}>START FRESH</Text>
+                <Text style={{ fontSize: 11, fontWeight: '800', color: p.text, letterSpacing: 1 }}>START FRESH</Text>
               </Pressable>
             </View>
           </View>
         )}
 
-        <Text style={{ fontSize: 11, fontWeight: '800', color: '#999', letterSpacing: 1.5, marginBottom: 12 }}>
+        <Text style={{ fontSize: 11, fontWeight: '800', color: p.faint, letterSpacing: 1.5, marginBottom: 12 }}>
           CHOOSE YOUR SPORT
         </Text>
 

@@ -3,7 +3,6 @@ import { useMemo, useState } from 'react';
 
 import {
   Alert,
-  Button,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -21,6 +20,7 @@ import {
   WidthProfile,
   SizeSystem,
 } from '../../lib/fitting';
+import { Palette, usePalette } from '../../lib/theme';
 
 type InputMode = 'size' | 'manual';
 type Sport = 'football' | 'running' | 'rugby';
@@ -30,10 +30,12 @@ function SelectButton({
   label,
   active,
   onPress,
+  p,
 }: {
   label: string;
   active: boolean;
   onPress: () => void;
+  p: Palette;
 }) {
   return (
     <Pressable
@@ -42,14 +44,14 @@ function SelectButton({
         paddingVertical: 10,
         paddingHorizontal: 14,
         borderWidth: 1,
-        borderColor: active ? '#111' : '#ccc',
-        backgroundColor: active ? '#111' : '#fff',
+        borderColor: active ? p.ctaBg : p.chipBorder,
+        backgroundColor: active ? p.ctaBg : p.card,
         borderRadius: 8,
         marginRight: 8,
         marginBottom: 8,
       }}
     >
-      <Text style={{ color: active ? '#fff' : '#111', fontWeight: '600' }}>
+      <Text style={{ color: active ? p.ctaText : p.text, fontWeight: '600' }}>
         {label}
       </Text>
     </Pressable>
@@ -57,6 +59,7 @@ function SelectButton({
 }
 
 export default function ManualInputScreen() {
+  const p = usePalette();
   const { sport, gender, footLength, footWidth } = useLocalSearchParams<{
     sport: Sport;
     gender: Gender;
@@ -144,11 +147,11 @@ export default function ManualInputScreen() {
         <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
           <View style={{ padding: 20, flex: 1 }}>
 
-            <Text style={{ fontSize: 24, fontWeight: '700', marginBottom: 8 }}>
+            <Text style={{ fontSize: 24, fontWeight: '700', color: p.text, marginBottom: 8 }}>
               Measure your feet
             </Text>
 
-            <Text style={{ fontSize: 15, color: '#555', marginBottom: 12 }}>
+            <Text style={{ fontSize: 15, color: p.muted, marginBottom: 12 }}>
               Choose the easiest way to get your boot fit.
             </Text>
 
@@ -156,7 +159,7 @@ export default function ManualInputScreen() {
               onPress={() => router.push('/screens/MeasureGuideScreen')}
               style={{ marginBottom: 16 }}
             >
-              <Text style={{ fontSize: 13, color: '#666', textDecorationLine: 'underline' }}>
+              <Text style={{ fontSize: 13, color: p.muted, textDecorationLine: 'underline' }}>
                 Not sure how to measure? Open guide →
               </Text>
             </Pressable>
@@ -169,7 +172,9 @@ export default function ManualInputScreen() {
                 })
               }
               style={{
-                backgroundColor: '#111',
+                backgroundColor: p.heroBg,
+                borderWidth: 1,
+                borderColor: p.heroBorder,
                 borderRadius: 14,
                 paddingVertical: 14,
                 paddingHorizontal: 16,
@@ -184,28 +189,28 @@ export default function ManualInputScreen() {
               </Text>
             </Pressable>
 
-            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 10 }}>
+            <Text style={{ fontSize: 16, fontWeight: '600', color: p.text, marginBottom: 10 }}>
               Input method
             </Text>
 
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 16 }}>
-              <SelectButton label="Shoe size" active={inputMode === 'size'} onPress={() => setInputMode('size')} />
-              <SelectButton label="Advanced manual" active={inputMode === 'manual'} onPress={() => setInputMode('manual')} />
+              <SelectButton p={p} label="Shoe size" active={inputMode === 'size'} onPress={() => setInputMode('size')} />
+              <SelectButton p={p} label="Advanced manual" active={inputMode === 'manual'} onPress={() => setInputMode('manual')} />
             </View>
 
             {inputMode === 'size' && (
               <>
-                <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 10 }}>
+                <Text style={{ fontSize: 16, fontWeight: '600', color: p.text, marginBottom: 10 }}>
                   Size system
                 </Text>
 
                 <View style={{ flexDirection: 'row', marginBottom: 16 }}>
-                  <SelectButton label="UK" active={sizeSystem === 'UK'} onPress={() => setSizeSystem('UK')} />
-                  <SelectButton label="EU" active={sizeSystem === 'EU'} onPress={() => setSizeSystem('EU')} />
-                  <SelectButton label="US" active={sizeSystem === 'US'} onPress={() => setSizeSystem('US')} />
+                  <SelectButton p={p} label="UK" active={sizeSystem === 'UK'} onPress={() => setSizeSystem('UK')} />
+                  <SelectButton p={p} label="EU" active={sizeSystem === 'EU'} onPress={() => setSizeSystem('EU')} />
+                  <SelectButton p={p} label="US" active={sizeSystem === 'US'} onPress={() => setSizeSystem('US')} />
                 </View>
 
-                <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 6 }}>
+                <Text style={{ fontSize: 16, fontWeight: '600', color: p.text, marginBottom: 6 }}>
                   Enter your {sizeSystem} size
                 </Text>
 
@@ -220,42 +225,44 @@ export default function ManualInputScreen() {
                   keyboardType="decimal-pad"
                   returnKeyType="done"
                   onSubmitEditing={Keyboard.dismiss}
+                  placeholderTextColor={p.faint}
                   style={{
+                    color: p.text,
                     borderWidth: 1,
-                    borderColor: '#ccc',
+                    borderColor: p.chipBorder,
                     borderRadius: 8,
                     padding: 12,
                     marginBottom: gender === 'kids' ? 6 : 16,
                   }}
                 />
                 {gender === 'kids' && (
-                  <Text style={{ fontSize: 12, color: '#666', lineHeight: 17, marginBottom: 16 }}>
+                  <Text style={{ fontSize: 12, color: p.muted, lineHeight: 17, marginBottom: 16 }}>
                     Kids sizes: 10–13.5 are child sizes, 1–5.5 are junior sizes.
                   </Text>
                 )}
 
-                <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 10 }}>
+                <Text style={{ fontSize: 16, fontWeight: '600', color: p.text, marginBottom: 10 }}>
                   Foot width feel
                 </Text>
 
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 18 }}>
-                  <SelectButton label="Narrow" active={widthProfile === 'narrow'} onPress={() => setWidthProfile('narrow')} />
-                  <SelectButton label="Standard" active={widthProfile === 'standard'} onPress={() => setWidthProfile('standard')} />
-                  <SelectButton label="Wide" active={widthProfile === 'wide'} onPress={() => setWidthProfile('wide')} />
+                  <SelectButton p={p} label="Narrow" active={widthProfile === 'narrow'} onPress={() => setWidthProfile('narrow')} />
+                  <SelectButton p={p} label="Standard" active={widthProfile === 'standard'} onPress={() => setWidthProfile('standard')} />
+                  <SelectButton p={p} label="Wide" active={widthProfile === 'wide'} onPress={() => setWidthProfile('wide')} />
                 </View>
 
                 <View style={{
-                  backgroundColor: '#f5f5f5',
+                  backgroundColor: p.panel,
                   borderRadius: 10,
                   padding: 14,
                   marginBottom: 20,
                 }}>
-                  <Text style={{ fontWeight: '700', marginBottom: 6 }}>
+                  <Text style={{ fontWeight: '700', color: p.text, marginBottom: 6 }}>
                     Estimated measurements
                   </Text>
-                  <Text>Estimated foot length: {estimatedLength || '-'} mm</Text>
-                  <Text>Estimated foot width: {estimatedWidth || '-'} mm</Text>
-                  <Text style={{ marginTop: 8, color: '#666', fontSize: 13 }}>
+                  <Text style={{ color: p.text }}>Estimated foot length: {estimatedLength || '-'} mm</Text>
+                  <Text style={{ color: p.text }}>Estimated foot width: {estimatedWidth || '-'} mm</Text>
+                  <Text style={{ marginTop: 8, color: p.muted, fontSize: 13 }}>
                     This is a size-based estimate. Use Advanced manual for exact mm.
                   </Text>
                 </View>
@@ -264,7 +271,7 @@ export default function ManualInputScreen() {
 
             {inputMode === 'manual' && (
               <>
-                <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 6 }}>
+                <Text style={{ fontSize: 16, fontWeight: '600', color: p.text, marginBottom: 6 }}>
                   Foot length (mm)
                 </Text>
                 <TextInput
@@ -273,17 +280,19 @@ export default function ManualInputScreen() {
                   keyboardType="numeric"
                   returnKeyType="done"
                   onSubmitEditing={Keyboard.dismiss}
+                  placeholderTextColor={p.faint}
                   placeholder="e.g. 260"
                   style={{
+                    color: p.text,
                     borderWidth: 1,
-                    borderColor: '#ccc',
+                    borderColor: p.chipBorder,
                     borderRadius: 8,
                     padding: 12,
                     marginBottom: 16,
                   }}
                 />
 
-                <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 6 }}>
+                <Text style={{ fontSize: 16, fontWeight: '600', color: p.text, marginBottom: 6 }}>
                   Foot width (mm)
                 </Text>
                 <TextInput
@@ -292,10 +301,12 @@ export default function ManualInputScreen() {
                   keyboardType="numeric"
                   returnKeyType="done"
                   onSubmitEditing={Keyboard.dismiss}
+                  placeholderTextColor={p.faint}
                   placeholder="e.g. 95"
                   style={{
+                    color: p.text,
                     borderWidth: 1,
-                    borderColor: '#ccc',
+                    borderColor: p.chipBorder,
                     borderRadius: 8,
                     padding: 12,
                     marginBottom: 20,
@@ -304,7 +315,12 @@ export default function ManualInputScreen() {
               </>
             )}
 
-            <Button title="Next" onPress={handleNext} />
+            <Pressable
+              onPress={handleNext}
+              style={{ backgroundColor: p.ctaBg, borderRadius: 999, paddingVertical: 14, alignItems: 'center' }}
+            >
+              <Text style={{ color: p.ctaText, fontSize: 15, fontWeight: '700' }}>Next</Text>
+            </Pressable>
 
           </View>
         </ScrollView>

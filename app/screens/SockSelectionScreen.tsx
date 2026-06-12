@@ -17,6 +17,7 @@ import {
   SockBrandSection,
   SockEntry,
 } from '../../lib/fitting';
+import { usePalette } from '../../lib/theme';
 import sockDatabase from '../../sockDatabase.json';
 
 type SockDb = Record<string, SockEntry>;
@@ -80,6 +81,7 @@ function SockThumb({ uri, brand }: { uri: string; brand: string }) {
 }
 
 export default function SockSelectionScreen() {
+  const p = usePalette();
   const [sockType, setSockType] = useState('');
   const [query, setQuery] = useState('');
   const { footLength, footWidth, sport, gender, widthProfile, measureSource } =
@@ -122,14 +124,14 @@ export default function SockSelectionScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: '#f9f9f9' }}
+      style={{ flex: 1, backgroundColor: p.bg }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={{ padding: 20, flex: 1 }}>
-        <Text style={{ fontSize: 24, fontWeight: '700', marginBottom: 8 }}>
+        <Text style={{ fontSize: 24, fontWeight: '700', color: p.text, marginBottom: 8 }}>
           Select your sock
         </Text>
-        <Text style={{ fontSize: 15, color: '#555', marginBottom: 16 }}>
+        <Text style={{ fontSize: 15, color: p.muted, marginBottom: 16 }}>
           Search by brand — sock thickness is added to your foot measurements.
         </Text>
 
@@ -137,15 +139,16 @@ export default function SockSelectionScreen() {
           value={query}
           onChangeText={setQuery}
           placeholder="Search brands (e.g. Nike)"
-          placeholderTextColor="#999"
+          placeholderTextColor={p.faint}
           autoCorrect={false}
           autoCapitalize="none"
           returnKeyType="search"
           onSubmitEditing={Keyboard.dismiss}
           style={{
             borderWidth: 1,
-            borderColor: '#e8e8e8',
-            backgroundColor: '#fff',
+            borderColor: p.hairline,
+            backgroundColor: p.card,
+            color: p.text,
             borderRadius: 10,
             padding: 12,
             marginBottom: 12,
@@ -159,7 +162,7 @@ export default function SockSelectionScreen() {
           keyboardShouldPersistTaps="handled"
           stickySectionHeadersEnabled={false}
           ListEmptyComponent={
-            <Text style={{ color: '#666', padding: 16, textAlign: 'center' }}>
+            <Text style={{ color: p.muted, padding: 16, textAlign: 'center' }}>
               No socks match &quot;{query}&quot;.
             </Text>
           }
@@ -169,7 +172,7 @@ export default function SockSelectionScreen() {
                 fontSize: 12,
                 fontWeight: '700',
                 letterSpacing: 1,
-                color: '#666',
+                color: p.muted,
                 marginTop: 12,
                 marginBottom: 8,
                 textTransform: 'uppercase',
@@ -186,8 +189,8 @@ export default function SockSelectionScreen() {
                 style={{
                   padding: 10,
                   borderWidth: 1,
-                  borderColor: selected ? '#111' : '#e8e8e8',
-                  backgroundColor: selected ? '#111' : '#fff',
+                  borderColor: selected ? p.ctaBg : p.hairline,
+                  backgroundColor: selected ? p.ctaBg : p.card,
                   borderRadius: 14,
                   marginBottom: 8,
                   flexDirection: 'row',
@@ -197,7 +200,7 @@ export default function SockSelectionScreen() {
                 <SockThumb uri={item.imageUrl} brand={item.brand} />
                 <Text
                   style={{
-                    color: selected ? '#fff' : '#111',
+                    color: selected ? p.ctaText : p.text,
                     fontWeight: '600',
                     fontSize: 15,
                     flex: 1,
@@ -205,7 +208,7 @@ export default function SockSelectionScreen() {
                 >
                   {item.name}
                 </Text>
-                <Text style={{ color: selected ? '#fff' : '#666', fontSize: 13 }}>
+                <Text style={{ color: selected ? p.ctaText : p.muted, fontSize: 13 }}>
                   +{item.thickness}mm
                 </Text>
               </Pressable>
@@ -217,14 +220,14 @@ export default function SockSelectionScreen() {
           onPress={handleNext}
           disabled={!sockType}
           style={{
-            backgroundColor: sockType ? '#111' : '#ccc',
+            backgroundColor: sockType ? p.ctaBg : (p.dark ? '#333' : '#ccc'),
             padding: 14,
-            borderRadius: 10,
+            borderRadius: 999,
             alignItems: 'center',
             marginTop: 8,
           }}
         >
-          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>Next</Text>
+          <Text style={{ color: sockType ? p.ctaText : '#fff', fontWeight: '700', fontSize: 16 }}>Next</Text>
         </Pressable>
       </View>
     </KeyboardAvoidingView>

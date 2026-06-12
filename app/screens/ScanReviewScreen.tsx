@@ -2,6 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { usePalette } from '../../lib/theme';
 
 type Sport = 'football' | 'running' | 'rugby';
 type Gender = 'mens' | 'womens' | 'unisex';
@@ -13,6 +14,7 @@ function confidenceLabel(confidence: number): { label: string; color: string } {
 }
 
 export default function ScanReviewScreen() {
+  const p = usePalette();
   const params = useLocalSearchParams<{
     lengthMm: string;
     widthMm: string;
@@ -109,22 +111,22 @@ export default function ScanReviewScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#f9f9f9' }} edges={['bottom']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: p.bg }} edges={['bottom']}>
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 32 }}>
-        <Text style={{ fontSize: 24, fontWeight: '800', color: '#111', marginBottom: 6 }}>
+        <Text style={{ fontSize: 24, fontWeight: '800', color: p.text, marginBottom: 6 }}>
           Scan result
         </Text>
-        <Text style={{ fontSize: 14, color: '#666', marginBottom: 20 }}>
+        <Text style={{ fontSize: 14, color: p.muted, marginBottom: 20 }}>
           Review the measurements before continuing. Re-scan if anything looks off.
         </Text>
 
         {!valid ? (
           <View
             style={{
-              backgroundColor: '#fff',
+              backgroundColor: p.card,
               borderRadius: 14,
               borderWidth: 1,
-              borderColor: '#ebebeb',
+              borderColor: p.cardBorder,
               padding: 16,
               marginBottom: 20,
             }}
@@ -136,41 +138,41 @@ export default function ScanReviewScreen() {
         ) : (
           <View
             style={{
-              backgroundColor: '#fff',
+              backgroundColor: p.card,
               borderRadius: 16,
               borderWidth: 1,
-              borderColor: '#ebebeb',
+              borderColor: p.cardBorder,
               padding: 18,
               marginBottom: 16,
             }}
           >
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 }}>
               <View>
-                <Text style={{ fontSize: 12, color: '#999', letterSpacing: 1, textTransform: 'uppercase' }}>
+                <Text style={{ fontSize: 12, color: p.faint, letterSpacing: 1, textTransform: 'uppercase' }}>
                   Length
                 </Text>
-                <Text style={{ fontSize: 28, fontWeight: '800', color: '#111' }}>
+                <Text style={{ fontSize: 28, fontWeight: '800', color: p.text }}>
                   {Math.round(lengthMm)} mm
                 </Text>
               </View>
               <View>
-                <Text style={{ fontSize: 12, color: '#999', letterSpacing: 1, textTransform: 'uppercase' }}>
+                <Text style={{ fontSize: 12, color: p.faint, letterSpacing: 1, textTransform: 'uppercase' }}>
                   Width
                 </Text>
-                <Text style={{ fontSize: 28, fontWeight: '800', color: '#111' }}>
+                <Text style={{ fontSize: 28, fontWeight: '800', color: p.text }}>
                   {Math.round(widthMm)} mm
                 </Text>
               </View>
             </View>
 
-            <Text style={{ fontSize: 12, color: '#999', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>
+            <Text style={{ fontSize: 12, color: p.faint, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>
               {conf.label} · {confPct}%
             </Text>
             <View
               style={{
                 height: 8,
                 borderRadius: 4,
-                backgroundColor: '#f0f0f0',
+                backgroundColor: p.panel,
                 overflow: 'hidden',
               }}
             >
@@ -208,14 +210,14 @@ export default function ScanReviewScreen() {
             onPress={handleEditManually}
             disabled={!valid}
             style={{
-              backgroundColor: valid ? '#111' : '#ccc',
+              backgroundColor: valid ? p.ctaBg : (p.dark ? '#333' : '#ccc'),
               borderRadius: 14,
               paddingVertical: 16,
               alignItems: 'center',
               marginBottom: 10,
             }}
           >
-            <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>
+            <Text style={{ color: valid ? p.ctaText : '#fff', fontSize: 15, fontWeight: '700' }}>
               {onboarding ? 'Continue without scan' : 'Edit measurements'}
             </Text>
           </Pressable>
@@ -224,14 +226,14 @@ export default function ScanReviewScreen() {
             onPress={handleUse}
             disabled={!valid}
             style={{
-              backgroundColor: valid ? '#111' : '#ccc',
+              backgroundColor: valid ? p.ctaBg : (p.dark ? '#333' : '#ccc'),
               borderRadius: 14,
               paddingVertical: 16,
               alignItems: 'center',
               marginBottom: 10,
             }}
           >
-            <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>
+            <Text style={{ color: valid ? p.ctaText : '#fff', fontSize: 15, fontWeight: '700' }}>
               Use these measurements
             </Text>
           </Pressable>
@@ -240,29 +242,29 @@ export default function ScanReviewScreen() {
         <Pressable
           onPress={() => router.back()}
           style={{
-            backgroundColor: '#fff',
+            backgroundColor: p.card,
             borderRadius: 14,
             borderWidth: 2,
-            borderColor: '#e8e8e8',
+            borderColor: p.hairline,
             paddingVertical: 16,
             alignItems: 'center',
           }}
         >
-          <Text style={{ color: '#111', fontSize: 15, fontWeight: '700' }}>Re-scan</Text>
+          <Text style={{ color: p.text, fontSize: 15, fontWeight: '700' }}>Re-scan</Text>
         </Pressable>
 
         {__DEV__ && valid && (
           <View
             style={{
               marginTop: 24,
-              backgroundColor: '#fff',
+              backgroundColor: p.card,
               borderRadius: 14,
               borderWidth: 1,
-              borderColor: '#ebebeb',
+              borderColor: p.cardBorder,
               padding: 14,
             }}
           >
-            <Text style={{ fontSize: 11, fontWeight: '700', color: '#999', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>
+            <Text style={{ fontSize: 11, fontWeight: '700', color: p.faint, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>
               Dev · accuracy harness
             </Text>
             <View style={{ flexDirection: 'row', marginBottom: 10 }}>
@@ -271,10 +273,12 @@ export default function ScanReviewScreen() {
                 onChangeText={setTruthLength}
                 placeholder="True length mm"
                 keyboardType="numeric"
+                placeholderTextColor={p.faint}
                 style={{
                   flex: 1,
                   borderWidth: 1,
-                  borderColor: '#e8e8e8',
+                  borderColor: p.hairline,
+                  color: p.text,
                   borderRadius: 10,
                   paddingHorizontal: 10,
                   paddingVertical: 8,
@@ -287,10 +291,12 @@ export default function ScanReviewScreen() {
                 onChangeText={setTruthWidth}
                 placeholder="True width mm"
                 keyboardType="numeric"
+                placeholderTextColor={p.faint}
                 style={{
                   flex: 1,
                   borderWidth: 1,
-                  borderColor: '#e8e8e8',
+                  borderColor: p.hairline,
+                  color: p.text,
                   borderRadius: 10,
                   paddingHorizontal: 10,
                   paddingVertical: 8,
@@ -301,16 +307,16 @@ export default function ScanReviewScreen() {
             <Pressable
               onPress={handleLogDelta}
               style={{
-                backgroundColor: '#111',
+                backgroundColor: p.ctaBg,
                 borderRadius: 10,
                 paddingVertical: 10,
                 alignItems: 'center',
               }}
             >
-              <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>Log delta to console</Text>
+              <Text style={{ color: p.ctaText, fontSize: 13, fontWeight: '700' }}>Log delta to console</Text>
             </Pressable>
             {lastDelta && (
-              <Text style={{ marginTop: 8, fontSize: 12, color: '#666' }}>
+              <Text style={{ marginTop: 8, fontSize: 12, color: p.muted }}>
                 Δlength {lastDelta.length.toFixed(1)} mm · Δwidth {lastDelta.width.toFixed(1)} mm
               </Text>
             )}

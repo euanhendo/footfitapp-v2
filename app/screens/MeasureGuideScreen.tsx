@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { usePalette } from '../../lib/theme';
 
 const STEPS: { title: string; body: string }[] = [
   {
@@ -22,13 +23,14 @@ const STEPS: { title: string; body: string }[] = [
 ];
 
 export default function MeasureGuideScreen() {
+  const p = usePalette();
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#f9f9f9' }} edges={['bottom']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: p.bg }} edges={['bottom']}>
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 32 }}>
-        <Text style={{ fontSize: 24, fontWeight: '800', color: '#111', marginBottom: 6 }}>
+        <Text style={{ fontSize: 24, fontWeight: '800', color: p.text, marginBottom: 6 }}>
           How to measure
         </Text>
-        <Text style={{ fontSize: 14, color: '#666', marginBottom: 20 }}>
+        <Text style={{ fontSize: 14, color: p.muted, marginBottom: 20 }}>
           Takes about 30 seconds. You need paper, a pencil, and a ruler or tape measure.
         </Text>
 
@@ -36,18 +38,18 @@ export default function MeasureGuideScreen() {
           <View
             key={step.title}
             style={{
-              backgroundColor: '#fff',
+              backgroundColor: p.card,
               borderRadius: 16,
               borderWidth: 1,
-              borderColor: '#ebebeb',
+              borderColor: p.cardBorder,
               padding: 16,
               marginBottom: 12,
             }}
           >
-            <Text style={{ fontSize: 15, fontWeight: '700', color: '#111', marginBottom: 6 }}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: p.text, marginBottom: 6 }}>
               {step.title}
             </Text>
-            <Text style={{ fontSize: 14, color: '#666', lineHeight: 20 }}>
+            <Text style={{ fontSize: 14, color: p.muted, lineHeight: 20 }}>
               {step.body}
             </Text>
           </View>
@@ -55,16 +57,16 @@ export default function MeasureGuideScreen() {
 
         <View
           style={{
-            backgroundColor: '#fff',
+            backgroundColor: p.card,
             borderRadius: 14,
             borderWidth: 1,
-            borderColor: '#ebebeb',
+            borderColor: p.cardBorder,
             padding: 14,
             marginTop: 4,
             marginBottom: 20,
           }}
         >
-          <Text style={{ fontSize: 13, color: '#666', lineHeight: 19 }}>
+          <Text style={{ fontSize: 13, color: p.muted, lineHeight: 19 }}>
             No ruler handy? Use the Shoe size method on the previous screen — it is an estimate, but a reasonable one.
           </Text>
         </View>
@@ -72,13 +74,13 @@ export default function MeasureGuideScreen() {
         <Pressable
           onPress={() => router.back()}
           style={{
-            backgroundColor: '#111',
-            borderRadius: 14,
+            backgroundColor: p.ctaBg,
+            borderRadius: 999,
             paddingVertical: 16,
             alignItems: 'center',
           }}
         >
-          <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>Got it</Text>
+          <Text style={{ color: p.ctaText, fontSize: 15, fontWeight: '700' }}>Got it</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>

@@ -3,10 +3,11 @@ paths:
   - app/**/*
 ---
 
-- All styles are inline objects — no styling library, no theme file, no shared style components
-- Colours: dark text `#111`, muted text `#666`/`#999`, background `#f9f9f9`, cards `#fff`, borders `#e8e8e8`/`#ebebeb` (`#d5d5d5` for chips), primary buttons `#111` with white text
+- All styles are inline objects — no styling library, no shared style components
+- **Colours come from `usePalette()` in `lib/theme.ts`** — light + dark (SNKRS-style: pure black, photography untinted), driven by the system colour scheme. Never hardcode greys in screens; the palette keys are `bg/card/cardBorder/chipBorder/panel/text/muted/faint/hairline/ctaBg/ctaText/heroBg/heroBorder`.
+- Dark-mode conventions: primary CTAs invert (white pill, black label = `ctaBg/ctaText`); hero cards stay near-black in both modes with a border on black; product-photo areas stay light grey in both modes (Pro:Direct shots have baked light backgrounds); white-on-photo text stays literal `#fff`.
 - Use `Pressable` over `TouchableOpacity`
-- Width fit badges are colour-coded: narrow `#1a6bb5`, standard `#2a8a3a`, wide `#b55a1a`
+- Width fit badges are colour-coded: narrow `#1a6bb5`, standard `#2a8a3a`, wide `#b55a1a` (literal in both modes)
 
 ## Design language (Nike/Adidas-inspired, 2026-06)
 

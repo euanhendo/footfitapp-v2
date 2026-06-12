@@ -6,6 +6,7 @@ import * as SecureStore from 'expo-secure-store';
 import { Boot } from '../../lib/fitting';
 import { StorageAdapter } from '../../lib/fitProfile';
 import { createOwnedShoesStore, FitRating, OwnedShoe } from '../../lib/ownedShoes';
+import { usePalette } from '../../lib/theme';
 import bootDatabase from '../../bootDatabase.json';
 
 const boots = bootDatabase as Boot[];
@@ -19,6 +20,7 @@ const storage: StorageAdapter = {
 const ownedStore = createOwnedShoesStore(storage);
 
 export default function OwnedShoesScreen() {
+  const p = usePalette();
   const { gender } = useLocalSearchParams<{ gender?: string }>();
   const [owned, setOwned] = useState<OwnedShoe[]>([]);
   const [query, setQuery] = useState('');
@@ -67,19 +69,19 @@ export default function OwnedShoesScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#f9f9f9' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: p.bg }}>
       <View style={{ flex: 1, padding: 20 }}>
-        <Text style={{ fontSize: 26, fontWeight: '800', color: '#111', marginBottom: 4 }}>
+        <Text style={{ fontSize: 26, fontWeight: '800', color: p.text, marginBottom: 4 }}>
           My shoes
         </Text>
-        <Text style={{ fontSize: 14, color: '#666', marginBottom: 20 }}>
+        <Text style={{ fontSize: 14, color: p.muted, marginBottom: 20 }}>
           Tag shoes you own and love — we&apos;ll favour similar fits in your matches.
         </Text>
 
         {!adding && (
           <>
             {owned.length > 0 && (
-              <Text style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>
+              <Text style={{ fontSize: 12, color: p.muted, marginBottom: 8 }}>
                 Tap how each pair fits — we&apos;ll adjust brand recommendations for you.
               </Text>
             )}
@@ -87,18 +89,18 @@ export default function OwnedShoesScreen() {
               data={owned}
               keyExtractor={(item) => `${item.brand}-${item.model}-${item.gender}`}
               ListEmptyComponent={
-                <Text style={{ color: '#999', fontSize: 14, marginTop: 20 }}>
+                <Text style={{ color: p.faint, fontSize: 14, marginTop: 20 }}>
                   No shoes added yet.
                 </Text>
               }
               renderItem={({ item }) => (
                 <View style={{
-                  backgroundColor: '#fff',
+                  backgroundColor: p.card,
                   borderRadius: 14,
                   padding: 14,
                   marginBottom: 10,
                   borderWidth: 1,
-                  borderColor: '#ebebeb',
+                  borderColor: p.cardBorder,
                 }}>
                   <View style={{
                     flexDirection: 'row',
@@ -106,10 +108,10 @@ export default function OwnedShoesScreen() {
                     justifyContent: 'space-between',
                   }}>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 15, fontWeight: '700', color: '#111' }}>
+                      <Text style={{ fontSize: 15, fontWeight: '700', color: p.text }}>
                         {item.brand} {item.model}
                       </Text>
-                      <Text style={{ fontSize: 12, color: '#666', marginTop: 2 }}>
+                      <Text style={{ fontSize: 12, color: p.muted, marginTop: 2 }}>
                         {item.gender === 'mens' ? "Men's" : item.gender === 'womens' ? "Women's" : 'Unisex'}
                       </Text>
                     </View>
@@ -134,15 +136,15 @@ export default function OwnedShoesScreen() {
                             paddingVertical: 8,
                             borderRadius: 8,
                             borderWidth: 1,
-                            borderColor: selected ? '#111' : '#ebebeb',
-                            backgroundColor: selected ? '#111' : '#fff',
+                            borderColor: selected ? p.ctaBg : p.cardBorder,
+                            backgroundColor: selected ? p.ctaBg : p.card,
                             alignItems: 'center',
                           }}
                         >
                           <Text style={{
                             fontSize: 12,
                             fontWeight: '700',
-                            color: selected ? '#fff' : '#666',
+                            color: selected ? p.ctaText : p.muted,
                             textTransform: 'capitalize',
                           }}>
                             {rating === 'true' ? 'True to size' : rating}
@@ -157,14 +159,14 @@ export default function OwnedShoesScreen() {
             <Pressable
               onPress={() => setAdding(true)}
               style={{
-                backgroundColor: '#111',
-                borderRadius: 10,
+                backgroundColor: p.ctaBg,
+                borderRadius: 999,
                 padding: 14,
                 alignItems: 'center',
                 marginTop: 10,
               }}
             >
-              <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>
+              <Text style={{ color: p.ctaText, fontWeight: '700', fontSize: 14 }}>
                 Add a shoe
               </Text>
             </Pressable>
@@ -177,11 +179,12 @@ export default function OwnedShoesScreen() {
               value={query}
               onChangeText={setQuery}
               placeholder="Search by brand or model"
-              placeholderTextColor="#999"
+              placeholderTextColor={p.faint}
               style={{
-                backgroundColor: '#fff',
+                backgroundColor: p.card,
                 borderWidth: 1,
-                borderColor: '#e8e8e8',
+                borderColor: p.hairline,
+                color: p.text,
                 borderRadius: 10,
                 paddingHorizontal: 12,
                 paddingVertical: 10,
@@ -196,18 +199,18 @@ export default function OwnedShoesScreen() {
                 <Pressable
                   onPress={() => handleAdd(item)}
                   style={{
-                    backgroundColor: '#fff',
+                    backgroundColor: p.card,
                     borderRadius: 10,
                     padding: 12,
                     marginBottom: 8,
                     borderWidth: 1,
-                    borderColor: '#ebebeb',
+                    borderColor: p.cardBorder,
                   }}
                 >
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: '#111' }}>
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: p.text }}>
                     {item.brand} {item.model}
                   </Text>
-                  <Text style={{ fontSize: 12, color: '#666', marginTop: 2 }}>
+                  <Text style={{ fontSize: 12, color: p.muted, marginTop: 2 }}>
                     {item.gender === 'mens' ? "Men's" : item.gender === 'womens' ? "Women's" : 'Unisex'} · {item.width} fit
                   </Text>
                 </Pressable>
@@ -217,7 +220,7 @@ export default function OwnedShoesScreen() {
               onPress={() => { setAdding(false); setQuery(''); }}
               style={{ alignItems: 'center', marginTop: 10, padding: 10 }}
             >
-              <Text style={{ color: '#666', fontSize: 13, textDecorationLine: 'underline' }}>
+              <Text style={{ color: p.muted, fontSize: 13, textDecorationLine: 'underline' }}>
                 Cancel
               </Text>
             </Pressable>

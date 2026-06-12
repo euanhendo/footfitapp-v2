@@ -31,6 +31,7 @@ import {
   SortMode,
   SurfaceFilter,
 } from '../../lib/bootListControls';
+import { usePalette } from '../../lib/theme';
 import bootDatabase from '../../bootDatabase.json';
 import sockDatabase from '../../sockDatabase.json';
 
@@ -107,6 +108,7 @@ function SurfaceCard({ title, desc, imageUrl, width, active }: {
   width: number;
   active: boolean;
 }) {
+  const p = usePalette();
   const [imageFailed, setImageFailed] = useState(false);
   return (
     <View style={{ width, marginRight: 12 }}>
@@ -130,16 +132,16 @@ function SurfaceCard({ title, desc, imageUrl, width, active }: {
       <Text style={{
         fontSize: 14,
         fontWeight: '800',
-        color: active ? '#111' : '#999',
+        color: active ? p.text : p.faint,
         alignSelf: 'flex-start',
         borderBottomWidth: 2,
-        borderBottomColor: active ? '#111' : 'transparent',
+        borderBottomColor: active ? p.text : 'transparent',
         paddingBottom: 3,
         marginBottom: 2,
       }}>
         {title}
       </Text>
-      <Text style={{ fontSize: 12, color: '#666' }}>{desc}</Text>
+      <Text style={{ fontSize: 12, color: p.muted }}>{desc}</Text>
     </View>
   );
 }
@@ -192,6 +194,7 @@ function BootCard({
   ownedShoes: OwnedShoe[];
 }) {
   const boot = item.boot;
+  const p = usePalette();
   const [expanded, setExpanded] = useState(false);
   const breakdown = getScoreBreakdown(item);
   const total = Math.min(100, breakdown.baseScore + affinityBoost);
@@ -199,12 +202,12 @@ function BootCard({
   const suggestedSize = recommendSize(adjustedLength, effectiveSizeOffset(boot, ownedShoes));
   return (
     <View style={{
-      backgroundColor: '#fff',
+      backgroundColor: p.card,
       borderRadius: 16,
       marginBottom: 14,
       overflow: 'hidden',
       borderWidth: 1,
-      borderColor: '#ebebeb',
+      borderColor: p.cardBorder,
       opacity: muted ? 0.85 : 1,
     }}>
       <View>
@@ -224,14 +227,14 @@ function BootCard({
         </View>
       </View>
       <View style={{ padding: 14 }}>
-        <Text style={{ fontSize: 11, fontWeight: '800', color: '#999', letterSpacing: 1.5, marginBottom: 3 }}>
+        <Text style={{ fontSize: 11, fontWeight: '800', color: p.faint, letterSpacing: 1.5, marginBottom: 3 }}>
           {boot.brand.toUpperCase()}
         </Text>
-        <Text style={{ fontSize: 17, fontWeight: '800', color: '#111', marginBottom: 6 }}>
+        <Text style={{ fontSize: 17, fontWeight: '800', color: p.text, marginBottom: 6 }}>
           {boot.model}
         </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 10 }}>
-          <Text style={{ fontSize: 18, fontWeight: '700', color: '#111' }}>
+          <Text style={{ fontSize: 18, fontWeight: '700', color: p.text }}>
             £{boot.price}
           </Text>
           <View style={{
@@ -245,11 +248,11 @@ function BootCard({
             </Text>
           </View>
         </View>
-        <Text style={{ fontSize: 13, fontWeight: '700', color: '#111', marginBottom: 4 }}>
+        <Text style={{ fontSize: 13, fontWeight: '700', color: p.text, marginBottom: 4 }}>
           Suggested size: UK {suggestedSize.uk} · EU {suggestedSize.eu} · US {suggestedSize.us}
         </Text>
         {personalOffset !== 0 && (
-          <Text style={{ fontSize: 11, color: '#666', marginBottom: 4, fontStyle: 'italic' }}>
+          <Text style={{ fontSize: 11, color: p.muted, marginBottom: 4, fontStyle: 'italic' }}>
             Adjusted for your {boot.brand} fits
           </Text>
         )}
@@ -258,10 +261,10 @@ function BootCard({
             With these socks, UK {nextHalfSize(suggestedSize.uk)} may feel better in this boot.
           </Text>
         )}
-        <Text style={{ color: '#666', fontSize: 13, lineHeight: 18, marginBottom: 4 }}>
+        <Text style={{ color: p.muted, fontSize: 13, lineHeight: 18, marginBottom: 4 }}>
           {boot.notes}
         </Text>
-        <Text style={{ color: muted ? '#b55a1a' : '#999', fontSize: 12, lineHeight: 16, marginBottom: matchedShoe ? 6 : 12 }}>
+        <Text style={{ color: muted ? '#b55a1a' : p.faint, fontSize: 12, lineHeight: 16, marginBottom: matchedShoe ? 6 : 12 }}>
           {item.explanation}
         </Text>
         {matchedShoe && (
@@ -285,26 +288,26 @@ function BootCard({
         </Pressable>
         {expanded && (
           <View style={{
-            backgroundColor: '#f5f5f5',
+            backgroundColor: p.panel,
             borderRadius: 10,
             padding: 12,
             marginBottom: 12,
             gap: 4,
           }}>
-            <Text style={{ fontSize: 12, color: '#111' }}>
+            <Text style={{ fontSize: 12, color: p.text }}>
               Length fit: {breakdown.lengthContribution} / {breakdown.lengthMax}
             </Text>
-            <Text style={{ fontSize: 11, color: '#666', lineHeight: 15, marginBottom: 2 }}>
+            <Text style={{ fontSize: 11, color: p.muted, lineHeight: 15, marginBottom: 2 }}>
               {describeLengthFit(boot, adjustedLength, ownedShoes)}
             </Text>
-            <Text style={{ fontSize: 12, color: '#111' }}>
+            <Text style={{ fontSize: 12, color: p.text }}>
               Width fit: {breakdown.widthContribution} / {breakdown.widthMax}
             </Text>
-            <Text style={{ fontSize: 11, color: '#666', lineHeight: 15 }}>
+            <Text style={{ fontSize: 11, color: p.muted, lineHeight: 15 }}>
               {describeWidthFit(boot, adjustedWidth)}
             </Text>
             {sockAdjustment > 0 && (
-              <Text style={{ fontSize: 12, color: '#666' }}>
+              <Text style={{ fontSize: 12, color: p.muted }}>
                 Sock adjustment: +{sockAdjustment} mm ({sockLabel})
               </Text>
             )}
@@ -314,8 +317,8 @@ function BootCard({
                 {matchedShoe ? ` (you own ${matchedShoe.brand} ${matchedShoe.model})` : ''}
               </Text>
             )}
-            <View style={{ height: 1, backgroundColor: '#e0e0e0', marginVertical: 4 }} />
-            <Text style={{ fontSize: 13, color: '#111', fontWeight: '700' }}>
+            <View style={{ height: 1, backgroundColor: p.hairline, marginVertical: 4 }} />
+            <Text style={{ fontSize: 13, color: p.text, fontWeight: '700' }}>
               Total: {total} / 100
             </Text>
           </View>
@@ -323,13 +326,13 @@ function BootCard({
         <Pressable
           onPress={() => Linking.openURL(boot.purchaseUrl)}
           style={{
-            backgroundColor: '#111',
+            backgroundColor: p.ctaBg,
             borderRadius: 999,
             paddingVertical: 12,
             alignItems: 'center',
           }}
         >
-          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>
+          <Text style={{ color: p.ctaText, fontWeight: '700', fontSize: 14 }}>
             Buy now
           </Text>
         </Pressable>
@@ -339,6 +342,7 @@ function BootCard({
 }
 
 export default function ResultScreen() {
+  const p = usePalette();
   const { footLength, footWidth, sockType, sport, gender, widthProfile, measureSource } =
     useLocalSearchParams<{
       footLength: string;
@@ -491,9 +495,11 @@ export default function ResultScreen() {
       : 'No matches found';
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#f9f9f9' }}>
+    <View style={{ flex: 1, backgroundColor: p.bg }}>
       <View style={{
-        backgroundColor: '#111',
+        backgroundColor: p.heroBg,
+        borderWidth: 1,
+        borderColor: p.heroBorder,
         padding: 16,
         margin: 16,
         borderRadius: 14,
@@ -510,21 +516,21 @@ export default function ResultScreen() {
         </Text>
       </View>
 
-      <Text style={{ fontSize: 18, fontWeight: '700', color: '#111', paddingHorizontal: 16, marginBottom: 12 }}>
+      <Text style={{ fontSize: 18, fontWeight: '700', color: p.text, paddingHorizontal: 16, marginBottom: 12 }}>
         {headerText}
       </Text>
 
       {widthProfile === 'wide' && (
         <View style={{
-          backgroundColor: '#fff',
+          backgroundColor: p.card,
           borderRadius: 14,
           padding: 14,
           marginHorizontal: 16,
           marginBottom: 12,
           borderWidth: 1,
-          borderColor: '#ebebeb',
+          borderColor: p.cardBorder,
         }}>
-          <Text style={{ fontSize: 13, color: '#666', lineHeight: 18 }}>
+          <Text style={{ fontSize: 13, color: p.muted, lineHeight: 18 }}>
             Wide-fit boots are scarcer across brands — here are your closest matches.
           </Text>
         </View>
@@ -559,7 +565,7 @@ export default function ResultScreen() {
       )}
 
       <View style={{ paddingHorizontal: 16, marginBottom: 10 }}>
-        <View style={{ flexDirection: 'row', marginBottom: 8, borderRadius: 4, overflow: 'hidden', borderWidth: 1, borderColor: '#d5d5d5' }}>
+        <View style={{ flexDirection: 'row', marginBottom: 8, borderRadius: 4, overflow: 'hidden', borderWidth: 1, borderColor: p.chipBorder }}>
           {(['score', 'price-asc', 'price-desc'] as SortMode[]).map((mode) => {
             const label = mode === 'score' ? 'BEST FIT' : mode === 'price-asc' ? 'PRICE ↑' : 'PRICE ↓';
             const active = sort === mode;
@@ -569,12 +575,12 @@ export default function ResultScreen() {
                 onPress={() => setSort(mode)}
                 style={{
                   flex: 1,
-                  backgroundColor: active ? '#111' : '#fff',
+                  backgroundColor: active ? p.ctaBg : p.card,
                   paddingVertical: 9,
                   alignItems: 'center',
                 }}
               >
-                <Text style={{ color: active ? '#fff' : '#111', fontWeight: '800', fontSize: 11, letterSpacing: 1 }}>
+                <Text style={{ color: active ? p.ctaText : p.text, fontWeight: '800', fontSize: 11, letterSpacing: 1 }}>
                   {label}
                 </Text>
               </Pressable>
@@ -594,12 +600,12 @@ export default function ResultScreen() {
                   paddingVertical: 7,
                   borderRadius: 4,
                   borderWidth: 1,
-                  borderColor: '#d5d5d5',
-                  backgroundColor: active ? '#111' : '#fff',
+                  borderColor: p.chipBorder,
+                  backgroundColor: active ? p.ctaBg : p.card,
                   marginRight: 8,
                 }}
               >
-                <Text style={{ color: active ? '#fff' : '#111', fontSize: 11, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase' }}>
+                <Text style={{ color: active ? p.ctaText : p.text, fontSize: 11, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase' }}>
                   {w}
                 </Text>
               </Pressable>
@@ -620,12 +626,12 @@ export default function ResultScreen() {
                     paddingVertical: 7,
                     borderRadius: 4,
                     borderWidth: 1,
-                    borderColor: '#d5d5d5',
-                    backgroundColor: active ? '#111' : '#fff',
+                    borderColor: p.chipBorder,
+                    backgroundColor: active ? p.ctaBg : p.card,
                     marginRight: 8,
                   }}
                 >
-                  <Text style={{ color: active ? '#fff' : '#111', fontSize: 11, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase' }}>
+                  <Text style={{ color: active ? p.ctaText : p.text, fontSize: 11, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase' }}>
                     {brand}
                   </Text>
                 </Pressable>
@@ -658,7 +664,7 @@ export default function ResultScreen() {
               <Text style={{
                 fontSize: 11,
                 fontWeight: '800',
-                color: '#999',
+                color: p.faint,
                 textTransform: 'uppercase',
                 letterSpacing: 1.5,
                 marginTop: 8,
@@ -686,7 +692,7 @@ export default function ResultScreen() {
         ListEmptyComponent={
           nearMisses.length === 0 ? (
             <View style={{ padding: 16, alignItems: 'center' }}>
-              <Text style={{ color: '#666', fontSize: 15, textAlign: 'center', lineHeight: 22, marginBottom: filtersActive ? 12 : 0 }}>
+              <Text style={{ color: p.muted, fontSize: 15, textAlign: 'center', lineHeight: 22, marginBottom: filtersActive ? 12 : 0 }}>
                 {filtersActive
                   ? 'No matches with current filters.'
                   : `No ${sportLabel.toLowerCase()} in our database match your exact measurements right now.\n\nTry adjusting your width profile on the previous screen.`}
@@ -694,9 +700,9 @@ export default function ResultScreen() {
               {filtersActive && (
                 <Pressable
                   onPress={resetFilters}
-                  style={{ backgroundColor: '#111', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10 }}
+                  style={{ backgroundColor: p.ctaBg, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 999 }}
                 >
-                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>Clear filters</Text>
+                  <Text style={{ color: p.ctaText, fontWeight: '700', fontSize: 13 }}>Clear filters</Text>
                 </Pressable>
               )}
             </View>
