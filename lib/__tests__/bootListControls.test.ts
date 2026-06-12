@@ -94,6 +94,46 @@ describe('applyBootListControls', () => {
     expect(items).toEqual(snapshot);
   });
 
+  describe('surface filter', () => {
+    const fg = item(makeBoot({ model: 'FGOnly', surfaces: ['FG', 'SG'] }), 90);
+    const turf = item(makeBoot({ model: 'TurfOnly', surfaces: ['TF', 'IC'] }), 85);
+    const legacy = item(makeBoot({ model: 'NoSurfaces' }), 80);
+    const surfaceItems = [fg, turf, legacy];
+
+    it('keeps only boots sold in the selected surface', () => {
+      const out = applyBootListControls(
+        surfaceItems,
+        { widths: allWidths, brands: allBrands, surface: 'TF' },
+        'score',
+      );
+      expect(out.map((i) => i.scored.boot.model)).toEqual(['TurfOnly']);
+    });
+
+    it('null or omitted surface keeps everything', () => {
+      const withNull = applyBootListControls(
+        surfaceItems,
+        { widths: allWidths, brands: allBrands, surface: null },
+        'score',
+      );
+      expect(withNull).toHaveLength(3);
+      const omitted = applyBootListControls(
+        surfaceItems,
+        { widths: allWidths, brands: allBrands },
+        'score',
+      );
+      expect(omitted).toHaveLength(3);
+    });
+
+    it('excludes boots without surface data when a surface is selected', () => {
+      const out = applyBootListControls(
+        surfaceItems,
+        { widths: allWidths, brands: allBrands, surface: 'FG' },
+        'score',
+      );
+      expect(out.map((i) => i.scored.boot.model)).toEqual(['FGOnly']);
+    });
+  });
+
   describe('width profile preference (score sort)', () => {
     const narrowA = item(makeBoot({ brand: 'Nike', model: 'NarrowA', width: 'narrow', price: 200 }), 80);
     const standardB = item(makeBoot({ brand: 'Adidas', model: 'StandardB', width: 'standard', price: 100 }), 82);

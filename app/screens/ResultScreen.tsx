@@ -1,6 +1,15 @@
 import { useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { FlatList, Image, Linking, Pressable, ScrollView, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  FlatList,
+  Image,
+  Linking,
+  Pressable,
+  ScrollView,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { applySocketAdjustment, Boot, effectiveSizeOffset, recommendSize, SockEntry } from '../../lib/fitting';
 import { computePersonalOffsetMm } from '../../lib/fitCalibration';
@@ -20,6 +29,7 @@ import {
   BootWidth,
   collectBrands,
   SortMode,
+  SurfaceFilter,
 } from '../../lib/bootListControls';
 import bootDatabase from '../../bootDatabase.json';
 import sockDatabase from '../../sockDatabase.json';
@@ -43,6 +53,96 @@ const WIDTH_COLOUR: Record<string, string> = {
   standard: '#2a8a3a',
   wide: '#b55a1a',
 };
+
+// Swipe-to-match-your-surface selector (football only). The centred card is
+// the active filter, like the Adidas shop's surface picker.
+const SURFACE_PAGES: {
+  key: SurfaceFilter | null;
+  title: string;
+  desc: string;
+  imageUrl: string;
+}[] = [
+  {
+    key: null,
+    title: 'All boots',
+    desc: 'Match your surface',
+    imageUrl: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800&q=70&fit=crop',
+  },
+  {
+    key: 'FG',
+    title: 'Firm Ground',
+    desc: 'For natural grass surfaces',
+    imageUrl: 'https://images.unsplash.com/photo-1599982890963-3aabd60064d2?w=800&q=70&fit=crop',
+  },
+  {
+    key: 'AG',
+    title: 'Artificial Grass',
+    desc: 'For long-bladed artificial grass',
+    imageUrl: 'https://images.unsplash.com/photo-1624880357913-a8539238245b?w=800&q=70&fit=crop',
+  },
+  {
+    key: 'SG',
+    title: 'Soft Ground',
+    desc: 'For wet and muddy natural surfaces',
+    imageUrl: 'https://images.unsplash.com/photo-1518604666860-9ed391f76460?w=800&q=70&fit=crop',
+  },
+  {
+    key: 'TF',
+    title: 'Turf',
+    desc: 'For short-bladed artificial turf',
+    imageUrl: 'https://images.unsplash.com/photo-1589487391730-58f20eb2c308?w=800&q=70&fit=crop',
+  },
+  {
+    key: 'IC',
+    title: 'Indoor',
+    desc: 'For flat indoor surfaces',
+    imageUrl: 'https://images.unsplash.com/photo-1505666287802-931dc83948e9?w=800&q=70&fit=crop',
+  },
+];
+
+function SurfaceCard({ title, desc, imageUrl, width, active }: {
+  title: string;
+  desc: string;
+  imageUrl: string;
+  width: number;
+  active: boolean;
+}) {
+  const [imageFailed, setImageFailed] = useState(false);
+  return (
+    <View style={{ width, marginRight: 12 }}>
+      <View style={{
+        height: 96,
+        borderRadius: 12,
+        overflow: 'hidden',
+        backgroundColor: '#1a1a1a',
+        marginBottom: 8,
+        opacity: active ? 1 : 0.55,
+      }}>
+        {!imageFailed && (
+          <Image
+            source={{ uri: imageUrl }}
+            style={{ width: '100%', height: '100%' }}
+            resizeMode="cover"
+            onError={() => setImageFailed(true)}
+          />
+        )}
+      </View>
+      <Text style={{
+        fontSize: 14,
+        fontWeight: '800',
+        color: active ? '#111' : '#999',
+        alignSelf: 'flex-start',
+        borderBottomWidth: 2,
+        borderBottomColor: active ? '#111' : 'transparent',
+        paddingBottom: 3,
+        marginBottom: 2,
+      }}>
+        {title}
+      </Text>
+      <Text style={{ fontSize: 12, color: '#666' }}>{desc}</Text>
+    </View>
+  );
+}
 
 function nextHalfSize(uk: string): string {
   const n = Number(uk);
@@ -301,6 +401,10 @@ export default function ResultScreen() {
     () => new Set(['narrow', 'standard', 'wide']),
   );
   const [brandFilter, setBrandFilter] = useState<Set<string> | null>(null);
+  const [surface, setSurface] = useState<SurfaceFilter | null>(null);
+  const surfaceListRef = useRef<FlatList>(null);
+  const { width: windowWidth } = useWindowDimensions();
+  const surfaceCardWidth = Math.round(windowWidth * 0.6);
 
   useEffect(() => {
     if (brandFilter === null && allBrands.length > 0) {
@@ -309,26 +413,28 @@ export default function ResultScreen() {
   }, [allBrands, brandFilter]);
 
   const activeBrandFilter: Set<string> = brandFilter ?? new Set(allBrands);
-  const filters: BootListFilters = { widths: widthFilter, brands: activeBrandFilter };
+  const filters: BootListFilters = { widths: widthFilter, brands: activeBrandFilter, surface };
 
   const matches = useMemo(
     () => applyBootListControls(matchesWithAffinity, filters, sort, widthProfile),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rawMatches, ownedShoes, widthFilter, activeBrandFilter, sort, widthProfile],
+    [rawMatches, ownedShoes, widthFilter, activeBrandFilter, surface, sort, widthProfile],
   );
   const nearMisses = useMemo(
     () => applyBootListControls(nearMissesWithAffinity, filters, sort, widthProfile),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rawNearMisses, ownedShoes, widthFilter, activeBrandFilter, sort, widthProfile],
+    [rawNearMisses, ownedShoes, widthFilter, activeBrandFilter, surface, sort, widthProfile],
   );
 
   const filtersActive =
-    widthFilter.size < 3 || activeBrandFilter.size < allBrands.length;
+    widthFilter.size < 3 || activeBrandFilter.size < allBrands.length || surface !== null;
 
   const resetFilters = () => {
     setSort('score');
     setWidthFilter(new Set(['narrow', 'standard', 'wide']));
     setBrandFilter(new Set(allBrands));
+    setSurface(null);
+    surfaceListRef.current?.scrollToOffset({ offset: 0, animated: true });
   };
 
   const toggleWidth = (w: BootWidth) => {
@@ -422,6 +528,34 @@ export default function ResultScreen() {
             Wide-fit boots are scarcer across brands — here are your closest matches.
           </Text>
         </View>
+      )}
+
+      {sport === 'football' && (
+        <FlatList
+          ref={surfaceListRef}
+          horizontal
+          data={SURFACE_PAGES}
+          keyExtractor={(page) => page.title}
+          showsHorizontalScrollIndicator={false}
+          snapToInterval={surfaceCardWidth + 12}
+          decelerationRate="fast"
+          contentContainerStyle={{ paddingHorizontal: 16, paddingRight: windowWidth - surfaceCardWidth }}
+          style={{ flexGrow: 0, marginBottom: 12 }}
+          onMomentumScrollEnd={(e) => {
+            const i = Math.round(e.nativeEvent.contentOffset.x / (surfaceCardWidth + 12));
+            const page = SURFACE_PAGES[Math.min(Math.max(i, 0), SURFACE_PAGES.length - 1)];
+            setSurface(page.key);
+          }}
+          renderItem={({ item: page }) => (
+            <SurfaceCard
+              title={page.title}
+              desc={page.desc}
+              imageUrl={page.imageUrl}
+              width={surfaceCardWidth}
+              active={surface === page.key}
+            />
+          )}
+        />
       )}
 
       <View style={{ paddingHorizontal: 16, marginBottom: 10 }}>

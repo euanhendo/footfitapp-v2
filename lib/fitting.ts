@@ -163,6 +163,8 @@ export type Boot = {
   // mm offset vs. universal size tables. 0 = true-to-size. Negative = runs
   // small (size up in recommendations). Positive = runs large.
   sizeOffset?: number;
+  // Surface categories the model is sold in (football): FG, SG, AG, TF, IC.
+  surfaces?: string[];
 };
 
 export type SizeRecommendation = {

@@ -10,9 +10,13 @@ export type ScoredBootWithTotal = {
   total: number;
 };
 
+// Standard football surface categories; null = all surfaces.
+export type SurfaceFilter = 'FG' | 'SG' | 'AG' | 'TF' | 'IC';
+
 export type BootListFilters = {
   widths: Set<BootWidth>;
   brands: Set<string>;
+  surface?: SurfaceFilter | null;
 };
 
 export const WIDTH_PROFILE_TIEBREAK_BOOST = 3;
@@ -26,7 +30,8 @@ export function applyBootListControls<T extends ScoredBootWithTotal>(
   const filtered = items.filter(
     (item) =>
       filters.widths.has(item.scored.boot.width) &&
-      filters.brands.has(item.scored.boot.brand),
+      filters.brands.has(item.scored.boot.brand) &&
+      (!filters.surface || (item.scored.boot.surfaces ?? []).includes(filters.surface)),
   );
 
   const sorted = [...filtered];
