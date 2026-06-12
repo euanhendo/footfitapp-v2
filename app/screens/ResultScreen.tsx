@@ -4,7 +4,14 @@ import { FlatList, Image, Linking, Pressable, ScrollView, Text, View } from 'rea
 import * as SecureStore from 'expo-secure-store';
 import { applySocketAdjustment, Boot, effectiveSizeOffset, recommendSize, SockEntry } from '../../lib/fitting';
 import { computePersonalOffsetMm } from '../../lib/fitCalibration';
-import { computeAffinityBoost, getScoreBreakdown, scoreAndRankBoots, ScoredBoot } from '../../lib/fitScore';
+import {
+  computeAffinityBoost,
+  describeLengthFit,
+  describeWidthFit,
+  getScoreBreakdown,
+  scoreAndRankBoots,
+  ScoredBoot,
+} from '../../lib/fitScore';
 import { createFitProfileStore, parseMeasureSource, StorageAdapter } from '../../lib/fitProfile';
 import { createOwnedShoesStore, OwnedShoe } from '../../lib/ownedShoes';
 import {
@@ -184,14 +191,14 @@ function BootCard({
             <Text style={{ fontSize: 12, color: '#111' }}>
               Length fit: {breakdown.lengthContribution} / {breakdown.lengthMax}
             </Text>
-            <Text style={{ fontSize: 11, color: '#666', marginBottom: 2 }}>
-              You: {Math.round(adjustedLength)} mm · boot: {boot.minLength}–{boot.maxLength} mm
+            <Text style={{ fontSize: 11, color: '#666', lineHeight: 15, marginBottom: 2 }}>
+              {describeLengthFit(boot, adjustedLength, ownedShoes)}
             </Text>
             <Text style={{ fontSize: 12, color: '#111' }}>
               Width fit: {breakdown.widthContribution} / {breakdown.widthMax}
             </Text>
-            <Text style={{ fontSize: 11, color: '#666' }}>
-              You: {Math.round(adjustedWidth)} mm · boot: {boot.minWidth}–{boot.maxWidth} mm
+            <Text style={{ fontSize: 11, color: '#666', lineHeight: 15 }}>
+              {describeWidthFit(boot, adjustedWidth)}
             </Text>
             {sockAdjustment > 0 && (
               <Text style={{ fontSize: 12, color: '#666' }}>

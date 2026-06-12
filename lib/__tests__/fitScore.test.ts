@@ -1,6 +1,8 @@
 import {
   computeWidthScore,
   computeFitScore,
+  describeLengthFit,
+  describeWidthFit,
   scoreAndRankBoots,
   scoreLengthFromGap,
   generateExplanation,
@@ -471,5 +473,133 @@ describe('getScoreBreakdown', () => {
     expect(breakdown.lengthScore).toBe(80);
     expect(breakdown.widthScore).toBe(92);
     expect(breakdown.baseScore).toBe(87);
+  });
+});
+
+describe('describeLengthFit', () => {
+  const testBoot: Boot = {
+    brand: 'Nike',
+    model: 'Phantom GX II Elite',
+    gender: 'mens',
+    sport: 'football',
+    width: 'standard',
+    minLength: 248,
+    maxLength: 299,
+    minWidth: 89,
+    maxWidth: 101,
+    price: 200,
+    notes: 'Standard fit',
+    purchaseUrl: 'https://example.com',
+    imageUrl: 'https://example.com/img.png',
+  };
+
+  it('names the recommended size and toe room in the sweet spot', () => {
+    // Foot 272 → closest UK 9 (274mm), gap 2mm.
+    const text = describeLengthFit(testBoot, 272);
+    expect(text).toContain('UK 9');
+    expect(text).toContain('274 mm inside');
+    expect(text).toContain('2 mm of toe room');
+    expect(text).toContain('sweet spot');
+  });
+
+  it('calls a zero gap very snug', () => {
+    // Foot 274 hits UK 9 nominal exactly.
+    const text = describeLengthFit(testBoot, 274);
+    expect(text).toContain('very snug');
+  });
+
+  it('warns about toe press when the recommended size runs short', () => {
+    // Foot 271 → closest UK 8.5 (269mm), gap -2mm.
+    const text = describeLengthFit(testBoot, 271);
+    expect(text).toContain('UK 8.5');
+    expect(text).toContain('press the end');
+    expect(text).toContain('half size up');
+  });
+
+  it('accounts for a boot that runs large via sizeOffset', () => {
+    // Offset 3: foot 272 → effective 269 → UK 8.5, inside 269+3=272, gap 0.
+    const runsLarge: Boot = { ...testBoot, sizeOffset: 3 };
+    const text = describeLengthFit(runsLarge, 272);
+    expect(text).toContain('UK 8.5');
+    expect(text).toContain('272 mm inside');
+    expect(text).toContain('very snug');
+  });
+
+  it('translates half-a-size and full-size room for big gaps', () => {
+    // Smaller minLength keeps these feet in range below the UK 5 nominal (240).
+    const longRun: Boot = { ...testBoot, minLength: 220 };
+    // Foot 235 → UK 5 (240), gap 5mm.
+    expect(describeLengthFit(longRun, 235)).toContain('half a size of space');
+    // Foot 232 → UK 5 (240), gap 8mm.
+    expect(describeLengthFit(longRun, 232)).toContain('a full size of space');
+    // Foot 228 → UK 5 (240), gap 12mm.
+    expect(describeLengthFit(longRun, 228)).toContain('too loose');
+  });
+
+  it('reports the distance past the size run when out of range', () => {
+    expect(describeLengthFit(testBoot, 243)).toContain("5 mm below this boot's smallest size");
+    expect(describeLengthFit(testBoot, 305)).toContain("6 mm beyond this boot's largest size");
+  });
+});
+
+describe('describeWidthFit', () => {
+  const testBoot: Boot = {
+    brand: 'Nike',
+    model: 'Phantom GX II Elite',
+    gender: 'mens',
+    sport: 'football',
+    width: 'standard',
+    minLength: 248,
+    maxLength: 299,
+    minWidth: 89,
+    maxWidth: 101,
+    price: 200,
+    notes: 'Standard fit',
+    purchaseUrl: 'https://example.com',
+    imageUrl: 'https://example.com/img.png',
+  };
+
+  it('warns that a too-wide foot will press on the sides', () => {
+    const text = describeWidthFit(testBoot, 105);
+    expect(text).toContain('4 mm over');
+    expect(text).toContain('101 mm max');
+    expect(text).toContain('press on the sides');
+  });
+
+  it('flags the snug edge with stretch advice', () => {
+    // 100 vs centre 95, halfRange 6 → edge ratio 0.83 on the tight side.
+    const text = describeWidthFit(testBoot, 100);
+    expect(text).toContain('snug across the foot');
+    expect(text).toContain('give slightly with wear');
+  });
+
+  it('calls a centred width comfortable', () => {
+    const text = describeWidthFit(testBoot, 95);
+    expect(text).toContain('sits comfortably');
+    expect(text).toContain('89–101 mm');
+  });
+
+  it('points the roomier end at the laces', () => {
+    const text = describeWidthFit(testBoot, 90);
+    expect(text).toContain('roomier end');
+    expect(text).toContain('laces');
+  });
+
+  it('treats a narrower foot as lace-recoverable, not a failure', () => {
+    const text = describeWidthFit(testBoot, 85);
+    expect(text).toContain('4 mm under');
+    expect(text).toContain('laces');
+    expect(text).not.toContain('press');
+  });
+
+  it('handles a zero-width range', () => {
+    const exact: Boot = { ...testBoot, minWidth: 95, maxWidth: 95 };
+    expect(describeWidthFit(exact, 95)).toContain('sits comfortably');
+  });
+
+  it('returns non-empty text across the whole width sweep', () => {
+    for (let w = 80; w <= 110; w += 1) {
+      expect(describeWidthFit(testBoot, w).length).toBeGreaterThan(0);
+    }
   });
 });
