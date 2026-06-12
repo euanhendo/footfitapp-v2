@@ -29,6 +29,8 @@ const HEIGHT_MIN_MM = 500;
 const HEIGHT_MAX_MM = 700;
 const FLAT_MAX_DEG = 12;
 
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 function median(values: number[]): number {
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
@@ -50,12 +52,12 @@ export default function DepthDebugScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [rows, setRows] = useState<CaptureRow[]>([]);
   const [busy, setBusy] = useState(false);
+  const [burstProgress, setBurstProgress] = useState(0);
   const [status, setStatus] = useState<DepthStatus | null>(null);
   const [preview, setPreview] = useState<{ width: number; height: number } | null>(null);
   const supported = isDepthScanSupported();
 
-  const capture = async () => {
-    setBusy(true);
+  const captureOne = async () => {
     const id = Date.now();
     try {
       const frame = await arkitDepthAdapter.captureDepthFrame();
@@ -67,7 +69,22 @@ export default function DepthDebugScreen() {
       setRows((prev) => [{ id, debug }, ...prev]);
     } catch (e) {
       setRows((prev) => [{ id, error: e instanceof Error ? e.message : String(e) }, ...prev]);
+    }
+  };
+
+  // Production pattern (mirrors v2's trusted burst): several spaced frames,
+  // medianed — single dud frames can't drag the session.
+  const BURST_SIZE = 5;
+  const captureBurst = async () => {
+    setBusy(true);
+    try {
+      for (let i = 1; i <= BURST_SIZE; i++) {
+        setBurstProgress(i);
+        await captureOne();
+        if (i < BURST_SIZE) await delay(400);
+      }
     } finally {
+      setBurstProgress(0);
       setBusy(false);
     }
   };
@@ -243,7 +260,7 @@ export default function DepthDebugScreen() {
           </Text>
         )}
         <Pressable
-          onPress={capture}
+          onPress={captureBurst}
           disabled={busy}
           style={{
             backgroundColor: busy ? '#555' : ready ? '#7bff9f' : '#fff',
@@ -252,10 +269,10 @@ export default function DepthDebugScreen() {
             alignItems: 'center',
           }}
         >
-          <Text style={{ color: '#111', fontSize: 15, fontWeight: '800' }}>
+          <Text style={{ color: busy ? '#fff' : '#111', fontSize: 15, fontWeight: '800' }}>
             {busy
-              ? 'Measuring…'
-              : `Capture depth frame${rows.length ? ` (${rows.length + 1})` : ''}`}
+              ? `Capturing ${burstProgress} of ${BURST_SIZE} — hold steady…`
+              : 'Capture burst (5 frames)'}
           </Text>
         </Pressable>
         {rows.length > 0 && (
