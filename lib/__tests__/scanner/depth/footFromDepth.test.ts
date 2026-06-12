@@ -1,4 +1,5 @@
 import {
+  anchorToFloorContact,
   FootSample,
   measureFootFromDepthFrame,
   measureFootFromDepthFrameDebug,
@@ -112,6 +113,37 @@ describe('trimLegShadow', () => {
     for (let y = 0; y <= 250; y += 5) samples.push({ x: 0, y, hMm: 20 });
     expect(trimLegShadow(samples)).toHaveLength(samples.length);
     expect(trimLegShadow([])).toEqual([]);
+  });
+});
+
+describe('anchorToFloorContact', () => {
+  it('bounds length by near-floor points only, ignoring a hovering shin', () => {
+    const samples: FootSample[] = [];
+    // Hovering shin shadow with a sparse low halo (1 point per slice).
+    for (let y = 0; y < 100; y += 5) {
+      samples.push({ x: -30, y, hMm: 20 });
+      for (let x = -25; x <= 25; x += 5) samples.push({ x, y, hMm: 100 });
+    }
+    // Foot y 100–355: heel pad low, instep high in the middle, toes low.
+    for (let y = 100; y <= 355; y += 5) {
+      for (let x = -40; x <= 40; x += 8) {
+        const h = y < 180 ? 30 : y < 300 ? 60 : 15;
+        samples.push({ x, y, hMm: h });
+      }
+    }
+    const anchored = anchorToFloorContact(samples);
+    const ys = anchored.map((p) => p.y);
+    expect(Math.min(...ys)).toBe(0);
+    expect(Math.max(...ys)).toBe(255);
+    // The high instep stays in the contour for the width fit.
+    expect(anchored.some((p) => p.hMm === 60)).toBe(true);
+  });
+
+  it('keeps everything when no low silhouette exists', () => {
+    const high: FootSample[] = [];
+    for (let y = 0; y <= 100; y += 10) high.push({ x: 0, y, hMm: 90 });
+    expect(anchorToFloorContact(high)).toHaveLength(high.length);
+    expect(anchorToFloorContact([])).toEqual([]);
   });
 });
 

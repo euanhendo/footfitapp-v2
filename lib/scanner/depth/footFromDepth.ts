@@ -136,6 +136,53 @@ const TRIM_SLICE_MM = 10;
 const LEG_ONLY_MIN_HEIGHT_MM = 55;
 const FOOT_LOW_POINT_FRACTION = 0.2;
 
+// Length anchor: the toe tips (~15 mm) and heel pad (~25 mm) are the only
+// parts of the leg that come near the floor, regardless of stance. So the
+// foot's length extent is defined by NEAR-FLOOR points only — the leg,
+// however it leans, never gets low and simply cannot vote. The trim above
+// still runs first (it cleans the contour for the width/yaw fit), but
+// length no longer depends on it succeeding: device bursts 2026-06-13
+// flip-flopped 430 ↔ 224 mm purely on leg lean before this anchor.
+// Sparse low points (the floor-blended halo along a shin, 1–2 per slice)
+// are rejected by a per-slice quorum.
+const LOW_POINT_MAX_HEIGHT_MM = 45;
+const LOW_ANCHOR_BIN_MM = 10;
+const LOW_ANCHOR_MIN_POINTS = 4;
+
+export function anchorToFloorContact(points: FootSample[]): FootSample[] {
+  if (points.length === 0) return points;
+  let maxY = 0;
+  for (const p of points) {
+    if (p.y > maxY) maxY = p.y;
+  }
+  const bins = Math.max(1, Math.ceil(maxY / LOW_ANCHOR_BIN_MM));
+  const lowCounts = new Array<number>(bins).fill(0);
+  for (const p of points) {
+    if (p.hMm > LOW_POINT_MAX_HEIGHT_MM) continue;
+    lowCounts[Math.min(bins - 1, Math.floor(p.y / LOW_ANCHOR_BIN_MM))]++;
+  }
+  let heelBin = 0;
+  while (heelBin < bins && lowCounts[heelBin] < LOW_ANCHOR_MIN_POINTS) heelBin++;
+  let toeBin = bins - 1;
+  while (toeBin >= 0 && lowCounts[toeBin] < LOW_ANCHOR_MIN_POINTS) toeBin--;
+  if (heelBin >= toeBin) return points; // no usable low silhouette — keep everything
+
+  // Precise extents from the low points inside the qualifying bins.
+  let heelY = Infinity;
+  let toeY = -Infinity;
+  for (const p of points) {
+    if (p.hMm > LOW_POINT_MAX_HEIGHT_MM) continue;
+    const bin = Math.min(bins - 1, Math.floor(p.y / LOW_ANCHOR_BIN_MM));
+    if (bin < heelBin || bin > toeBin) continue;
+    if (p.y < heelY) heelY = p.y;
+    if (p.y > toeY) toeY = p.y;
+  }
+  if (!Number.isFinite(heelY) || toeY <= heelY) return points;
+  return points
+    .filter((p) => p.y >= heelY && p.y <= toeY)
+    .map((p) => ({ ...p, y: p.y - heelY }));
+}
+
 export function trimLegShadow(points: FootSample[]): FootSample[] {
   if (points.length === 0) return points;
   let maxY = 0;
@@ -336,11 +383,15 @@ export function measureFootFromDepthFrameDebug(
     return { ...partial, metrics: ZERO, bandPoints: band.length, footPoints: trimmed.length };
   }
   const oriented = orientHeelAtOrigin(trimmed);
+  const anchored = anchorToFloorContact(oriented);
+  if (anchored.length < MIN_FOOT_POINTS) {
+    return { ...partial, metrics: ZERO, bandPoints: band.length, footPoints: anchored.length };
+  }
   let lengthMm = 0;
-  for (const p of oriented) {
+  for (const p of anchored) {
     if (p.y > lengthMm) lengthMm = p.y;
   }
-  let widthMm = widthAcrossFootBand(oriented, lengthMm);
+  let widthMm = widthAcrossFootBand(anchored, lengthMm);
   if (lengthMm <= 0 || widthMm <= 0) {
     return { ...partial, metrics: ZERO, bandPoints: band.length, footPoints: foot.length };
   }
