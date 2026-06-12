@@ -74,11 +74,15 @@ function SportBand({
   label,
   imageUrls,
   staggerMs,
+  height = 110,
+  labelSize = 19,
   onPress,
 }: {
   label: string;
   imageUrls: string[];
   staggerMs: number;
+  height?: number;
+  labelSize?: number;
   onPress: () => void;
 }) {
   const [badUrls, setBadUrls] = useState<string[]>([]);
@@ -138,7 +142,7 @@ function SportBand({
     <Pressable
       onPress={onPress}
       style={({ pressed }) => ({
-        height: 110,
+        height,
         borderRadius: 16,
         overflow: 'hidden',
         backgroundColor: '#1a1a1a',
@@ -166,7 +170,7 @@ function SportBand({
       <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20 }}>
         <Text style={{
           color: '#fff',
-          fontSize: 19,
+          fontSize: labelSize,
           fontWeight: '900',
           letterSpacing: 2.5,
           textTransform: 'uppercase',
@@ -269,7 +273,7 @@ export default function HomeScreen() {
         <Text style={{ fontSize: 12, fontWeight: '900', color: p.text, letterSpacing: 4, marginBottom: 16 }}>
           FOOTFIT
         </Text>
-        <Text style={{ fontSize: 32, fontWeight: '800', color: p.text, marginBottom: 4 }}>
+        <Text style={{ fontSize: 36, fontWeight: '900', color: p.text, letterSpacing: -0.5, marginBottom: 4 }}>
           Find your fit.
         </Text>
         <Text style={{ fontSize: 15, color: p.muted, lineHeight: 21, marginBottom: 24 }}>
@@ -461,6 +465,8 @@ export default function HomeScreen() {
             label={sport.label}
             imageUrls={sport.imageUrls}
             staggerMs={i * 1500}
+            height={i === 0 ? 150 : 110}
+            labelSize={i === 0 ? 23 : 19}
             onPress={() => handleSportPress(sport.id)}
           />
         ))}

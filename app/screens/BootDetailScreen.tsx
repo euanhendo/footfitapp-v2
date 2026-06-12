@@ -291,6 +291,13 @@ export default function BootDetailScreen() {
             borderRadius: 16,
             padding: 18,
             marginBottom: 18,
+            ...(p.dark ? {} : {
+              shadowColor: '#000',
+              shadowOpacity: 0.18,
+              shadowRadius: 16,
+              shadowOffset: { width: 0, height: 8 },
+              elevation: 4,
+            }),
           }}>
             <Text style={{ fontSize: 10, fontWeight: '800', color: '#888', letterSpacing: 1.5, marginBottom: 6 }}>
               YOUR SIZE IN THIS BOOT
@@ -386,6 +393,13 @@ export default function BootDetailScreen() {
         backgroundColor: p.bg,
         borderTopWidth: 1,
         borderTopColor: p.hairline,
+        ...(p.dark ? {} : {
+          shadowColor: '#000',
+          shadowOpacity: 0.08,
+          shadowRadius: 12,
+          shadowOffset: { width: 0, height: -4 },
+          elevation: 8,
+        }),
       }}>
         <Pressable
           onPress={() => {

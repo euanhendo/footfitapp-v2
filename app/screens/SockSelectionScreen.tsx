@@ -47,7 +47,7 @@ function isUsableImage(uri: string): boolean {
 function SockThumb({ uri, brand }: { uri: string; brand: string }) {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
-  const size = 44;
+  const size = 52;
   const showImage = isUsableImage(uri) && !failed;
   return (
     <View

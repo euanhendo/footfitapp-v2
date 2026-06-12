@@ -242,6 +242,14 @@ function BootCard({
         borderColor: p.cardBorder,
         opacity: muted ? 0.85 : 1,
         transform: [{ scale: pressed ? 0.98 : 1 }],
+        // Soft floating-card shadow in light mode; borders carry dark mode.
+        ...(p.dark ? {} : {
+          shadowColor: '#000',
+          shadowOpacity: 0.07,
+          shadowRadius: 14,
+          shadowOffset: { width: 0, height: 6 },
+          elevation: 3,
+        }),
       })}
     >
       <View>
@@ -518,9 +526,20 @@ export default function ResultScreen() {
         </Text>
       </View>
 
-      <Text style={{ fontSize: 18, fontWeight: '700', color: p.text, marginBottom: 10 }}>
-        {headerText}
-      </Text>
+      {matches.length > 0 ? (
+        <Text style={{ marginBottom: 10 }}>
+          <Text style={{ fontSize: 30, fontWeight: '900', color: p.text, letterSpacing: -0.5 }}>
+            {matches.length}
+          </Text>
+          <Text style={{ fontSize: 15, fontWeight: '600', color: p.muted }}>
+            {'  '}match{matches.length === 1 ? '' : 'es'} for you
+          </Text>
+        </Text>
+      ) : (
+        <Text style={{ fontSize: 18, fontWeight: '700', color: p.text, marginBottom: 10 }}>
+          {headerText}
+        </Text>
+      )}
 
       {widthProfile === 'wide' && (
         <View style={{
