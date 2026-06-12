@@ -102,9 +102,13 @@ median-resistant — production flow should burst-and-median like v2).
   263 × 107–110** (length −1.8 mm, width dead on); a slight lean at 9° tilt
   read 285.6. Production conclusion: the math is ruler-grade when the shin
   is vertical, so v3's flow must coach stance hard (v2's guide-lock lesson
-  repeating) — tighten the tilt gate (5° good / 9° bad), add "stand tall,
-  knee over ankle" coaching, and build the ankle-saddle cut as the safety
-  net for users who lean anyway.
+  repeating) — tighten the tilt gate (5° good / 9° bad) and build the
+  ankle-saddle cut as the safety net for users who lean anyway.
+- **Coaching copy, in the user's own words** (he found the achievable cue —
+  "stand up straight" is impossible while aiming a phone at your own foot):
+  *soft bend in the knee, push the knee forward so it stacks directly over
+  your ankle — shin vertical, body leaning is fine.* Use this phrasing as
+  the basis for the production stance coaching.
 
 ## Next session
 
