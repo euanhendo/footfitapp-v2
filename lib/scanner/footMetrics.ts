@@ -330,7 +330,7 @@ function scoreConfidence(fillRatio: number, aspect: number): number {
   return Math.max(0, Math.min(1, Math.sqrt(fill * ratio)));
 }
 
-function rangeScore(value: number, min: number, max: number): number {
+export function rangeScore(value: number, min: number, max: number): number {
   if (value >= min && value <= max) return 1;
   const centre = (min + max) / 2;
   const halfRange = (max - min) / 2;
