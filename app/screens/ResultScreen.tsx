@@ -100,7 +100,7 @@ function BootCard({
   return (
     <View style={{
       backgroundColor: '#fff',
-      borderRadius: 14,
+      borderRadius: 16,
       marginBottom: 14,
       overflow: 'hidden',
       borderWidth: 1,
@@ -111,21 +111,24 @@ function BootCard({
         <BootImage uri={boot.imageUrl} label={`${boot.brand} ${boot.model}`} />
         <View style={{
           position: 'absolute',
-          top: 8,
-          right: 8,
-          backgroundColor: 'rgba(0,0,0,0.65)',
-          borderRadius: 8,
-          paddingHorizontal: 8,
-          paddingVertical: 4,
+          top: 10,
+          right: 10,
+          backgroundColor: '#111',
+          borderRadius: 999,
+          paddingHorizontal: 10,
+          paddingVertical: 5,
         }}>
-          <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>
-            {total}% fit
+          <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800', letterSpacing: 0.5 }}>
+            {total}% FIT
           </Text>
         </View>
       </View>
       <View style={{ padding: 14 }}>
-        <Text style={{ fontSize: 16, fontWeight: '800', color: '#111', marginBottom: 4 }}>
-          {boot.brand} {boot.model}
+        <Text style={{ fontSize: 11, fontWeight: '800', color: '#999', letterSpacing: 1.5, marginBottom: 3 }}>
+          {boot.brand.toUpperCase()}
+        </Text>
+        <Text style={{ fontSize: 17, fontWeight: '800', color: '#111', marginBottom: 6 }}>
+          {boot.model}
         </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 10 }}>
           <Text style={{ fontSize: 18, fontWeight: '700', color: '#111' }}>
@@ -221,8 +224,8 @@ function BootCard({
           onPress={() => Linking.openURL(boot.purchaseUrl)}
           style={{
             backgroundColor: '#111',
-            borderRadius: 10,
-            paddingVertical: 10,
+            borderRadius: 999,
+            paddingVertical: 12,
             alignItems: 'center',
           }}
         >
@@ -383,17 +386,15 @@ export default function ResultScreen() {
         margin: 16,
         borderRadius: 14,
       }}>
-        <Text style={{ fontSize: 13, fontWeight: '700', color: '#888', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.8 }}>
-          Your fit profile
+        <Text style={{ fontSize: 11, fontWeight: '800', color: '#888', marginBottom: 8, letterSpacing: 1.5 }}>
+          YOUR FIT
         </Text>
-        <Text style={{ color: '#ccc', fontSize: 13, marginBottom: 2 }}>
-          {genderLabel} {sportLabel}
+        <Text style={{ fontSize: 24, fontWeight: '800', color: '#fff', marginBottom: 4 }}>
+          {adjustedLength.toFixed(1)} × {adjustedWidth.toFixed(1)}
+          <Text style={{ fontSize: 14, fontWeight: '700', color: '#888' }}>  mm with socks</Text>
         </Text>
-        <Text style={{ color: '#ccc', fontSize: 13, marginBottom: 2 }}>
-          Foot with socks: {adjustedLength.toFixed(1)} × {adjustedWidth.toFixed(1)} mm
-        </Text>
-        <Text style={{ color: '#ccc', fontSize: 13 }}>
-          Sock: {sockLabel}{sockAdjustment > 0 ? ` (+${sockAdjustment} mm)` : ''}
+        <Text style={{ color: '#888', fontSize: 12 }}>
+          {genderLabel} {sportLabel} · {sockLabel}{sockAdjustment > 0 ? ` (+${sockAdjustment} mm)` : ''}
         </Text>
       </View>
 
@@ -418,9 +419,9 @@ export default function ResultScreen() {
       )}
 
       <View style={{ paddingHorizontal: 16, marginBottom: 10 }}>
-        <View style={{ flexDirection: 'row', marginBottom: 8, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: '#ebebeb' }}>
+        <View style={{ flexDirection: 'row', marginBottom: 8, borderRadius: 4, overflow: 'hidden', borderWidth: 1, borderColor: '#d5d5d5' }}>
           {(['score', 'price-asc', 'price-desc'] as SortMode[]).map((mode) => {
-            const label = mode === 'score' ? 'Best fit' : mode === 'price-asc' ? 'Price ↑' : 'Price ↓';
+            const label = mode === 'score' ? 'BEST FIT' : mode === 'price-asc' ? 'PRICE ↑' : 'PRICE ↓';
             const active = sort === mode;
             return (
               <Pressable
@@ -429,11 +430,11 @@ export default function ResultScreen() {
                 style={{
                   flex: 1,
                   backgroundColor: active ? '#111' : '#fff',
-                  paddingVertical: 8,
+                  paddingVertical: 9,
                   alignItems: 'center',
                 }}
               >
-                <Text style={{ color: active ? '#fff' : '#111', fontWeight: '700', fontSize: 13 }}>
+                <Text style={{ color: active ? '#fff' : '#111', fontWeight: '800', fontSize: 11, letterSpacing: 1 }}>
                   {label}
                 </Text>
               </Pressable>
@@ -450,15 +451,15 @@ export default function ResultScreen() {
                 onPress={() => toggleWidth(w)}
                 style={{
                   paddingHorizontal: 12,
-                  paddingVertical: 6,
-                  borderRadius: 8,
+                  paddingVertical: 7,
+                  borderRadius: 4,
                   borderWidth: 1,
-                  borderColor: '#ebebeb',
+                  borderColor: '#d5d5d5',
                   backgroundColor: active ? '#111' : '#fff',
                   marginRight: 8,
                 }}
               >
-                <Text style={{ color: active ? '#fff' : '#111', fontSize: 12, fontWeight: '700', textTransform: 'capitalize' }}>
+                <Text style={{ color: active ? '#fff' : '#111', fontSize: 11, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase' }}>
                   {w}
                 </Text>
               </Pressable>
@@ -476,15 +477,15 @@ export default function ResultScreen() {
                   onPress={() => toggleBrand(brand)}
                   style={{
                     paddingHorizontal: 12,
-                    paddingVertical: 6,
-                    borderRadius: 8,
+                    paddingVertical: 7,
+                    borderRadius: 4,
                     borderWidth: 1,
-                    borderColor: '#ebebeb',
+                    borderColor: '#d5d5d5',
                     backgroundColor: active ? '#111' : '#fff',
                     marginRight: 8,
                   }}
                 >
-                  <Text style={{ color: active ? '#fff' : '#111', fontSize: 12, fontWeight: '700' }}>
+                  <Text style={{ color: active ? '#fff' : '#111', fontSize: 11, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase' }}>
                     {brand}
                   </Text>
                 </Pressable>
@@ -515,11 +516,11 @@ export default function ResultScreen() {
           matches.length < 3 && nearMisses.length > 0 ? (
             <View>
               <Text style={{
-                fontSize: 13,
-                fontWeight: '700',
+                fontSize: 11,
+                fontWeight: '800',
                 color: '#999',
                 textTransform: 'uppercase',
-                letterSpacing: 0.8,
+                letterSpacing: 1.5,
                 marginTop: 8,
                 marginBottom: 12,
               }}>

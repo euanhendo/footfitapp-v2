@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import { createFitProfileStore, FitProfile, StorageAdapter } from '../../lib/fitProfile';
@@ -8,10 +8,23 @@ import { createFitProfileStore, FitProfile, StorageAdapter } from '../../lib/fit
 type Sport = 'football' | 'running' | 'rugby';
 type Gender = 'mens' | 'womens' | 'unisex';
 
-const SPORTS: { id: Sport; label: string; emoji: string; available: boolean }[] = [
-  { id: 'football', label: 'Football', emoji: '⚽', available: true },
-  { id: 'running', label: 'Running', emoji: '🏃', available: true },
-  { id: 'rugby', label: 'Rugby', emoji: '🏉', available: true },
+// Boot-level action shots — every hero image is about feet, like the app.
+const SPORTS: { id: Sport; label: string; imageUrl: string }[] = [
+  {
+    id: 'football',
+    label: 'Football',
+    imageUrl: 'https://images.unsplash.com/photo-1553778263-73a83bab9b0c?w=1200&q=70&fit=crop',
+  },
+  {
+    id: 'running',
+    label: 'Running',
+    imageUrl: 'https://images.unsplash.com/photo-1571008887538-b36bb32f4571?w=1200&q=70&fit=crop',
+  },
+  {
+    id: 'rugby',
+    label: 'Rugby',
+    imageUrl: 'https://images.unsplash.com/photo-1558151507-c1aa3d917dbb?w=1200&q=70&fit=crop',
+  },
 ];
 
 const storage: StorageAdapter = {
@@ -22,11 +35,72 @@ const storage: StorageAdapter = {
 
 const profileStore = createFitProfileStore(storage);
 
+const SOURCE_LABEL: Record<string, string> = {
+  scanned: 'Scanned',
+  estimated: 'From shoe size',
+  manual: 'Typed in',
+};
+
 function daysAgo(isoDate: string): string {
   const diff = Math.floor((Date.now() - new Date(isoDate).getTime()) / 86400000);
-  if (diff === 0) return 'Saved today';
-  if (diff === 1) return 'Saved yesterday';
-  return `Saved ${diff} days ago`;
+  if (diff === 0) return 'saved today';
+  if (diff === 1) return 'saved yesterday';
+  return `saved ${diff} days ago`;
+}
+
+function SportBand({
+  label,
+  imageUrl,
+  state,
+  onPress,
+}: {
+  label: string;
+  imageUrl: string;
+  state: 'none' | 'selected' | 'dimmed';
+  onPress: () => void;
+}) {
+  const [imageFailed, setImageFailed] = useState(false);
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{
+        height: 110,
+        borderRadius: 16,
+        overflow: 'hidden',
+        backgroundColor: '#1a1a1a',
+        marginBottom: 12,
+        opacity: state === 'dimmed' ? 0.45 : 1,
+      }}
+    >
+      {!imageFailed && (
+        <Image
+          source={{ uri: imageUrl }}
+          style={{ position: 'absolute', width: '100%', height: '100%' }}
+          resizeMode="cover"
+          onError={() => setImageFailed(true)}
+        />
+      )}
+      <View style={{ position: 'absolute', width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.32)' }} />
+      <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 20 }}>
+        <Text style={{ color: '#fff', fontSize: 19, fontWeight: '900', letterSpacing: 2.5, textTransform: 'uppercase' }}>
+          {label}
+        </Text>
+      </View>
+      {state === 'selected' && (
+        <View style={{
+          position: 'absolute',
+          top: 10,
+          right: 10,
+          backgroundColor: '#fff',
+          borderRadius: 4,
+          paddingHorizontal: 8,
+          paddingVertical: 4,
+        }}>
+          <Text style={{ fontSize: 9, fontWeight: '800', letterSpacing: 1, color: '#111' }}>SELECTED</Text>
+        </View>
+      )}
+    </Pressable>
+  );
 }
 
 export default function HomeScreen() {
@@ -78,114 +152,166 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f9f9f9' }}>
-      <View style={{ flex: 1, padding: 24 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 24, paddingBottom: 48 }}>
 
-        <Text style={{ fontSize: 30, fontWeight: '800', color: '#111', marginBottom: 4 }}>
-          Find your fit
+        <Text style={{ fontSize: 12, fontWeight: '900', color: '#111', letterSpacing: 4, marginBottom: 16 }}>
+          FOOTFIT
         </Text>
-        <Text style={{ fontSize: 15, color: '#666', marginBottom: 32 }}>
-          Get matched to footwear that actually fits your feet.
+        <Text style={{ fontSize: 32, fontWeight: '800', color: '#111', marginBottom: 4 }}>
+          Find your fit.
+        </Text>
+        <Text style={{ fontSize: 15, color: '#666', lineHeight: 21, marginBottom: 28 }}>
+          Footwear matched to your measured feet — not the size on the box.
         </Text>
 
         {savedProfile && (
-          <View style={{ marginBottom: 24 }}>
+          <View style={{ marginBottom: 28 }}>
             <Pressable
               onPress={handleContinue}
-              style={{
-                backgroundColor: '#111',
-                borderRadius: 16,
-                padding: 20,
-              }}
+              style={{ backgroundColor: '#111', borderRadius: 16, padding: 20 }}
             >
-              <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff', marginBottom: 6 }}>
-                Continue with your last fit
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                <Text style={{ fontSize: 11, fontWeight: '800', color: '#888', letterSpacing: 1.5 }}>
+                  YOUR FIT
+                </Text>
+                {SOURCE_LABEL[savedProfile.source ?? ''] && (
+                  <View style={{
+                    borderWidth: 1,
+                    borderColor: 'rgba(255,255,255,0.35)',
+                    borderRadius: 999,
+                    paddingHorizontal: 9,
+                    paddingVertical: 3,
+                  }}>
+                    <Text style={{ fontSize: 9, fontWeight: '800', color: '#fff', letterSpacing: 1, textTransform: 'uppercase' }}>
+                      {SOURCE_LABEL[savedProfile.source ?? '']}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <Text style={{ fontSize: 34, fontWeight: '800', color: '#fff', marginBottom: 2 }}>
+                {savedProfile.footLength} × {savedProfile.footWidth}
+                <Text style={{ fontSize: 16, fontWeight: '700', color: '#888' }}>  mm</Text>
               </Text>
-              <Text style={{ fontSize: 13, color: '#888', marginBottom: 2 }}>
-                {genderLabel} {sportLabel}
+              <Text style={{ fontSize: 12, color: '#888', marginBottom: 16 }}>
+                {genderLabel} {sportLabel} · {daysAgo(savedProfile.savedAt)}
               </Text>
-              <Text style={{ fontSize: 13, color: '#bbb', marginBottom: 2 }}>
-                {savedProfile.footLength} × {savedProfile.footWidth} mm
-                {savedProfile.source === 'scanned'
-                  ? ' · scanned'
-                  : savedProfile.source === 'estimated'
-                  ? ' · from shoe size'
-                  : savedProfile.source === 'manual'
-                  ? ' · typed in'
-                  : ''}
-              </Text>
-              <Text style={{ fontSize: 12, color: '#666' }}>
-                {daysAgo(savedProfile.savedAt)}
-              </Text>
+              <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.15)', marginBottom: 14 }} />
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ fontSize: 13, fontWeight: '800', color: '#fff', letterSpacing: 1.5 }}>
+                  SHOP YOUR FIT
+                </Text>
+                <Text style={{ fontSize: 16, fontWeight: '800', color: '#fff' }}>→</Text>
+              </View>
             </Pressable>
-            <Pressable onPress={handleStartFresh} style={{ marginTop: 10, alignItems: 'center' }}>
-              <Text style={{ fontSize: 13, color: '#666', textDecorationLine: 'underline' }}>
-                Start fresh
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={() => router.push({
-                pathname: '/screens/OwnedShoesScreen',
-                params: { gender: savedProfile.gender },
-              })}
-              style={{ marginTop: 6, alignItems: 'center' }}
-            >
-              <Text style={{ fontSize: 13, color: '#666', textDecorationLine: 'underline' }}>
-                My shoes
-              </Text>
-            </Pressable>
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+              <Pressable
+                onPress={() => router.push({
+                  pathname: '/screens/OwnedShoesScreen',
+                  params: { gender: savedProfile.gender },
+                })}
+                style={{
+                  flex: 1,
+                  backgroundColor: '#fff',
+                  borderWidth: 1,
+                  borderColor: '#d5d5d5',
+                  borderRadius: 4,
+                  paddingVertical: 12,
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={{ fontSize: 11, fontWeight: '800', color: '#111', letterSpacing: 1 }}>MY SHOES</Text>
+              </Pressable>
+              <Pressable
+                onPress={handleStartFresh}
+                style={{
+                  flex: 1,
+                  backgroundColor: '#fff',
+                  borderWidth: 1,
+                  borderColor: '#d5d5d5',
+                  borderRadius: 4,
+                  paddingVertical: 12,
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={{ fontSize: 11, fontWeight: '800', color: '#111', letterSpacing: 1 }}>START FRESH</Text>
+              </Pressable>
+            </View>
           </View>
         )}
 
-        <Text style={{ fontSize: 13, fontWeight: '700', color: '#999', letterSpacing: 1, marginBottom: 12, textTransform: 'uppercase' }}>
-          Choose sport
+        <Text style={{ fontSize: 11, fontWeight: '800', color: '#999', letterSpacing: 1.5, marginBottom: 12 }}>
+          CHOOSE YOUR SPORT
         </Text>
 
-        <View style={{ flexDirection: 'row', gap: 12, marginBottom: 32 }}>
-          {SPORTS.map((sport) => (
-            <Pressable
-              key={sport.id}
-              onPress={() => sport.available && setSelectedSport(sport.id as Sport)}
-              style={{
-                flex: 1,
-                borderRadius: 16,
-                padding: 20,
-                alignItems: 'center',
-                backgroundColor: !sport.available
-                  ? '#f0f0f0'
-                  : selectedSport === sport.id
-                  ? '#111'
-                  : '#fff',
-                borderWidth: 2,
-                borderColor: !sport.available
-                  ? '#e0e0e0'
-                  : selectedSport === sport.id
-                  ? '#111'
-                  : '#e8e8e8',
-                opacity: sport.available ? 1 : 0.5,
-              }}
-            >
-              <Text style={{ fontSize: 32, marginBottom: 8 }}>{sport.emoji}</Text>
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontWeight: '700',
-                  color: !sport.available ? '#aaa' : selectedSport === sport.id ? '#fff' : '#111',
-                }}
-              >
-                {sport.label}
-              </Text>
-              {!sport.available && (
-                <Text style={{ fontSize: 10, color: '#bbb', marginTop: 4 }}>Coming soon</Text>
-              )}
-            </Pressable>
-          ))}
-        </View>
+        {SPORTS.map((sport) => (
+          <SportBand
+            key={sport.id}
+            label={sport.label}
+            imageUrl={sport.imageUrl}
+            state={selectedSport === sport.id ? 'selected' : selectedSport ? 'dimmed' : 'none'}
+            onPress={() => setSelectedSport(sport.id)}
+          />
+        ))}
+
+        {selectedSport && (
+          <>
+            <Text style={{ fontSize: 11, fontWeight: '800', color: '#999', letterSpacing: 1.5, marginTop: 12, marginBottom: 12 }}>
+              SHOPPING FOR
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {(['mens', 'womens', 'unisex'] as Gender[]).map((gender) => {
+                const label = gender === 'mens' ? "MEN'S" : gender === 'womens' ? "WOMEN'S" : 'UNISEX';
+                return (
+                  <Pressable
+                    key={gender}
+                    onPress={() => handleGenderSelect(gender)}
+                    style={{
+                      flex: 1,
+                      backgroundColor: '#fff',
+                      borderWidth: 1,
+                      borderColor: '#d5d5d5',
+                      borderRadius: 4,
+                      paddingVertical: 14,
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: '800', color: '#111', letterSpacing: 1 }}>
+                      {label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </>
+        )}
+
+        {!savedProfile && (
+          <View style={{ backgroundColor: '#111', borderRadius: 16, padding: 20, marginTop: 16 }}>
+            <View style={{
+              alignSelf: 'flex-start',
+              backgroundColor: '#fff',
+              borderRadius: 4,
+              paddingHorizontal: 8,
+              paddingVertical: 3,
+              marginBottom: 10,
+            }}>
+              <Text style={{ fontSize: 9, fontWeight: '800', letterSpacing: 1, color: '#111' }}>NEW</Text>
+            </View>
+            <Text style={{ fontSize: 17, fontWeight: '800', color: '#fff', marginBottom: 6 }}>
+              Scan your feet with your phone
+            </Text>
+            <Text style={{ fontSize: 13, color: '#aaa', lineHeight: 18 }}>
+              A sheet of A4 paper and your camera measure your foot to the millimetre.
+              Pick a sport above to get started.
+            </Text>
+          </View>
+        )}
 
         {__DEV__ && (
           <Pressable
             onPress={() => router.push('/screens/ScannerDebugScreen')}
             style={{
-              marginBottom: 16,
+              marginTop: 24,
               borderRadius: 10,
               borderWidth: 1,
               borderStyle: 'dashed',
@@ -200,42 +326,7 @@ export default function HomeScreen() {
           </Pressable>
         )}
 
-        {selectedSport && (
-          <>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: '#999', letterSpacing: 1, marginBottom: 12, textTransform: 'uppercase' }}>
-              I am shopping for
-            </Text>
-
-            <View style={{ flexDirection: 'row', gap: 12 }}>
-              {(['mens', 'womens', 'unisex'] as Gender[]).map((gender) => {
-                const emoji = gender === 'mens' ? '👨' : gender === 'womens' ? '👩' : '🧑';
-                const label = gender === 'mens' ? "Men's" : gender === 'womens' ? "Women's" : 'Unisex';
-                return (
-                  <Pressable
-                    key={gender}
-                    onPress={() => handleGenderSelect(gender)}
-                    style={{
-                      flex: 1,
-                      borderRadius: 16,
-                      padding: 20,
-                      alignItems: 'center',
-                      backgroundColor: '#fff',
-                      borderWidth: 2,
-                      borderColor: '#e8e8e8',
-                    }}
-                  >
-                    <Text style={{ fontSize: 32, marginBottom: 8 }}>{emoji}</Text>
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: '#111' }}>
-                      {label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </>
-        )}
-
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
