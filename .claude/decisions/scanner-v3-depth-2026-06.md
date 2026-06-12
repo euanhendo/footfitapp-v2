@@ -93,9 +93,18 @@ median-resistant — production flow should burst-and-median like v2).
 - ~~Width bias~~ **Fitted same night**: edge-pixel erosion compensation in
   pixel units scaled by pixel pitch (`LENGTH_EDGE_EROSION_PX = 1.2`,
   `WIDTH_EDGE_EROSION_PX = 2.5`, fitted at ~3.5 mm/px from raw medians
-  258.8 × 98.3 vs 263 × 107). **In-sample fit, n=1 foot** — needs
-  out-of-sample validation: the user's LEFT foot (believed slightly larger)
-  is the natural first independent test.
+  258.8 × 98.3 vs 263 × 107). **In-sample fit, n=1 person** — both his feet
+  ruler-measure identical (263 × 107–110; the "left is bigger" belief was
+  disproven 2026-06-13), so true out-of-sample validation needs other
+  people's feet.
+- **2026-06-13 ~00:10, left-foot bursts**: medians flip-flopped 430.7 ↔
+  224.0 purely on leg lean — slice-trim alone is stance-fragile. Length is
+  now anchored to floor-contact points only (`anchorToFloorContact`: toes
+  ~15 mm and heel pad ~25 mm touch the floor; the leg never does, so it
+  cannot vote on length regardless of stance; sparse shin-halo low points
+  rejected by per-slice quorum). Trim still runs first to clean the contour
+  for the width/yaw fit. May shift raw length slightly — re-check
+  `LENGTH_EDGE_EROSION_PX` against the next bursts.
 - Then: burst capture + median, v3 trust threshold from real confidence
   values, and capture-condition guidance (hard floor beats carpet; ambient
   light helps the RGB-fused depth).
