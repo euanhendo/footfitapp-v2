@@ -10,11 +10,13 @@ import {
 } from './planeFit';
 import { DepthFrame, FloorPlane, Vec3 } from './types';
 
-// Height band that counts as "foot": below 10 mm is floor noise; above 120 mm
+// Height band that counts as "foot": below 6 mm is floor noise; above 120 mm
 // is shin/calf, cut before it can stretch or widen the contour. The ankle
 // (60–100 mm) survives the cut — the 30–95% width band downstream is the
-// defence against it, exactly as in the paper pipeline.
-const FOOT_MIN_HEIGHT_MM = 10;
+// defence against it, exactly as in the paper pipeline. The floor was 10 mm
+// until device captures (2026-06-12) showed toe tips are thinner than that,
+// especially pressed into carpet — the toes vanished and length under-read.
+const FOOT_MIN_HEIGHT_MM = 6;
 const FOOT_MAX_HEIGHT_MM = 120;
 const MIN_FOOT_POINTS = 40;
 const ORIENT_BINS = 20;

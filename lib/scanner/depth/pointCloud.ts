@@ -16,8 +16,11 @@ export function unprojectPixel(
 
 const DEFAULT_MAX_DEPTH_MM = 3000;
 
-/** Only pixels the sensor marks high-confidence (2) are trusted by default. */
-const DEFAULT_MIN_CONFIDENCE = 2;
+// Medium (1) and high (2) confidence are trusted; only low (0) — the
+// invented depths on laser-absorbing surfaces — is dropped. High-only proved
+// too aggressive on device (2026-06-12): ARKit marks object edges medium, so
+// the foot outline eroded and read ~196 mm against a 265 mm foot.
+const DEFAULT_MIN_CONFIDENCE = 1;
 
 /**
  * Unproject a whole frame into a camera-space point cloud. `stride` subsamples

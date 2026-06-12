@@ -32,8 +32,13 @@ describe('depthFrameToPoints', () => {
     expect(points[0].z).toBe(500);
   });
 
-  it('drops pixels below the confidence floor when a map is present', () => {
+  it('drops only low-confidence pixels by default', () => {
     const points = depthFrameToPoints(frame([500, 500, 500, 500], [2, 1, 0, 2]));
+    expect(points).toHaveLength(3);
+  });
+
+  it('honours a stricter confidence floor when asked', () => {
+    const points = depthFrameToPoints(frame([500, 500, 500, 500], [2, 1, 0, 2]), 1, 3000, 2);
     expect(points).toHaveLength(2);
   });
 
