@@ -310,10 +310,6 @@ for (const group of groups.values()) {
     .map((p) => p.published_at ?? '')
     .sort()
     .at(-1);
-  if (!latest || latest < CUTOFF) {
-    skippedOld++;
-    continue;
-  }
 
   const canonical = [...group.products].sort((a, b) => {
     const sa = SURFACE_PREF.indexOf(a.surface);
@@ -340,27 +336,6 @@ for (const group of groups.values()) {
     }
   }
   const surfaces = ['FG', 'SG', 'AG', 'TF', 'IC'].filter((s) => surfaceSet.has(s));
-
-  const kidsProduct = group.gender === 'kids';
-  let minLength;
-  let maxLength;
-  if (group.gender === 'womens') {
-    [minLength, maxLength] = WOMENS_LENGTH_RANGE;
-  } else {
-    const mms = [];
-    for (const p of group.products) {
-      for (const v of p.variants) {
-        const mm = sizeToMm(v.title, kidsProduct);
-        if (mm) mms.push(mm);
-      }
-    }
-    if (mms.length === 0) {
-      skippedNoSizes++;
-      continue;
-    }
-    minLength = Math.min(...mms);
-    maxLength = Math.max(...mms);
-  }
 
   // Price from the canonical (preferred-surface) product only — group-wide
   // min would let a cheap turf/indoor sibling understate the boot's price.
@@ -399,6 +374,34 @@ for (const group of groups.values()) {
   ) {
     skippedCrossover++;
     continue;
+  }
+
+  // Only recent models become NEW entries (upgrades above run regardless, so
+  // older-but-still-listed boots keep live images/links).
+  if (!latest || latest < CUTOFF) {
+    skippedOld++;
+    continue;
+  }
+
+  const kidsProduct = group.gender === 'kids';
+  let minLength;
+  let maxLength;
+  if (group.gender === 'womens') {
+    [minLength, maxLength] = WOMENS_LENGTH_RANGE;
+  } else {
+    const mms = [];
+    for (const p of group.products) {
+      for (const v of p.variants) {
+        const mm = sizeToMm(v.title, kidsProduct);
+        if (mm) mms.push(mm);
+      }
+    }
+    if (mms.length === 0) {
+      skippedNoSizes++;
+      continue;
+    }
+    minLength = Math.min(...mms);
+    maxLength = Math.max(...mms);
   }
 
   const family = familyOf(group.model, group.sport);

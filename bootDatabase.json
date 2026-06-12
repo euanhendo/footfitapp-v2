@@ -10,12 +10,14 @@
     "minWidth": 89,
     "maxWidth": 101,
     "sizeOffset": 0,
-    "price": 200,
+    "price": 170,
     "notes": "Balanced, standard fit. Good all-round option for average foot shapes.",
-    "purchaseUrl": "https://www.nike.com/gb/w?q=phantom+gx+ii+elite",
-    "imageUrl": "https://via.placeholder.com/400x250/111111/ffffff",
+    "purchaseUrl": "https://www.prodirectsport.com/products/nike-phantom-gx-ii-elite-firm-ground-crimson-tint-black-pink-blast-adult-boots-1032307",
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/1032307_main.jpg?v=1774037143",
     "surfaces": [
-      "FG"
+      "FG",
+      "SG",
+      "AG"
     ]
   },
   {
@@ -29,12 +31,14 @@
     "minWidth": 82,
     "maxWidth": 94,
     "sizeOffset": 0,
-    "price": 220,
+    "price": 235,
     "notes": "Very slim, speed-oriented fit. Best for narrow feet or those who prefer a tight lock-down feel.",
-    "purchaseUrl": "https://www.nike.com/gb/w?q=mercurial+superfly+9+elite",
-    "imageUrl": "https://via.placeholder.com/400x250/cc0000/ffffff",
+    "purchaseUrl": "https://www.prodirectsport.com/products/nike-air-zoom-mercurial-superfly-ix-elite-firm-ground-pink-foam-black-adult-cleats-1015898",
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/1015898_main.jpg?v=1774358812",
     "surfaces": [
-      "FG"
+      "FG",
+      "SG",
+      "AG"
     ]
   },
   {
@@ -48,12 +52,14 @@
     "minWidth": 83,
     "maxWidth": 95,
     "sizeOffset": 0,
-    "price": 190,
+    "price": 160,
     "notes": "Narrow and lightweight. Great for narrow-to-standard feet wanting a close fit.",
-    "purchaseUrl": "https://www.nike.com/gb/w?q=mercurial+vapor+15+elite",
-    "imageUrl": "https://via.placeholder.com/400x250/cc0000/ffffff",
+    "purchaseUrl": "https://www.prodirectsport.com/products/nike-air-zoom-mercurial-vapor-xv-elite-firm-ground-pink-foam-black-adult-cleats-1015903",
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/1015903_main.jpg?v=1774358491",
     "surfaces": [
-      "FG"
+      "FG",
+      "SG",
+      "AG"
     ]
   },
   {
@@ -111,12 +117,14 @@
     "minWidth": 96,
     "maxWidth": 110,
     "sizeOffset": 0,
-    "price": 180,
+    "price": 155,
     "notes": "Wide, cushioned leather fit. Ideal for wide feet who want premium touch.",
-    "purchaseUrl": "https://www.adidas.co.uk/search?q=copa+pure.1",
-    "imageUrl": "https://via.placeholder.com/400x250/ffffff/ffffff",
+    "purchaseUrl": "https://www.prodirectsport.com/products/adidas-copa-pure1-fg-white-greytwo-prelovedblue-mens-boots-283182",
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/283182_main.jpg?v=1774347599",
     "surfaces": [
-      "FG"
+      "FG",
+      "SG",
+      "TF"
     ]
   },
   {
@@ -130,12 +138,16 @@
     "minWidth": 83,
     "maxWidth": 95,
     "sizeOffset": 0,
-    "price": 190,
+    "price": 120,
     "notes": "Extremely slim fit designed for speed. Not suitable for wide feet.",
-    "purchaseUrl": "https://www.adidas.co.uk/search?q=x+speedportal.1",
-    "imageUrl": "https://via.placeholder.com/400x250/000000/ffffff",
+    "purchaseUrl": "https://www.prodirectsport.com/products/adidas-x-speedportal1-fg-solar-gold-core-black-team-solar-orange-mens-boots-281127",
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/281127_main.jpg?v=1774346846",
     "surfaces": [
-      "FG"
+      "FG",
+      "SG",
+      "AG",
+      "TF",
+      "IC"
     ]
   },
   {
@@ -149,12 +161,14 @@
     "minWidth": 95,
     "maxWidth": 110,
     "sizeOffset": 0,
-    "price": 200,
+    "price": 100,
     "notes": "Adaptive, stretchy upper that accommodates wider feet well.",
-    "purchaseUrl": "https://uk.puma.com/uk/en/search?q=future+ultimate",
-    "imageUrl": "https://via.placeholder.com/400x250/0055a5/ffffff",
+    "purchaseUrl": "https://www.prodirectsport.com/products/puma-womens-future-ultimate-fg-ag-sedate-gray-asphalt-yellow-blaze-mens-cleats-1001753",
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/1001753_main.jpg?v=1774348608",
     "surfaces": [
-      "FG"
+      "FG",
+      "SG",
+      "AG"
     ]
   },
   {
@@ -190,12 +204,13 @@
     "minWidth": 96,
     "maxWidth": 112,
     "sizeOffset": 0,
-    "price": 200,
+    "price": 95,
     "notes": "Japanese craftsmanship with a wide, comfortable kangaroo leather fit.",
-    "purchaseUrl": "https://www.prodirectsport.com/soccer/l/adults/departments-boots/activity-football/brand-mizuno/silo-morelia/",
-    "imageUrl": "https://via.placeholder.com/400x250/0038a8/ffffff",
+    "purchaseUrl": "https://www.prodirectsport.com/products/mizuno-morelia-neo-iii-pro-white-hologram-cool-gray-3c-mens-boots-274352",
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/274352_main.jpg?v=1774350487",
     "surfaces": [
-      "FG"
+      "FG",
+      "AG"
     ]
   },
   {
@@ -229,12 +244,13 @@
     "minWidth": 90,
     "maxWidth": 104,
     "sizeOffset": 0,
-    "price": 200,
+    "price": 150,
     "notes": "Standard fit with a comfortable, sock-like upper.",
-    "purchaseUrl": "https://www.newbalance.co.uk/search?q=tekela+v4+pro",
-    "imageUrl": "https://via.placeholder.com/400x250/cc0000/ffffff",
+    "purchaseUrl": "https://www.prodirectsport.com/products/new-balance-tekela-v4-pro-fg-x-elliott-signature-edition-red-black-silver-adult-boots-1004431",
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/1004431_main.jpg?v=1774349102",
     "surfaces": [
-      "FG"
+      "FG",
+      "SG"
     ]
   },
   {
@@ -248,10 +264,10 @@
     "minWidth": 91,
     "maxWidth": 103,
     "sizeOffset": 0,
-    "price": 180,
+    "price": 90,
     "notes": "Comfortable standard fit. Good for average foot widths.",
-    "purchaseUrl": "https://www.underarmour.co.uk/en-gb/search?q=magnetico+pro",
-    "imageUrl": "https://via.placeholder.com/400x250/c8102e/ffffff",
+    "purchaseUrl": "https://www.prodirectsport.com/products/under-armour-magnetico-pro-fg-mens-boots-firm-ground-3000111-300-teal-punch-moroccan-blue-tokyo-lemon-172286",
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/172286_main.jpg?v=1774350873",
     "surfaces": [
       "FG"
     ]
@@ -267,10 +283,10 @@
     "minWidth": 98,
     "maxWidth": 114,
     "sizeOffset": 0,
-    "price": 220,
+    "price": 120,
     "notes": "Exceptionally wide Italian leather boot. Best choice for very wide feet.",
-    "purchaseUrl": "https://www.diadora.com/en/gb/search/?q=brasil+made+in+italy",
-    "imageUrl": "https://via.placeholder.com/400x250/003DA5/ffffff",
+    "purchaseUrl": "https://www.prodirectsport.com/products/diadora-brasil-made-in-italy-fg-black-yellow-fluo-mens-boots-266374",
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/266374_main.jpg?v=1774353470",
     "surfaces": [
       "FG"
     ]
@@ -286,10 +302,10 @@
     "minWidth": 89,
     "maxWidth": 102,
     "sizeOffset": 0,
-    "price": 130,
+    "price": 65,
     "notes": "Classic Italian leather feel with modern performance. Well-cushioned standard fit.",
-    "purchaseUrl": "https://www.diadora.com/en/gb/search/?q=b-elite+tech",
-    "imageUrl": "https://via.placeholder.com/400x250/003DA5/ffffff",
+    "purchaseUrl": "https://www.prodirectsport.com/products/diadora-b-elite-tech-fg-black-black-mens-boots-285466",
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/285466_main.jpg?v=1774007196",
     "surfaces": [
       "FG"
     ]
@@ -305,12 +321,15 @@
     "minWidth": 89,
     "maxWidth": 102,
     "sizeOffset": 0,
-    "price": 85,
+    "price": 60,
     "notes": "Mid-range version of the Phantom GX. Standard fit with solid touch for the price.",
-    "purchaseUrl": "https://www.nike.com/gb/w?q=phantom+gx+academy",
-    "imageUrl": "https://via.placeholder.com/400x250/111111/ffffff",
+    "purchaseUrl": "https://www.prodirectsport.com/products/nike-phantom-gx-academy-firm-ground-mixed-ground-hyper-turq-black-fuchsia-dream-white-mens-boots-1006814",
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/1006814_main.jpg?v=1774359951",
     "surfaces": [
-      "FG"
+      "FG",
+      "AG",
+      "TF",
+      "IC"
     ]
   },
   {
@@ -324,12 +343,15 @@
     "minWidth": 83,
     "maxWidth": 96,
     "sizeOffset": 0,
-    "price": 85,
+    "price": 45,
     "notes": "Speed boot at a mid-range price. Narrow fit, great for lean feet.",
-    "purchaseUrl": "https://www.nike.com/gb/w?q=mercurial+vapor+15+academy",
-    "imageUrl": "https://via.placeholder.com/400x250/cc0000/ffffff",
+    "purchaseUrl": "https://www.prodirectsport.com/products/nike-air-zoom-mercurial-vapor-xv-academy-firm-ground-mixed-ground-pink-foam-black-adult-cleats-1015906",
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/1015906_main.jpg?v=1774358474",
     "surfaces": [
-      "FG"
+      "FG",
+      "AG",
+      "TF",
+      "IC"
     ]
   },
   {
@@ -343,12 +365,16 @@
     "minWidth": 90,
     "maxWidth": 103,
     "sizeOffset": 0,
-    "price": 150,
+    "price": 160,
     "notes": "High-end Predator at a slightly lower price point. Standard fit with excellent control zones.",
-    "purchaseUrl": "https://www.adidas.co.uk/search?q=predator+accuracy.1",
-    "imageUrl": "https://via.placeholder.com/400x250/000000/ffffff",
+    "purchaseUrl": "https://www.prodirectsport.com/products/adidas-predator-accuracy1-fg-bright-royal-white-bliss-blue-mens-boots-1001997",
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/1001997_main.jpg?v=1774362162",
     "surfaces": [
-      "FG"
+      "FG",
+      "SG",
+      "AG",
+      "TF",
+      "IC"
     ]
   },
   {
@@ -442,12 +468,15 @@
     "minWidth": 89,
     "maxWidth": 103,
     "sizeOffset": 0,
-    "price": 75,
+    "price": 50,
     "notes": "Mid-range Predator with standard fit. Good value for the price.",
-    "purchaseUrl": "https://www.adidas.co.uk/search?q=predator+accuracy.3",
-    "imageUrl": "https://via.placeholder.com/400x250/000000/ffffff",
+    "purchaseUrl": "https://www.prodirectsport.com/products/adidas-predator-accuracy3-fg-bright-royal-white-bliss-blue-mens-boots-1002003",
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/1002003_main.jpg?v=1774348610",
     "surfaces": [
-      "FG"
+      "FG",
+      "SG",
+      "TF",
+      "IC"
     ]
   },
   {
@@ -461,12 +490,13 @@
     "minWidth": 95,
     "maxWidth": 110,
     "sizeOffset": 0,
-    "price": 70,
+    "price": 40,
     "notes": "Wide synthetic boot at a great price. Comfortable for wide-footed players on a budget.",
-    "purchaseUrl": "https://www.adidas.co.uk/search?q=copa+pure.3",
-    "imageUrl": "https://via.placeholder.com/400x250/ffffff/ffffff",
+    "purchaseUrl": "https://www.prodirectsport.com/products/adidas-copa-pure3-fg-off-white-team-solar-orange-off-white-mens-boots-281145",
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/281145_main.jpg?v=1774352118",
     "surfaces": [
-      "FG"
+      "FG",
+      "TF"
     ]
   },
   {
@@ -480,12 +510,13 @@
     "minWidth": 94,
     "maxWidth": 109,
     "sizeOffset": 0,
-    "price": 80,
+    "price": 25,
     "notes": "Stretchy mid-range boot with wide fit. Good all-rounder for wide-footed players.",
-    "purchaseUrl": "https://uk.puma.com/uk/en/search?q=future+7+match",
-    "imageUrl": "https://via.placeholder.com/400x250/0055a5/ffffff",
+    "purchaseUrl": "https://www.prodirectsport.com/products/puma-future-7-match-firm-ground-artificial-grass-gray-skies-puma-white-fizzy-apple-adult-boots-1019316",
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/1019316_main.jpg?v=1774233316",
     "surfaces": [
-      "FG"
+      "FG",
+      "AG"
     ]
   },
   {
@@ -519,12 +550,13 @@
     "minWidth": 94,
     "maxWidth": 108,
     "sizeOffset": 0,
-    "price": 90,
+    "price": 30,
     "notes": "Entry point into the Furon range. Wide fit at an accessible price.",
-    "purchaseUrl": "https://www.newbalance.co.uk/search?q=furon+v7+dispatch",
-    "imageUrl": "https://via.placeholder.com/400x250/cc0000/ffffff",
+    "purchaseUrl": "https://www.prodirectsport.com/products/new-balance-furon-v7-dispatch-fg-black-mens-cleats-283378",
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/283378_main.jpg?v=1774358827",
     "surfaces": [
-      "FG"
+      "FG",
+      "TF"
     ]
   },
   {
@@ -557,12 +589,14 @@
     "minWidth": 93,
     "maxWidth": 109,
     "sizeOffset": 0,
-    "price": 40,
+    "price": 20,
     "notes": "Entry-level Copa. Wide synthetic upper at a very accessible price.",
-    "purchaseUrl": "https://www.adidas.co.uk/search?q=copa+pure.4",
-    "imageUrl": "https://via.placeholder.com/400x250/ffffff/ffffff",
+    "purchaseUrl": "https://www.prodirectsport.com/products/adidas-copa-pure4-fg-white-core-black-lucid-lemon-mens-boots-1001934",
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/1001934_main.jpg?v=1774348562",
     "surfaces": [
-      "FG"
+      "FG",
+      "TF",
+      "IC"
     ]
   },
   {
@@ -576,12 +610,13 @@
     "minWidth": 88,
     "maxWidth": 102,
     "sizeOffset": 0,
-    "price": 45,
+    "price": 25,
     "notes": "Budget Predator with standard fit. Good entry-level boot for beginners.",
-    "purchaseUrl": "https://www.adidas.co.uk/search?q=predator+accuracy.4",
-    "imageUrl": "https://via.placeholder.com/400x250/000000/ffffff",
+    "purchaseUrl": "https://www.prodirectsport.com/products/adidas-predator-accuracy4-fg-bright-royal-white-bliss-blue-mens-boots-1002008",
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/1002008_main.jpg?v=1774348288",
     "surfaces": [
-      "FG"
+      "FG",
+      "TF"
     ]
   },
   {
@@ -595,12 +630,15 @@
     "minWidth": 93,
     "maxWidth": 109,
     "sizeOffset": 0,
-    "price": 45,
+    "price": 25,
     "notes": "Budget-friendly wide boot. Great for grassroots and beginners.",
-    "purchaseUrl": "https://uk.puma.com/uk/en/search?q=future+play",
-    "imageUrl": "https://via.placeholder.com/400x250/0055a5/ffffff",
+    "purchaseUrl": "https://www.prodirectsport.com/products/puma-future-play-fg-ag-sedate-gray-asphalt-yellow-blaze-mens-boots-1001757",
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/1001757_main.jpg?v=1774361434",
     "surfaces": [
-      "FG"
+      "FG",
+      "SG",
+      "AG",
+      "IC"
     ]
   },
   {
@@ -713,12 +751,13 @@
     "minWidth": 86,
     "maxWidth": 100,
     "sizeOffset": 0,
-    "price": 200,
+    "price": 100,
     "notes": "Women's adaptive boot with wide fit. Stretchy upper suits a range of foot shapes.",
-    "purchaseUrl": "https://uk.puma.com/uk/en/search?q=future+ultimate",
-    "imageUrl": "https://via.placeholder.com/400x250/0055a5/ffffff",
+    "purchaseUrl": "https://www.prodirectsport.com/products/puma-womens-future-ultimate-fg-ag-sedate-gray-asphalt-yellow-blaze-mens-cleats-1001753",
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/1001753_main.jpg?v=1774348608",
     "surfaces": [
-      "FG"
+      "FG",
+      "AG"
     ]
   },
   {
@@ -831,10 +870,10 @@
     "minWidth": 91,
     "maxWidth": 108,
     "sizeOffset": 0,
-    "price": 160,
+    "price": 126,
     "notes": "Premium cushioned trainer with standard fit. Excellent for long distances.",
-    "purchaseUrl": "https://www.asics.com/gb/en-gb/search/?q=gel-nimbus+26",
-    "imageUrl": "https://via.placeholder.com/400x250/003087/ffffff"
+    "purchaseUrl": "https://www.prodirectsport.com/products/asics-gel-nimbus-26-black-soothing-sea-mens-shoes-1014551",
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/1014551_main.jpg?v=1774346567"
   },
   {
     "brand": "Hoka",
@@ -927,10 +966,10 @@
     "minWidth": 89,
     "maxWidth": 103,
     "sizeOffset": 0,
-    "price": 170,
+    "price": 90,
     "notes": "Women's stability shoe with wide fit. Excellent support for overpronators.",
-    "purchaseUrl": "https://www.asics.com/gb/en-gb/search/?q=gel-kayano+31",
-    "imageUrl": "https://via.placeholder.com/400x250/003087/ffffff"
+    "purchaseUrl": "https://www.prodirectsport.com/products/asics-womens-gel-kayano-31-indigo-blue-pure-silver-womens-shoes-1028947",
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/1028947_main.jpg?v=1774352225"
   },
   {
     "brand": "Brooks",
@@ -975,10 +1014,10 @@
     "minWidth": 88,
     "maxWidth": 104,
     "sizeOffset": 0,
-    "price": 155,
+    "price": 96,
     "notes": "Women's wide runner with plush cushioning. Excellent for wide feet on long runs.",
-    "purchaseUrl": "https://www.newbalance.co.uk/search?q=fresh+foam+x+1080v13",
-    "imageUrl": "https://via.placeholder.com/400x250/cc0000/ffffff"
+    "purchaseUrl": "https://www.prodirectsport.com/products/new-balance-womens-fresh-foam-x-1080v13-sea-salt-womens-shoes-1010513",
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/1010513_main.jpg?v=1774356424"
   },
   {
     "brand": "Adidas",
@@ -1026,10 +1065,13 @@
     "minWidth": 97,
     "maxWidth": 109,
     "sizeOffset": 0,
-    "price": 90,
+    "price": 65,
     "notes": "Durable forward boot with 8-stud SG plate. Generous toe-box for wider feet.",
-    "purchaseUrl": "https://www.canterbury.com/boots/adult-boots.list",
-    "imageUrl": "https://via.placeholder.com/400x250/cc0000/ffffff"
+    "purchaseUrl": "https://www.prodirectsport.com/products/canterbury-stampede-team-sg-medieval-blue-blue-sapphire-mens-boots-1002230",
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/1002230_main.jpg?v=1774356155",
+    "surfaces": [
+      "SG"
+    ]
   },
   {
     "brand": "Canterbury",
@@ -1042,10 +1084,14 @@
     "minWidth": 83,
     "maxWidth": 95,
     "sizeOffset": 0,
-    "price": 160,
+    "price": 75,
     "notes": "Lightweight back-line boot with conical studs. Narrow and speed-focused.",
-    "purchaseUrl": "https://www.canterbury.com/boots/adult-boots.list",
-    "imageUrl": "https://via.placeholder.com/400x250/cc0000/ffffff"
+    "purchaseUrl": "https://www.prodirectsport.com/products/canterbury-speed-infinite-elite-fg-amber-yellow-orange-crush-mars-dust-adult-boots-1017444",
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/1017444_main.jpg?v=1774261043",
+    "surfaces": [
+      "FG",
+      "SG"
+    ]
   },
   {
     "brand": "Gilbert",
