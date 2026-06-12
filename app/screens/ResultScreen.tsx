@@ -73,31 +73,31 @@ const SURFACE_PAGES: {
     key: 'FG',
     title: 'Firm Ground',
     desc: 'For natural grass surfaces',
-    imageUrl: 'https://images.unsplash.com/photo-1599982890963-3aabd60064d2?w=800&q=70&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1533460004989-cef01064af7e?w=800&q=70&fit=crop',
   },
   {
     key: 'AG',
     title: 'Artificial Grass',
     desc: 'For long-bladed artificial grass',
-    imageUrl: 'https://images.unsplash.com/photo-1624880357913-a8539238245b?w=800&q=70&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1651220215941-5093b0d0d755?w=800&q=70&fit=crop',
   },
   {
     key: 'SG',
     title: 'Soft Ground',
     desc: 'For wet and muddy natural surfaces',
-    imageUrl: 'https://images.unsplash.com/photo-1518604666860-9ed391f76460?w=800&q=70&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1696191345363-5653919d8a8e?w=800&q=70&fit=crop',
   },
   {
     key: 'TF',
     title: 'Turf',
     desc: 'For short-bladed artificial turf',
-    imageUrl: 'https://images.unsplash.com/photo-1589487391730-58f20eb2c308?w=800&q=70&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1610729866389-fbf90649c302?w=800&q=70&fit=crop',
   },
   {
     key: 'IC',
     title: 'Indoor',
     desc: 'For flat indoor surfaces',
-    imageUrl: 'https://images.unsplash.com/photo-1505666287802-931dc83948e9?w=800&q=70&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1775993167393-f2add1f8eec2?w=800&q=70&fit=crop',
   },
 ];
 
@@ -406,6 +406,7 @@ export default function ResultScreen() {
   );
   const [brandFilter, setBrandFilter] = useState<Set<string> | null>(null);
   const [surface, setSurface] = useState<SurfaceFilter | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const surfaceListRef = useRef<FlatList>(null);
   const { width: windowWidth } = useWindowDimensions();
   const surfaceCardWidth = Math.round(windowWidth * 0.6);
@@ -500,23 +501,31 @@ export default function ResultScreen() {
         backgroundColor: p.heroBg,
         borderWidth: 1,
         borderColor: p.heroBorder,
-        padding: 16,
-        margin: 16,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        marginHorizontal: 16,
+        marginTop: 12,
+        marginBottom: 12,
         borderRadius: 14,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
       }}>
-        <Text style={{ fontSize: 11, fontWeight: '800', color: '#888', marginBottom: 8, letterSpacing: 1.5 }}>
-          YOUR FIT
-        </Text>
-        <Text style={{ fontSize: 24, fontWeight: '800', color: '#fff', marginBottom: 4 }}>
-          {adjustedLength.toFixed(1)} × {adjustedWidth.toFixed(1)}
-          <Text style={{ fontSize: 14, fontWeight: '700', color: '#888' }}>  mm with socks</Text>
-        </Text>
-        <Text style={{ color: '#888', fontSize: 12 }}>
-          {genderLabel} {sportLabel} · {sockLabel}{sockAdjustment > 0 ? ` (+${sockAdjustment} mm)` : ''}
+        <View>
+          <Text style={{ fontSize: 10, fontWeight: '800', color: '#888', marginBottom: 3, letterSpacing: 1.5 }}>
+            YOUR FIT · WITH SOCKS
+          </Text>
+          <Text style={{ fontSize: 21, fontWeight: '800', color: '#fff' }}>
+            {adjustedLength.toFixed(1)} × {adjustedWidth.toFixed(1)}
+            <Text style={{ fontSize: 13, fontWeight: '700', color: '#888' }}>  mm</Text>
+          </Text>
+        </View>
+        <Text style={{ color: '#888', fontSize: 11, textAlign: 'right', maxWidth: 140 }}>
+          {genderLabel} {sportLabel}{'\n'}{sockLabel}{sockAdjustment > 0 ? ` +${sockAdjustment} mm` : ''}
         </Text>
       </View>
 
-      <Text style={{ fontSize: 18, fontWeight: '700', color: p.text, paddingHorizontal: 16, marginBottom: 12 }}>
+      <Text style={{ fontSize: 18, fontWeight: '700', color: p.text, paddingHorizontal: 16, marginBottom: 10 }}>
         {headerText}
       </Text>
 
@@ -565,6 +574,31 @@ export default function ResultScreen() {
       )}
 
       <View style={{ paddingHorizontal: 16, marginBottom: 10 }}>
+        <Pressable
+          onPress={() => setFiltersOpen((v) => !v)}
+          style={{
+            alignSelf: 'flex-start',
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+            borderWidth: 1,
+            borderColor: p.chipBorder,
+            backgroundColor: filtersOpen ? p.ctaBg : p.card,
+            borderRadius: 4,
+            paddingHorizontal: 12,
+            paddingVertical: 7,
+            marginBottom: filtersOpen ? 10 : 0,
+          }}
+        >
+          <Text style={{ color: filtersOpen ? p.ctaText : p.text, fontSize: 11, fontWeight: '800', letterSpacing: 1 }}>
+            FILTERS {filtersOpen ? '−' : '+'}
+          </Text>
+          {(widthFilter.size < 3 || activeBrandFilter.size < allBrands.length || sort !== 'score') && (
+            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#2a8a3a' }} />
+          )}
+        </Pressable>
+        {filtersOpen && (
+        <>
         <View style={{ flexDirection: 'row', marginBottom: 8, borderRadius: 4, overflow: 'hidden', borderWidth: 1, borderColor: p.chipBorder }}>
           {(['score', 'price-asc', 'price-desc'] as SortMode[]).map((mode) => {
             const label = mode === 'score' ? 'BEST FIT' : mode === 'price-asc' ? 'PRICE ↑' : 'PRICE ↓';
@@ -638,6 +672,8 @@ export default function ResultScreen() {
               );
             })}
           </ScrollView>
+        )}
+        </>
         )}
       </View>
 
