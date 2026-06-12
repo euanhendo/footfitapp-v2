@@ -13,8 +13,8 @@ Array of boot objects. All measurements in mm. Every entry must include:
 {
   "brand": "string",
   "model": "string",
-  "gender": "mens | womens | unisex",
-  "sport": "football | running",
+  "gender": "mens | womens | unisex | kids",
+  "sport": "football | running | rugby",
   "width": "narrow | standard | wide",
   "minLength": 0,
   "maxLength": 0,
@@ -23,15 +23,16 @@ Array of boot objects. All measurements in mm. Every entry must include:
   "sizeOffset": 0,
   "price": 0,
   "notes": "string",
-  "purchaseUrl": "https://www.google.com/search?q=Brand+Model+site:prodirectsoccer.com",
+  "purchaseUrl": "https://...",
   "imageUrl": "string"
 }
 ```
 
-- `purchaseUrl` defaults to a Google search scoped to prodirectsoccer.com
-- Width ranges: narrow (~82–94mm), standard (~89–101mm), wide (~95–108mm)
-- Length ranges should cover UK 5–12 (~240–299mm)
+- `purchaseUrl`: prefer a direct retailer product page (Pro:Direct `…/products/<handle>` for imported entries), else a brand-site search URL (`nike.com/gb/w?q=<model>` etc.). Never a Google search.
+- Width bands (mens): narrow (~82–94mm), standard (~89–101mm), wide (~95–108mm). Womens bands sit ~7mm lower; kids bands scale with the size run's mid-length relative to UK 8 (265mm).
+- Length ranges: mens typically UK 5–12 (~240–299mm); womens convention is 220–262mm; kids from the junior run (child 10K ≈ 176mm up to junior 5.5 ≈ 244mm). Junior size tables live in `lib/fitting.ts` (`10K`–`13.5K` child keys, continuous 1–5.5 junior).
 - `sizeOffset` (mm) shifts the per-boot size recommendation vs. the universal UK/EU/US tables. `0` = true-to-size (default). Negative = runs small (recommend going up — e.g. `-3` for a model that's consistently ~3mm short). Positive = runs large. Leave at `0` unless you have size-chart evidence.
+- Bulk imports come from `scripts/import-prodirect.mjs` (Pro:Direct Shopify JSON → deduped models; fit data inherited from curated family entries, unmatched families get standard defaults flagged in `notes`). Re-run it to refresh prices/links. Curated fit knowledge always wins over scraped data.
 
 ### sockDatabase.json
 
