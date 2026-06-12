@@ -85,6 +85,21 @@ failure mode met on device now has a unit-tested defence:
 light** (length within ~6 mm; occasional low-confidence dud frames are
 median-resistant — production flow should burst-and-median like v2).
 
+## Where night one ended (00:19, 2026-06-13)
+
+- **Width is solved.** Calibrated width read 109.0 / 111.7 / 108–113 across
+  every stance, floor, and lighting tried all night vs ruler truth 107–110.
+- **Length heel-datum is THE open problem.** Floor-contact anchoring did not
+  stabilise it (medians 203.7 / 148.5, one 392 capture): where the arch
+  hovers, too few low points → real foot amputated; where the shin halo is
+  dense, too many → leg admitted. Slice-local rules with one threshold
+  cannot serve both — stop tuning them.
+- **Next design, not next dial: ankle-saddle detection.** The height profile
+  along the foot axis always dips between instep and shin; cut at that
+  global saddle, then take the rearmost low point behind it as the heel.
+  Also worth pairing with stance coaching ("stand tall, knee over ankle" —
+  the upright-stance round at 21:55 was the night's best: 258.8 median).
+
 ## Next session
 
 - ~~Fresh ground truth~~ **Done same night: right foot = 263 × 107 by
