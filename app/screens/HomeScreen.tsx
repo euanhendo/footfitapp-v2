@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import { createFitProfileStore, FitProfile, StorageAdapter } from '../../lib/fitProfile';
@@ -8,24 +8,38 @@ import { createFitProfileStore, FitProfile, StorageAdapter } from '../../lib/fit
 type Sport = 'football' | 'running' | 'rugby';
 type Gender = 'mens' | 'womens' | 'kids';
 
-// Boot-level action shots — every hero image is about feet, like the app.
-const SPORTS: { id: Sport; label: string; imageUrl: string }[] = [
+// Action shots of the sports we fit — each band rotates through its set.
+const SPORTS: { id: Sport; label: string; imageUrls: string[] }[] = [
   {
     id: 'football',
     label: 'Football',
-    imageUrl: 'https://images.unsplash.com/photo-1553778263-73a83bab9b0c?w=1200&q=70&fit=crop',
+    imageUrls: [
+      'https://images.unsplash.com/photo-1553778263-73a83bab9b0c?w=1200&q=70&fit=crop',
+      'https://images.unsplash.com/photo-1560272564-c83b66b1ad12?w=1200&q=70&fit=crop',
+      'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=1200&q=70&fit=crop',
+    ],
   },
   {
     id: 'running',
     label: 'Running',
-    imageUrl: 'https://images.unsplash.com/photo-1571008887538-b36bb32f4571?w=1200&q=70&fit=crop',
+    imageUrls: [
+      'https://images.unsplash.com/photo-1571008887538-b36bb32f4571?w=1200&q=70&fit=crop',
+      'https://images.unsplash.com/photo-1502904550040-7534597429ae?w=1200&q=70&fit=crop',
+      'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=1200&q=70&fit=crop',
+    ],
   },
   {
     id: 'rugby',
     label: 'Rugby',
-    imageUrl: 'https://images.unsplash.com/photo-1558151507-c1aa3d917dbb?w=1200&q=70&fit=crop',
+    imageUrls: [
+      'https://images.unsplash.com/photo-1558151507-c1aa3d917dbb?w=1200&q=70&fit=crop',
+      'https://images.unsplash.com/photo-1480099225005-2513c8947aec?w=1200&q=70&fit=crop',
+    ],
   },
 ];
+
+const BAND_ROTATE_MS = 4500;
+const BAND_CROSSFADE_MS = 900;
 
 const GENDER_TABS: { id: Gender; label: string; enabled: boolean }[] = [
   { id: 'mens', label: 'MEN', enabled: true },
@@ -56,14 +70,53 @@ function daysAgo(isoDate: string): string {
 
 function SportBand({
   label,
-  imageUrl,
+  imageUrls,
+  staggerMs,
   onPress,
 }: {
   label: string;
-  imageUrl: string;
+  imageUrls: string[];
+  staggerMs: number;
   onPress: () => void;
 }) {
-  const [imageFailed, setImageFailed] = useState(false);
+  const [index, setIndex] = useState(0);
+  const [badUrls, setBadUrls] = useState<string[]>([]);
+  const fade = useRef(new Animated.Value(1)).current;
+
+  const urls = imageUrls.filter((u) => !badUrls.includes(u));
+  const current = urls.length > 0 ? urls[index % urls.length] : null;
+  const next = urls.length > 1 ? urls[(index + 1) % urls.length] : null;
+
+  // Crossfade: the next image sits underneath, the current one fades away on
+  // top, then indices swap with no visible jump. The bottom image doubles as
+  // the preloader for the upcoming frame. Bands start staggered so the three
+  // don't all flip in sync.
+  useEffect(() => {
+    if (urls.length < 2) return;
+    let interval: ReturnType<typeof setInterval> | undefined;
+    const timeout = setTimeout(() => {
+      interval = setInterval(() => {
+        Animated.timing(fade, {
+          toValue: 0,
+          duration: BAND_CROSSFADE_MS,
+          useNativeDriver: true,
+        }).start(({ finished }) => {
+          if (!finished) return;
+          setIndex((i) => i + 1);
+          fade.setValue(1);
+        });
+      }, BAND_ROTATE_MS);
+    }, staggerMs);
+    return () => {
+      clearTimeout(timeout);
+      if (interval) clearInterval(interval);
+    };
+  }, [urls.length, staggerMs, fade]);
+
+  const markBad = (url: string | null) => {
+    if (url) setBadUrls((prev) => (prev.includes(url) ? prev : [...prev, url]));
+  };
+
   return (
     <Pressable
       onPress={onPress}
@@ -75,12 +128,20 @@ function SportBand({
         marginBottom: 12,
       }}
     >
-      {!imageFailed && (
+      {next && (
         <Image
-          source={{ uri: imageUrl }}
+          source={{ uri: next }}
           style={{ position: 'absolute', width: '100%', height: '100%' }}
           resizeMode="cover"
-          onError={() => setImageFailed(true)}
+          onError={() => markBad(next)}
+        />
+      )}
+      {current && (
+        <Animated.Image
+          source={{ uri: current }}
+          style={{ position: 'absolute', width: '100%', height: '100%', opacity: fade }}
+          resizeMode="cover"
+          onError={() => markBad(current)}
         />
       )}
       <View style={{ position: 'absolute', width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.32)' }} />
@@ -326,11 +387,12 @@ export default function HomeScreen() {
           CHOOSE YOUR SPORT
         </Text>
 
-        {SPORTS.map((sport) => (
+        {SPORTS.map((sport, i) => (
           <SportBand
             key={sport.id}
             label={sport.label}
-            imageUrl={sport.imageUrl}
+            imageUrls={sport.imageUrls}
+            staggerMs={i * 1500}
             onPress={() => handleSportPress(sport.id)}
           />
         ))}
