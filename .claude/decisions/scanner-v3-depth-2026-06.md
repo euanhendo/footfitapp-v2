@@ -87,13 +87,15 @@ median-resistant — production flow should burst-and-median like v2).
 
 ## Next session
 
-- **Fresh ground truth first**: pen-mark length + tape width on the SAME
-  foot being scanned, note which foot — the 255 (pen, 06-11) vs ~263–265
-  (tape, 06-12) length discrepancy is still unresolved.
-- Width sits consistently −11 mm (98–101 vs 110): signature of edge-pixel
-  erosion on both sides. Fit a v3 silhouette bias (the depth twin of
-  `WIDTH_SILHOUETTE_BIAS_MM`) from several trusted bright-light captures —
-  not from tonight's mixed data.
+- ~~Fresh ground truth~~ **Done same night: right foot = 263 × 107 by
+  pen/ruler** (the old 255 figure was retracted as a mismeasurement — same
+  right foot all along; ALL scanner validation to date is right-foot).
+- ~~Width bias~~ **Fitted same night**: edge-pixel erosion compensation in
+  pixel units scaled by pixel pitch (`LENGTH_EDGE_EROSION_PX = 1.2`,
+  `WIDTH_EDGE_EROSION_PX = 2.5`, fitted at ~3.5 mm/px from raw medians
+  258.8 × 98.3 vs 263 × 107). **In-sample fit, n=1 foot** — needs
+  out-of-sample validation: the user's LEFT foot (believed slightly larger)
+  is the natural first independent test.
 - Then: burst capture + median, v3 trust threshold from real confidence
   values, and capture-condition guidance (hard floor beats carpet; ambient
   light helps the RGB-fused depth).

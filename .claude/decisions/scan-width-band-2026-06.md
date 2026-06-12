@@ -44,7 +44,8 @@ oriented-box width. Length path untouched — it is device-validated.
 
 - Mid-foot shadow lobes inside the band would still inflate width; the
   redness-pass + 0.85 trust gate remain the defence there.
-- Cross-day length discrepancy unexplained: pen said 255–256 (2026-06-11),
-  user's tape said 263 (2026-06-12) and scanner agreed with each on the day.
-  Possibly different feet, tape-over-instep curvature, or a heel-edge gap.
-  Ask which foot before drawing conclusions; don't retune length.
+- ~~Cross-day length discrepancy unexplained~~ **Resolved 2026-06-12 (late):
+  user retracted the 255–256 pen figure as a mismeasurement. Same right foot
+  throughout; true length 263 mm (re-measured with ruler), width 107 mm by
+  ruler vs 110 by tape (technique variance). Don't retune length — the
+  scanner's 263 readings were correct.

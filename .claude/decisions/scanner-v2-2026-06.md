@@ -1,10 +1,10 @@
 # Scanner v2 — classical CV, shipped 2026-06-11
 
-A4-reference foot scanner (Apple Vision via `modules/footfit-vision`) merged to `main` after on-device validation: **scanner median 256.1 mm vs pen-and-tape 255–256 mm**.
+A4-reference foot scanner (Apple Vision via `modules/footfit-vision`) merged to `main` after on-device validation: **scanner median 256.1 mm vs pen-and-tape 255–256 mm**. _(Correction 2026-06-12: the user retracted that pen figure as a mismeasurement — his right foot, the reference foot for all validation, is actually 263 × 107 by pen/ruler, and the v2 scanner read 263 on-device that day. See scan-width-band-2026-06.md.)_
 
 ## The decisive lesson: validate the ground truth first
 
-Two days were spent chasing a ~20 mm "length error" that did not exist. The gate target (275 × 110) came from the owner's UK 9 size label, never from a tape measure; his foot is actually ≈ 255.5 × ~112. The error being hunted was the product thesis itself — people don't know their real size. **Any future accuracy work starts with a pen mark on the paper and a tape measure, before touching code.**
+Two days were spent chasing a ~20 mm "length error" that did not exist. The gate target (275 × 110) came from the owner's UK 9 size label, never from a tape measure; his right foot is actually ≈ 263 × 107 (the first pen reading of 255.5 was itself later retracted as a mismeasurement — even ground truth needs a second measurement). The error being hunted was the product thesis itself — people don't know their real size. **Any future accuracy work starts with a pen mark on the paper and a tape measure, before touching code — and measure twice.**
 
 ## What made it accurate (keep)
 
