@@ -34,8 +34,11 @@ oriented-box width. Length path untouched — it is device-validated.
 
 - Branch `fix/scan-width-band`, all 266 tests green incl. a replica of the
   bug (foot + 150 mm leg lobe reads 110, was 150).
-- **Merge gate: device validation.** User scans on return; accept if width
-  reads ~110 ± a few mm against his tape. `WIDTH_SILHOUETTE_BIAS_MM` stays 0.
+- ~~**Merge gate: device validation.**~~ **GATE PASSED 2026-06-12 evening:**
+  fresh device build, user re-scanned the tape-measured foot — width read
+  **110 vs tape 110** ("bang on the money"), length 265 consistent with his
+  tape. Scanner v2 is now physically validated on both axes.
+  `WIDTH_SILHOUETTE_BIAS_MM` stays 0.
 
 ## Open residuals
 
