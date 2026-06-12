@@ -97,8 +97,14 @@ median-resistant — production flow should burst-and-median like v2).
 - **Next design, not next dial: ankle-saddle detection.** The height profile
   along the foot axis always dips between instep and shin; cut at that
   global saddle, then take the rearmost low point behind it as the heel.
-  Also worth pairing with stance coaching ("stand tall, knee over ankle" —
-  the upright-stance round at 21:55 was the night's best: 258.8 median).
+- **00:27 closing result — stance is the dominant factor.** Coached
+  straight-leg bursts: upright at 5° tilt read **261.2 × 109.3 vs ruler
+  263 × 107–110** (length −1.8 mm, width dead on); a slight lean at 9° tilt
+  read 285.6. Production conclusion: the math is ruler-grade when the shin
+  is vertical, so v3's flow must coach stance hard (v2's guide-lock lesson
+  repeating) — tighten the tilt gate (5° good / 9° bad), add "stand tall,
+  knee over ankle" coaching, and build the ankle-saddle cut as the safety
+  net for users who lean anyway.
 
 ## Next session
 
