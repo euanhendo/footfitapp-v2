@@ -79,31 +79,46 @@ function SportBand({
   staggerMs: number;
   onPress: () => void;
 }) {
-  const [index, setIndex] = useState(0);
   const [badUrls, setBadUrls] = useState<string[]>([]);
-  const fade = useRef(new Animated.Value(1)).current;
-
   const urls = imageUrls.filter((u) => !badUrls.includes(u));
-  const current = urls.length > 0 ? urls[index % urls.length] : null;
-  const next = urls.length > 1 ? urls[(index + 1) % urls.length] : null;
+  const urlsKey = urls.join('|');
 
-  // Crossfade: the next image sits underneath, the current one fades away on
-  // top, then indices swap with no visible jump. The bottom image doubles as
-  // the preloader for the upcoming frame. Bands start staggered so the three
-  // don't all flip in sync.
+  // Double-buffered crossfade: two stacked image slots, A on top with animated
+  // opacity over a static B. A photo is only ever swapped into a slot while
+  // that slot is fully invisible (a whole cycle before it shows), so the swap
+  // can never flash the old frame. Bands start staggered so the three don't
+  // all flip in sync.
+  const [srcA, setSrcA] = useState<string | null>(urls[0] ?? null);
+  const [srcB, setSrcB] = useState<string | null>(urls.length > 1 ? urls[1] : null);
+  const opacityA = useRef(new Animated.Value(1)).current;
+  const showingA = useRef(true);
+  const cursor = useRef(0);
+
   useEffect(() => {
-    if (urls.length < 2) return;
+    const list = urlsKey ? urlsKey.split('|') : [];
+    setSrcA(list[0] ?? null);
+    setSrcB(list.length > 1 ? list[1] : null);
+    opacityA.setValue(1);
+    showingA.current = true;
+    cursor.current = 0;
+    if (list.length < 2) return;
+
     let interval: ReturnType<typeof setInterval> | undefined;
     const timeout = setTimeout(() => {
       interval = setInterval(() => {
-        Animated.timing(fade, {
-          toValue: 0,
+        const revealA = !showingA.current;
+        Animated.timing(opacityA, {
+          toValue: revealA ? 1 : 0,
           duration: BAND_CROSSFADE_MS,
           useNativeDriver: true,
         }).start(({ finished }) => {
           if (!finished) return;
-          setIndex((i) => i + 1);
-          fade.setValue(1);
+          showingA.current = revealA;
+          cursor.current += 1;
+          const upcoming = list[(cursor.current + 1) % list.length];
+          // Restock the now-hidden slot for the cycle after next.
+          if (revealA) setSrcB(upcoming);
+          else setSrcA(upcoming);
         });
       }, BAND_ROTATE_MS);
     }, staggerMs);
@@ -111,7 +126,7 @@ function SportBand({
       clearTimeout(timeout);
       if (interval) clearInterval(interval);
     };
-  }, [urls.length, staggerMs, fade]);
+  }, [urlsKey, staggerMs, opacityA]);
 
   const markBad = (url: string | null) => {
     if (url) setBadUrls((prev) => (prev.includes(url) ? prev : [...prev, url]));
@@ -128,20 +143,20 @@ function SportBand({
         marginBottom: 12,
       }}
     >
-      {next && (
+      {srcB && (
         <Image
-          source={{ uri: next }}
+          source={{ uri: srcB }}
           style={{ position: 'absolute', width: '100%', height: '100%' }}
           resizeMode="cover"
-          onError={() => markBad(next)}
+          onError={() => markBad(srcB)}
         />
       )}
-      {current && (
+      {srcA && (
         <Animated.Image
-          source={{ uri: current }}
-          style={{ position: 'absolute', width: '100%', height: '100%', opacity: fade }}
+          source={{ uri: srcA }}
+          style={{ position: 'absolute', width: '100%', height: '100%', opacity: opacityA }}
           resizeMode="cover"
-          onError={() => markBad(current)}
+          onError={() => markBad(srcA)}
         />
       )}
       <View style={{ position: 'absolute', width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.32)' }} />
