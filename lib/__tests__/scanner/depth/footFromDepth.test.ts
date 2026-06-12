@@ -87,6 +87,24 @@ describe('trimLegShadow', () => {
     expect(trimmed.every((p) => p.hMm < 100)).toBe(true);
   });
 
+  it('still cuts a leg ringed by floor-blended edge pixels', () => {
+    const samples: FootSample[] = [];
+    // Leg shadow with a thin low fringe (~13% of each slice), as seen on
+    // bright hard floor: one blended edge pixel per side.
+    for (let y = 0; y < 80; y += 5) {
+      samples.push({ x: -35, y, hMm: 20 });
+      samples.push({ x: 35, y, hMm: 25 });
+      for (let x = -30; x <= 30; x += 5) samples.push({ x, y, hMm: 105 });
+    }
+    for (let y = 80; y <= 335; y += 5) {
+      for (let x = -50; x <= 50; x += 10) samples.push({ x, y, hMm: 8 + (y % 30) });
+    }
+    const trimmed = trimLegShadow(samples);
+    const ys = trimmed.map((p) => p.y);
+    expect(Math.min(...ys)).toBe(0);
+    expect(Math.max(...ys)).toBe(255);
+  });
+
   it('leaves a clean foot untouched', () => {
     const samples: FootSample[] = [];
     for (let y = 0; y <= 250; y += 5) samples.push({ x: 0, y, hMm: 20 });

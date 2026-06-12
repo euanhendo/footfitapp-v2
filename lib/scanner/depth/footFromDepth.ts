@@ -114,13 +114,15 @@ export function segmentFootPoints(points: Vec3[], plane: FloorPlane): FootSample
 // The ankle/shin is connected to the foot, so clustering can't remove it and
 // it stretches length backward (device 2026-06-12: bare leg read 353 median
 // against a 265 foot, and the bent foot+shin axis poisoned the yaw correction
-// so width under-read). The discriminator: real foot slices contain points
-// near floor level (toes ~10 mm, heel pad ~25 mm), while the leg's occlusion
-// shadow hovers — its lowest point stays high. Walking from the rear, slices
-// whose minimum height stays above 55 mm are leg, and are amputated; the
-// first slice with a genuinely low point is the back of the heel.
+// so width under-read). The discriminator: real foot slices are MOSTLY
+// points near floor level (toes ~10 mm, heel pad ~25 mm), while the leg's
+// occlusion shadow hovers. A strict "any low point" test failed on device:
+// crisp lighting draws a thin halo of floor-blended edge pixels along the
+// shin outline (~10% of a slice), faking floor contact — so a slice only
+// counts as foot when a meaningful fraction of it is low.
 const TRIM_SLICE_MM = 10;
 const LEG_ONLY_MIN_HEIGHT_MM = 55;
+const FOOT_LOW_POINT_FRACTION = 0.2;
 
 export function trimLegShadow(points: FootSample[]): FootSample[] {
   if (points.length === 0) return points;
@@ -129,13 +131,15 @@ export function trimLegShadow(points: FootSample[]): FootSample[] {
     if (p.y > maxY) maxY = p.y;
   }
   const bins = Math.max(1, Math.ceil(maxY / TRIM_SLICE_MM));
-  const minH = new Array<number>(bins).fill(Infinity);
+  const total = new Array<number>(bins).fill(0);
+  const low = new Array<number>(bins).fill(0);
   for (const p of points) {
     const bin = Math.min(bins - 1, Math.floor(p.y / TRIM_SLICE_MM));
-    if (p.hMm < minH[bin]) minH[bin] = p.hMm;
+    total[bin]++;
+    if (p.hMm <= LEG_ONLY_MIN_HEIGHT_MM) low[bin]++;
   }
   let cut = 0;
-  while (cut < bins && minH[cut] > LEG_ONLY_MIN_HEIGHT_MM) cut++;
+  while (cut < bins && low[cut] < Math.max(2, total[cut] * FOOT_LOW_POINT_FRACTION)) cut++;
   if (cut === 0) return points;
   const yCut = cut * TRIM_SLICE_MM;
   return points.filter((p) => p.y >= yCut).map((p) => ({ ...p, y: p.y - yCut }));
