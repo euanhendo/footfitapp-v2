@@ -6,7 +6,7 @@ import * as SecureStore from 'expo-secure-store';
 import { createFitProfileStore, FitProfile, StorageAdapter } from '../../lib/fitProfile';
 
 type Sport = 'football' | 'running' | 'rugby';
-type Gender = 'mens' | 'womens';
+type Gender = 'mens' | 'womens' | 'kids';
 
 // Boot-level action shots — every hero image is about feet, like the app.
 const SPORTS: { id: Sport; label: string; imageUrl: string }[] = [
@@ -27,11 +27,10 @@ const SPORTS: { id: Sport; label: string; imageUrl: string }[] = [
   },
 ];
 
-// Kids stays visible but disabled until junior boots land in bootDatabase.json.
-const GENDER_TABS: { id: Gender | 'kids'; label: string; enabled: boolean }[] = [
+const GENDER_TABS: { id: Gender; label: string; enabled: boolean }[] = [
   { id: 'mens', label: 'MEN', enabled: true },
   { id: 'womens', label: 'WOMEN', enabled: true },
-  { id: 'kids', label: 'KIDS', enabled: false },
+  { id: 'kids', label: 'KIDS', enabled: true },
 ];
 
 const storage: StorageAdapter = {
@@ -169,6 +168,8 @@ export default function HomeScreen() {
       ? "Men's"
       : savedProfile?.gender === 'womens'
       ? "Women's"
+      : savedProfile?.gender === 'kids'
+      ? "Kids'"
       : 'Unisex';
 
   return (

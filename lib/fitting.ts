@@ -1,7 +1,26 @@
 import { computePersonalOffsetMm } from './fitCalibration';
 import { OwnedShoe } from './ownedShoes';
 
+// Junior sizes extend the same continuous UK scale below adult 5 in 4 mm
+// half-steps. Child sizes (10–13.5) restart the numbering, so they carry a
+// K suffix to avoid colliding with adult 10–13.5.
 export const UK_SIZE_TO_LENGTH_MM: Record<string, number> = {
+  '10K': 176,
+  '10.5K': 180,
+  '11K': 184,
+  '11.5K': 188,
+  '12K': 192,
+  '12.5K': 196,
+  '13K': 200,
+  '13.5K': 204,
+  '1': 208,
+  '1.5': 212,
+  '2': 216,
+  '2.5': 220,
+  '3': 224,
+  '3.5': 228,
+  '4': 232,
+  '4.5': 236,
   '5': 240,
   '5.5': 244,
   '6': 248,
@@ -20,6 +39,17 @@ export const UK_SIZE_TO_LENGTH_MM: Record<string, number> = {
 };
 
 export const EU_SIZE_TO_LENGTH_MM: Record<string, number> = {
+  '28': 173,
+  '29': 180,
+  '30': 186,
+  '31': 193,
+  '32': 199,
+  '33': 206,
+  '34': 212,
+  '35': 219,
+  '36': 225,
+  '37': 232,
+  '38': 238,
   '39': 245,
   '40': 252,
   '41': 258,
@@ -31,7 +61,24 @@ export const EU_SIZE_TO_LENGTH_MM: Record<string, number> = {
   '47': 298,
 };
 
+// US kids: C = child, Y = youth (US runs a half size above UK juniors).
 export const US_SIZE_TO_LENGTH_MM: Record<string, number> = {
+  '10.5C': 176,
+  '11C': 180,
+  '11.5C': 184,
+  '12C': 188,
+  '12.5C': 192,
+  '13C': 196,
+  '13.5C': 200,
+  '1Y': 204,
+  '1.5Y': 208,
+  '2Y': 212,
+  '2.5Y': 216,
+  '3Y': 220,
+  '3.5Y': 224,
+  '4Y': 228,
+  '4.5Y': 232,
+  '5Y': 236,
   '6': 240,
   '6.5': 244,
   '7': 248,
@@ -68,10 +115,34 @@ export function estimateWidthFromLength(lengthMm: number, widthProfile: WidthPro
   return Math.round(lengthMm * WIDTH_RATIOS[widthProfile]);
 }
 
-export function getEstimatedLengthMm(sizeSystem: SizeSystem, sizeValue: string): number {
-  const cleanValue = String(sizeValue).trim();
-  if (sizeSystem === 'UK') return UK_SIZE_TO_LENGTH_MM[cleanValue] ?? 0;
-  if (sizeSystem === 'US') return US_SIZE_TO_LENGTH_MM[cleanValue] ?? 0;
+// `junior` reinterprets ambiguous numeric sizes on the kids scale: UK/US
+// 10–13.5 become child sizes, US 1–5 become youth sizes. Explicit suffixes
+// ("13K", "3Y", "11.5C") work in any mode; EU numbering is already unique.
+export function getEstimatedLengthMm(
+  sizeSystem: SizeSystem,
+  sizeValue: string,
+  junior: boolean = false,
+): number {
+  const cleanValue = String(sizeValue).trim().toUpperCase();
+  if (sizeSystem === 'UK') {
+    if (junior) {
+      const n = Number(cleanValue);
+      if (Number.isFinite(n) && n >= 10 && n <= 13.5) {
+        return UK_SIZE_TO_LENGTH_MM[`${cleanValue}K`] ?? 0;
+      }
+    }
+    return UK_SIZE_TO_LENGTH_MM[cleanValue] ?? 0;
+  }
+  if (sizeSystem === 'US') {
+    if (junior) {
+      const n = Number(cleanValue);
+      if (Number.isFinite(n)) {
+        if (n >= 10 && n <= 13.5) return US_SIZE_TO_LENGTH_MM[`${cleanValue}C`] ?? 0;
+        if (n >= 1 && n <= 5) return US_SIZE_TO_LENGTH_MM[`${cleanValue}Y`] ?? 0;
+      }
+    }
+    return US_SIZE_TO_LENGTH_MM[cleanValue] ?? 0;
+  }
   return EU_SIZE_TO_LENGTH_MM[cleanValue] ?? 0;
 }
 

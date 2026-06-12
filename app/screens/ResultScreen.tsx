@@ -370,7 +370,13 @@ export default function ResultScreen() {
       ? 'Rugby boots'
       : 'Running shoes';
   const genderLabel =
-    gender === 'mens' ? "Men's" : gender === 'womens' ? "Women's" : 'Unisex';
+    gender === 'mens'
+      ? "Men's"
+      : gender === 'womens'
+      ? "Women's"
+      : gender === 'kids'
+      ? "Kids'"
+      : 'Unisex';
 
   const headerText = matches.length > 0
     ? `${matches.length} match${matches.length === 1 ? '' : 'es'} for you`

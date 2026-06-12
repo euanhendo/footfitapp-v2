@@ -24,7 +24,7 @@ import {
 
 type InputMode = 'size' | 'manual';
 type Sport = 'football' | 'running' | 'rugby';
-type Gender = 'mens' | 'womens' | 'unisex';
+type Gender = 'mens' | 'womens' | 'unisex' | 'kids';
 
 function SelectButton({
   label,
@@ -76,8 +76,8 @@ export default function ManualInputScreen() {
 
   const estimatedLength = useMemo(() => {
     if (inputMode !== 'size') return 0;
-    return getEstimatedLengthMm(sizeSystem, shoeSize);
-  }, [inputMode, sizeSystem, shoeSize]);
+    return getEstimatedLengthMm(sizeSystem, shoeSize, gender === 'kids');
+  }, [inputMode, sizeSystem, shoeSize, gender]);
 
   const estimatedWidth = useMemo(() => {
     if (inputMode !== 'size') return 0;
@@ -212,7 +212,11 @@ export default function ManualInputScreen() {
                 <TextInput
                   value={shoeSize}
                   onChangeText={setShoeSize}
-                  placeholder={sizeSystem === 'UK' ? 'e.g. 8.5' : sizeSystem === 'US' ? 'e.g. 9.5' : 'e.g. 43'}
+                  placeholder={
+                    gender === 'kids'
+                      ? sizeSystem === 'EU' ? 'e.g. 33' : 'e.g. 12 or 2.5'
+                      : sizeSystem === 'UK' ? 'e.g. 8.5' : sizeSystem === 'US' ? 'e.g. 9.5' : 'e.g. 43'
+                  }
                   keyboardType="decimal-pad"
                   returnKeyType="done"
                   onSubmitEditing={Keyboard.dismiss}
@@ -221,9 +225,14 @@ export default function ManualInputScreen() {
                     borderColor: '#ccc',
                     borderRadius: 8,
                     padding: 12,
-                    marginBottom: 16,
+                    marginBottom: gender === 'kids' ? 6 : 16,
                   }}
                 />
+                {gender === 'kids' && (
+                  <Text style={{ fontSize: 12, color: '#666', lineHeight: 17, marginBottom: 16 }}>
+                    Kids sizes: 10–13.5 are child sizes, 1–5.5 are junior sizes.
+                  </Text>
+                )}
 
                 <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 10 }}>
                   Foot width feel

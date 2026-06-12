@@ -36,6 +36,36 @@ describe('getEstimatedLengthMm', () => {
     expect(getEstimatedLengthMm('UK', ' 8 ')).toBe(265);
     expect(getEstimatedLengthMm('EU', ' 42 ')).toBe(265);
   });
+
+  it('reads UK junior sizes on the continuous scale', () => {
+    expect(getEstimatedLengthMm('UK', '1')).toBe(208);
+    expect(getEstimatedLengthMm('UK', '3.5')).toBe(228);
+    expect(getEstimatedLengthMm('UK', '4.5')).toBe(236);
+  });
+
+  it('reinterprets UK 10-13.5 as child sizes in junior mode only', () => {
+    expect(getEstimatedLengthMm('UK', '13', true)).toBe(200);
+    expect(getEstimatedLengthMm('UK', '10', true)).toBe(176);
+    expect(getEstimatedLengthMm('UK', '13')).toBe(0);
+    expect(getEstimatedLengthMm('UK', '10')).toBe(282);
+  });
+
+  it('accepts explicit child/youth suffixes in any mode', () => {
+    expect(getEstimatedLengthMm('UK', '13k')).toBe(200);
+    expect(getEstimatedLengthMm('US', '3y')).toBe(220);
+    expect(getEstimatedLengthMm('US', '11.5C')).toBe(184);
+  });
+
+  it('maps US junior-mode numbers to youth and child scales', () => {
+    expect(getEstimatedLengthMm('US', '11', true)).toBe(180);
+    expect(getEstimatedLengthMm('US', '3', true)).toBe(220);
+    expect(getEstimatedLengthMm('US', '9', true)).toBe(265);
+  });
+
+  it('reads EU junior sizes without a mode flag', () => {
+    expect(getEstimatedLengthMm('EU', '30')).toBe(186);
+    expect(getEstimatedLengthMm('EU', '38')).toBe(238);
+  });
 });
 
 describe('estimateWidthFromLength', () => {
@@ -196,8 +226,14 @@ describe('recommendSize', () => {
     expect(recommendSize(265).uk).toBe('8');
   });
 
-  it('clamps to the smallest size when effective length is below the table', () => {
-    expect(recommendSize(220, 0).uk).toBe('5');
+  it('resolves small feet to junior sizes on the continuous scale', () => {
+    expect(recommendSize(220, 0).uk).toBe('2.5');
+    expect(recommendSize(200, 0).uk).toBe('13K');
+    expect(recommendSize(177, 0).uk).toBe('10K');
+  });
+
+  it('clamps to the smallest child size when below the table', () => {
+    expect(recommendSize(150, 0).uk).toBe('10K');
   });
 
   it('clamps to the largest size when effective length is above the table', () => {

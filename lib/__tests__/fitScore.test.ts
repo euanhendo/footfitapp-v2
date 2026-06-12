@@ -526,14 +526,16 @@ describe('describeLengthFit', () => {
   });
 
   it('translates half-a-size and full-size room for big gaps', () => {
-    // Smaller minLength keeps these feet in range below the UK 5 nominal (240).
-    const longRun: Boot = { ...testBoot, minLength: 220 };
-    // Foot 235 → UK 5 (240), gap 5mm.
-    expect(describeLengthFit(longRun, 235)).toContain('half a size of space');
-    // Foot 232 → UK 5 (240), gap 8mm.
-    expect(describeLengthFit(longRun, 232)).toContain('a full size of space');
-    // Foot 228 → UK 5 (240), gap 12mm.
-    expect(describeLengthFit(longRun, 228)).toContain('too loose');
+    // The continuous junior table keeps the recommended size within ~2 mm of
+    // any foot it covers, so big gaps only occur below the table floor
+    // (child 10K, 176 mm) — the size has to be rounded up to the smallest.
+    const longRun: Boot = { ...testBoot, minLength: 160 };
+    // Foot 171 → UK 10K (176), gap 5mm.
+    expect(describeLengthFit(longRun, 171)).toContain('half a size of space');
+    // Foot 168 → UK 10K (176), gap 8mm.
+    expect(describeLengthFit(longRun, 168)).toContain('a full size of space');
+    // Foot 164 → UK 10K (176), gap 12mm.
+    expect(describeLengthFit(longRun, 164)).toContain('too loose');
   });
 
   it('reports the distance past the size run when out of range', () => {
