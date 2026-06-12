@@ -15,10 +15,9 @@ import { DepthFrame } from '../../../scanner/depth/types';
 type Shape = { heightMm: number; contains: (xMm: number, yMm: number) => boolean };
 
 const FLOOR_MM = 600;
-const FX = 500;
 
-function makeScene(shapes: Shape[], width = 256, height = 192): DepthFrame {
-  const intrinsics = { fx: FX, fy: FX, cx: width / 2, cy: height / 2 };
+function makeScene(shapes: Shape[], fx = 500, width = 256, height = 192): DepthFrame {
+  const intrinsics = { fx, fy: fx, cx: width / 2, cy: height / 2 };
   const sorted = [...shapes].sort((a, b) => b.heightMm - a.heightMm);
   const depthMm = new Float32Array(width * height);
   for (let v = 0; v < height; v++) {
@@ -26,8 +25,8 @@ function makeScene(shapes: Shape[], width = 256, height = 192): DepthFrame {
       let depth = FLOOR_MM;
       for (const shape of sorted) {
         const z = FLOOR_MM - shape.heightMm;
-        const x = ((u - intrinsics.cx) * z) / FX;
-        const y = ((v - intrinsics.cy) * z) / FX;
+        const x = ((u - intrinsics.cx) * z) / fx;
+        const y = ((v - intrinsics.cy) * z) / fx;
         if (shape.contains(x, y)) {
           depth = z;
           break;
@@ -111,6 +110,25 @@ describe('measureFootFromDepthFrame', () => {
     expect(debug.footPoints).toBeGreaterThan(1000);
     expect(debug.floorInlierRatio).toBeGreaterThan(0.5);
     expect(Math.abs(debug.cameraHeightMm - 600)).toBeLessThanOrEqual(5);
+  });
+
+  it('measures only the aimed foot when other objects share the frame', () => {
+    // Wide FOV like the real sensor (fx ≈ 180) so a second foot and stray
+    // carpet-noise bumps fit around the aimed foot — the scene from the
+    // first real capture session.
+    const secondFoot: Shape = {
+      heightMm: 35,
+      contains: (x, y) => ((x - 60) / 127.5) ** 2 + ((y - 270) / 55) ** 2 <= 1,
+    };
+    const noiseBumps: Shape[] = [-320, -180, 300].map((nx, i) => ({
+      heightMm: 15,
+      contains: (x, y) => Math.hypot(x - nx, y + 180 + i * 25) <= 20,
+    }));
+    const scene = makeScene([ellipseFoot, secondFoot, ...noiseBumps], 180);
+    const debug = measureFootFromDepthFrameDebug(scene, OPTS);
+    expect(debug.bandPoints).toBeGreaterThan(debug.footPoints);
+    expect(Math.abs(debug.metrics.lengthMm - 255)).toBeLessThanOrEqual(7);
+    expect(Math.abs(debug.metrics.widthMm - 110)).toBeLessThanOrEqual(6);
   });
 
   it('measures the same foot whichever way the toes point', () => {

@@ -1,6 +1,6 @@
 import { rangeScore, widthAcrossFootBand } from '../footMetrics';
 import { FootMetrics, Point } from '../types';
-import { depthFrameToPoints } from './pointCloud';
+import { depthFrameToPoints, unprojectPixel } from './pointCloud';
 import {
   fitFloorPlane,
   heightAboveFloorMm,
@@ -27,6 +27,72 @@ const ASPECT_MAX = 3.8;
 const FLOOR_INLIER_GOOD_MIN = 0.35;
 
 const ZERO: FootMetrics = { lengthMm: 0, widthMm: 0, confidence: 0 };
+
+// Everything 10–120 mm off the floor is "raised", but not all of it is the
+// aimed foot: the user's other foot, a trouser hem, furniture legs and
+// carpet-pile noise all qualify (first real captures, 2026-06-12: foot +
+// shin + second foot were read as one 975 mm object). So raised points are
+// clustered on the floor grid and only the cluster nearest the aim point —
+// the frame centre, where the guide box puts the foot — is measured.
+const CLUSTER_CELL_MM = 25;
+const CLUSTER_TARGET_RADIUS_MM = 200;
+
+export function pickAimedCluster(points: Point[], target: Point): Point[] {
+  if (points.length === 0) return points;
+
+  const cellIndex = new Map<string, number[]>();
+  for (let i = 0; i < points.length; i++) {
+    const key = `${Math.floor(points[i].x / CLUSTER_CELL_MM)},${Math.floor(points[i].y / CLUSTER_CELL_MM)}`;
+    const list = cellIndex.get(key);
+    if (list) list.push(i);
+    else cellIndex.set(key, [i]);
+  }
+
+  // Flood-fill cells into clusters (8-connected).
+  const cellCluster = new Map<string, number>();
+  const clusters: { pointIndices: number[]; distanceToTarget: number }[] = [];
+  for (const startKey of cellIndex.keys()) {
+    if (cellCluster.has(startKey)) continue;
+    const id = clusters.length;
+    const cluster = { pointIndices: [] as number[], distanceToTarget: Infinity };
+    const queue = [startKey];
+    cellCluster.set(startKey, id);
+    while (queue.length) {
+      const key = queue.pop()!;
+      const [cx, cy] = key.split(',').map(Number);
+      const indices = cellIndex.get(key)!;
+      cluster.pointIndices.push(...indices);
+      const centreX = (cx + 0.5) * CLUSTER_CELL_MM;
+      const centreY = (cy + 0.5) * CLUSTER_CELL_MM;
+      const d = Math.hypot(centreX - target.x, centreY - target.y);
+      if (d < cluster.distanceToTarget) cluster.distanceToTarget = d;
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          if (!dx && !dy) continue;
+          const neighbour = `${cx + dx},${cy + dy}`;
+          if (cellIndex.has(neighbour) && !cellCluster.has(neighbour)) {
+            cellCluster.set(neighbour, id);
+            queue.push(neighbour);
+          }
+        }
+      }
+    }
+    clusters.push(cluster);
+  }
+
+  // Nearest cluster to the aim point wins; if nothing is plausibly under the
+  // aim (foot off-centre), fall back to the biggest object in frame.
+  let chosen = clusters[0];
+  for (const c of clusters) {
+    if (c.distanceToTarget < chosen.distanceToTarget) chosen = c;
+  }
+  if (chosen.distanceToTarget > CLUSTER_TARGET_RADIUS_MM) {
+    for (const c of clusters) {
+      if (c.pointIndices.length > chosen.pointIndices.length) chosen = c;
+    }
+  }
+  return chosen.pointIndices.map((i) => points[i]);
+}
 
 /** Points 10–120 mm above the floor, flattened onto it in floor-mm coordinates. */
 export function segmentFootPoints(points: Vec3[], plane: FloorPlane): Point[] {
@@ -115,7 +181,9 @@ export type DepthMeasureDebug = {
   metrics: FootMetrics;
   /** Unprojected cloud size — zero means the depth map was empty/invalid. */
   cloudPoints: number;
-  /** Points inside the 10–120 mm foot height band. */
+  /** Raised points everywhere in frame (pre-clustering). */
+  bandPoints: number;
+  /** Points in the aimed cluster — what actually gets measured. */
   footPoints: number;
   floorInlierRatio: number;
   /** Phone height above the fitted floor, mm — sanity check on the plane. */
@@ -167,6 +235,7 @@ export function measureFootFromDepthFrameDebug(
   if (!plane) {
     return {
       metrics: ZERO,
+      bandPoints: 0,
       footPoints: 0,
       floorInlierRatio: 0,
       cameraHeightMm: 0,
@@ -183,9 +252,28 @@ export function measureFootFromDepthFrameDebug(
     gravityTiltDeg: gravityTilt(plane, frame),
     ...diagnostics,
   };
-  const foot = segmentFootPoints(points, plane);
+  const band = segmentFootPoints(points, plane);
+
+  // Aim point: the frame-centre ray projected onto the floor (the guide box
+  // centres the foot there). If the centre pixel has no depth, fall back to
+  // the spot directly beneath the phone — the floor frame's origin.
+  const basis = planeBasis(plane.normal);
+  const target =
+    diagnostics.centerDepthMm > 0
+      ? projectToFloorMm(
+          plane,
+          basis,
+          unprojectPixel(
+            Math.floor(frame.width / 2),
+            Math.floor(frame.height / 2),
+            diagnostics.centerDepthMm,
+            frame.intrinsics,
+          ),
+        )
+      : { x: 0, y: 0 };
+  const foot = pickAimedCluster(band, target);
   if (foot.length < MIN_FOOT_POINTS) {
-    return { ...partial, metrics: ZERO, footPoints: foot.length };
+    return { ...partial, metrics: ZERO, bandPoints: band.length, footPoints: foot.length };
   }
 
   const oriented = orientHeelAtOrigin(foot);
@@ -195,7 +283,7 @@ export function measureFootFromDepthFrameDebug(
   }
   const widthMm = widthAcrossFootBand(oriented, lengthMm);
   if (lengthMm <= 0 || widthMm <= 0) {
-    return { ...partial, metrics: ZERO, footPoints: foot.length };
+    return { ...partial, metrics: ZERO, bandPoints: band.length, footPoints: foot.length };
   }
 
   const aspect = lengthMm / Math.max(widthMm, 1);
@@ -205,6 +293,7 @@ export function measureFootFromDepthFrameDebug(
   return {
     ...partial,
     metrics: { lengthMm, widthMm, confidence },
+    bandPoints: band.length,
     footPoints: foot.length,
   };
 }

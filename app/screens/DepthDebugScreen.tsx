@@ -233,8 +233,8 @@ export default function DepthDebugScreen() {
               ? `${latest.debug.metrics.lengthMm.toFixed(1)} × ${latest.debug.metrics.widthMm.toFixed(1)} mm · conf ${(latest.debug.metrics.confidence * 100).toFixed(0)}%`
               : 'no foot found'}
             {'\n'}floor {(latest.debug.floorInlierRatio * 100).toFixed(0)}% · camera{' '}
-            {latest.debug.cameraHeightMm.toFixed(0)} mm up · foot {latest.debug.footPoints} pts ·
-            cloud {latest.debug.cloudPoints} pts
+            {latest.debug.cameraHeightMm.toFixed(0)} mm up · foot {latest.debug.footPoints}/
+            {latest.debug.bandPoints} pts · cloud {latest.debug.cloudPoints} pts
             {'\n'}sensor centre {latest.debug.centerDepthMm.toFixed(0)} mm · fx{' '}
             {latest.debug.fxPx.toFixed(1)} px · plane tilt{' '}
             {latest.debug.gravityTiltDeg === null
