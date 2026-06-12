@@ -1,3 +1,5 @@
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,7 +15,10 @@ import {
 
 // Scanner v3 instrumentation — like ScannerDebugScreen, this deliberately
 // pokes the raw pipeline so device captures can be judged against tape
-// measurements before any production flow exists.
+// measurements before any production flow exists. The camera preview is for
+// aiming only: ARKit needs the camera to itself, so on capture the preview
+// unmounts, the depth session takes over for ~a second, then the preview
+// returns.
 type CaptureRow = {
   id: number;
   debug?: DepthMeasureDebug;
@@ -26,15 +31,20 @@ function median(values: number[]): number {
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
+const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 export default function DepthDebugScreen() {
+  const [permission, requestPermission] = useCameraPermissions();
   const [rows, setRows] = useState<CaptureRow[]>([]);
   const [busy, setBusy] = useState(false);
+  const [preview, setPreview] = useState<{ width: number; height: number } | null>(null);
   const supported = isDepthScanSupported();
 
   const capture = async () => {
-    setBusy(true);
+    setBusy(true); // unmounts the CameraView so ARKit can take the camera
     const id = Date.now();
     try {
+      await delay(500); // let the preview session release the camera
       const frame = await arkitDepthAdapter.captureDepthFrame();
       if (!frame) {
         setRows((prev) => [{ id, error: 'Bridge returned no frame' }, ...prev]);
@@ -54,112 +64,175 @@ export default function DepthDebugScreen() {
     .filter((d): d is DepthMeasureDebug => !!d && d.metrics.lengthMm > 0);
   const medianLength = good.length ? median(good.map((d) => d.metrics.lengthMm)) : 0;
   const medianWidth = good.length ? median(good.map((d) => d.metrics.widthMm)) : 0;
+  const latest = rows[0];
 
-  return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#f9f9f9' }} edges={['bottom']}>
-      <ScrollView contentContainerStyle={{ padding: 20 }}>
-        <Text style={{ fontSize: 13, color: '#666', marginBottom: 16 }}>
-          Hold the phone flat about 60 cm above the floor with your foot in frame, then capture.
-          Compare against tape: ~265 long, ~110 wide.
-        </Text>
+  if (!supported) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#f9f9f9' }} edges={['bottom']}>
+        <ScrollView contentContainerStyle={{ padding: 20 }}>
+          <Text style={{ fontSize: 24, fontWeight: '800', color: '#111', marginBottom: 6 }}>
+            No LiDAR on this device
+          </Text>
+          <Text style={{ fontSize: 14, color: '#666', lineHeight: 20 }}>
+            Scene depth needs an iPhone/iPad Pro. The paper scanner remains the way to measure.
+          </Text>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
-        {!supported && (
-          <View
-            style={{
-              backgroundColor: '#fff',
-              borderRadius: 14,
-              borderWidth: 1,
-              borderColor: '#e8e8e8',
-              padding: 16,
-            }}
-          >
-            <Text style={{ fontSize: 14, color: '#111', fontWeight: '700' }}>
-              No LiDAR on this device
-            </Text>
-            <Text style={{ fontSize: 13, color: '#666', marginTop: 4 }}>
-              Scene depth needs an iPhone/iPad Pro. The paper scanner remains the way to measure.
-            </Text>
-          </View>
-        )}
+  if (!permission) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#f9f9f9', justifyContent: 'center' }}>
+        <ActivityIndicator />
+      </SafeAreaView>
+    );
+  }
 
-        {supported && (
+  if (!permission.granted) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#f9f9f9' }} edges={['bottom']}>
+        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 32 }}>
+          <Text style={{ fontSize: 24, fontWeight: '800', color: '#111', marginBottom: 6 }}>
+            Camera permission needed
+          </Text>
+          <Text style={{ fontSize: 14, color: '#666', marginBottom: 20, lineHeight: 20 }}>
+            The depth scanner uses the camera and LiDAR to measure your foot on the bare floor —
+            no paper needed.
+          </Text>
           <Pressable
-            onPress={capture}
-            disabled={busy}
+            onPress={requestPermission}
             style={{
-              backgroundColor: busy ? '#555' : '#111',
-              borderRadius: 10,
-              paddingVertical: 14,
+              backgroundColor: '#111',
+              borderRadius: 14,
+              paddingVertical: 16,
               alignItems: 'center',
-              marginBottom: 16,
-            }}
-          >
-            {busy ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>
-                Capture depth frame
-              </Text>
-            )}
-          </Pressable>
-        )}
-
-        {good.length >= 2 && (
-          <View
-            style={{
-              backgroundColor: '#fff',
-              borderRadius: 14,
-              borderWidth: 1,
-              borderColor: '#e8e8e8',
-              padding: 16,
-              marginBottom: 16,
-            }}
-          >
-            <Text style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>
-              SESSION MEDIAN ({good.length} captures)
-            </Text>
-            <Text style={{ fontSize: 22, fontWeight: '800', color: '#111' }}>
-              {medianLength.toFixed(1)} × {medianWidth.toFixed(1)} mm
-            </Text>
-          </View>
-        )}
-
-        {rows.map((row) => (
-          <View
-            key={row.id}
-            style={{
-              backgroundColor: '#fff',
-              borderRadius: 14,
-              borderWidth: 1,
-              borderColor: row.error ? '#b55a1a' : '#e8e8e8',
-              padding: 14,
               marginBottom: 10,
             }}
           >
-            {row.error && (
-              <Text style={{ fontSize: 13, color: '#b55a1a', fontWeight: '700' }}>
-                {row.error}
-              </Text>
-            )}
-            {row.debug && (
-              <>
-                <Text style={{ fontSize: 17, fontWeight: '800', color: '#111' }}>
-                  {row.debug.metrics.lengthMm > 0
-                    ? `${row.debug.metrics.lengthMm.toFixed(1)} × ${row.debug.metrics.widthMm.toFixed(1)} mm`
-                    : 'No foot found'}
-                  {row.debug.metrics.lengthMm > 0 &&
-                    `  ·  conf ${(row.debug.metrics.confidence * 100).toFixed(0)}%`}
-                </Text>
-                <Text style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
-                  floor {(row.debug.floorInlierRatio * 100).toFixed(0)}% · camera{' '}
-                  {row.debug.cameraHeightMm.toFixed(0)} mm up · foot {row.debug.footPoints} pts ·
-                  cloud {row.debug.cloudPoints} pts
-                </Text>
-              </>
-            )}
+            <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>
+              Grant camera access
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => router.back()}
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: 14,
+              borderWidth: 2,
+              borderColor: '#e8e8e8',
+              paddingVertical: 16,
+              alignItems: 'center',
+            }}
+          >
+            <Text style={{ color: '#111', fontSize: 15, fontWeight: '700' }}>Cancel</Text>
+          </Pressable>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }} edges={['bottom']}>
+      <View
+        style={{ flex: 1 }}
+        onLayout={(e) =>
+          setPreview({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })
+        }
+      >
+        {busy ? (
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: '#000',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <ActivityIndicator color="#7bff9f" size="large" />
+            <Text style={{ color: '#7bff9f', fontSize: 13, fontWeight: '700', marginTop: 12 }}>
+              Depth sensor measuring — hold still…
+            </Text>
           </View>
-        ))}
-      </ScrollView>
+        ) : (
+          <CameraView style={{ flex: 1 }} facing="back" />
+        )}
+        {preview && !busy && (
+          <View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <View
+              style={{
+                width: preview.height * 0.62 * 0.43,
+                height: preview.height * 0.62,
+                borderWidth: 2,
+                borderStyle: 'dashed',
+                borderColor: '#7bff9f',
+                borderRadius: 40,
+              }}
+            />
+            <Text
+              style={{
+                color: '#fff',
+                fontSize: 13,
+                fontWeight: '700',
+                marginTop: 10,
+                backgroundColor: 'rgba(0,0,0,0.65)',
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 8,
+              }}
+            >
+              Foot in the box · phone flat · ~60 cm up
+            </Text>
+          </View>
+        )}
+      </View>
+
+      <View style={{ backgroundColor: '#111', padding: 16 }}>
+        {good.length >= 2 && (
+          <Text style={{ color: '#7bff9f', fontSize: 13, fontWeight: '800', marginBottom: 6 }}>
+            MEDIAN ({good.length} good): {medianLength.toFixed(1)} × {medianWidth.toFixed(1)} mm
+          </Text>
+        )}
+        {latest?.error && (
+          <Text style={{ color: '#ff9f7b', fontSize: 12, marginBottom: 8 }}>{latest.error}</Text>
+        )}
+        {latest?.debug && (
+          <Text style={{ color: '#ddd', fontSize: 12, lineHeight: 18, marginBottom: 8 }}>
+            Last:{' '}
+            {latest.debug.metrics.lengthMm > 0
+              ? `${latest.debug.metrics.lengthMm.toFixed(1)} × ${latest.debug.metrics.widthMm.toFixed(1)} mm · conf ${(latest.debug.metrics.confidence * 100).toFixed(0)}%`
+              : 'no foot found'}
+            {'\n'}floor {(latest.debug.floorInlierRatio * 100).toFixed(0)}% · camera{' '}
+            {latest.debug.cameraHeightMm.toFixed(0)} mm up · foot {latest.debug.footPoints} pts ·
+            cloud {latest.debug.cloudPoints} pts
+          </Text>
+        )}
+        <Pressable
+          onPress={capture}
+          disabled={busy}
+          style={{
+            backgroundColor: busy ? '#555' : '#fff',
+            borderRadius: 14,
+            paddingVertical: 16,
+            alignItems: 'center',
+          }}
+        >
+          <Text style={{ color: '#111', fontSize: 15, fontWeight: '800' }}>
+            {busy ? 'Measuring…' : `Capture depth frame${rows.length ? ` (${rows.length + 1})` : ''}`}
+          </Text>
+        </Pressable>
+      </View>
     </SafeAreaView>
   );
 }
