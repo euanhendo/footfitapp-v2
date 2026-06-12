@@ -1,12 +1,13 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
+  FlatList,
   Image,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  SectionList,
+  ScrollView,
   Text,
   TextInput,
   View,
@@ -14,7 +15,6 @@ import {
 import {
   getSocksForSport,
   groupSocksByBrand,
-  SockBrandSection,
   SockEntry,
 } from '../../lib/fitting';
 import { usePalette } from '../../lib/theme';
@@ -22,6 +22,8 @@ import sockDatabase from '../../sockDatabase.json';
 
 type SockDb = Record<string, SockEntry>;
 const socks = sockDatabase as SockDb;
+
+const ALL_BRANDS = 'All';
 
 function brandInitials(brand: string): string {
   const words = brand.split(/\s+/).filter(Boolean);
@@ -44,7 +46,7 @@ function isUsableImage(uri: string): boolean {
 function SockThumb({ uri, brand }: { uri: string; brand: string }) {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
-  const size = 48;
+  const size = 44;
   const showImage = isUsableImage(uri) && !failed;
   return (
     <View
@@ -59,7 +61,7 @@ function SockThumb({ uri, brand }: { uri: string; brand: string }) {
         justifyContent: 'center',
       }}
     >
-      <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>
+      <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>
         {brandInitials(brand)}
       </Text>
       {showImage && (
@@ -84,6 +86,7 @@ export default function SockSelectionScreen() {
   const p = usePalette();
   const [sockType, setSockType] = useState('');
   const [query, setQuery] = useState('');
+  const [activeBrand, setActiveBrand] = useState(ALL_BRANDS);
   const { footLength, footWidth, sport, gender, widthProfile, measureSource } =
     useLocalSearchParams<{
       footLength: string;
@@ -96,16 +99,19 @@ export default function SockSelectionScreen() {
 
   const sockOptions = useMemo(() => getSocksForSport(socks, sport ?? ''), [sport]);
 
-  const sections: SockBrandSection[] = useMemo(() => {
+  const brands = useMemo(
+    () => [ALL_BRANDS, ...groupSocksByBrand(sockOptions).map((s) => s.brand)],
+    [sockOptions],
+  );
+
+  const visibleSocks = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const filtered = q
-      ? sockOptions.filter(
-          (sock) =>
-            sock.brand.toLowerCase().includes(q) || sock.name.toLowerCase().includes(q),
-        )
-      : sockOptions;
-    return groupSocksByBrand(filtered);
-  }, [sockOptions, query]);
+    return sockOptions.filter((sock) => {
+      if (activeBrand !== ALL_BRANDS && sock.brand !== activeBrand) return false;
+      if (!q) return true;
+      return sock.brand.toLowerCase().includes(q) || sock.name.toLowerCase().includes(q);
+    });
+  }, [sockOptions, activeBrand, query]);
 
   const handleNext = () => {
     router.push({
@@ -128,17 +134,10 @@ export default function SockSelectionScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={{ padding: 20, flex: 1 }}>
-        <Text style={{ fontSize: 24, fontWeight: '700', color: p.text, marginBottom: 8 }}>
-          Select your sock
-        </Text>
-        <Text style={{ fontSize: 15, color: p.muted, marginBottom: 16 }}>
-          Search by brand — sock thickness is added to your foot measurements.
-        </Text>
-
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder="Search brands (e.g. Nike)"
+          placeholder="Search socks (e.g. Nike, grip, crew)"
           placeholderTextColor={p.faint}
           autoCorrect={false}
           autoCapitalize="none"
@@ -151,70 +150,99 @@ export default function SockSelectionScreen() {
             color: p.text,
             borderRadius: 10,
             padding: 12,
-            marginBottom: 12,
+            marginBottom: 14,
             fontSize: 16,
           }}
         />
 
-        <SectionList
-          sections={sections}
-          keyExtractor={(item) => item.key}
-          keyboardShouldPersistTaps="handled"
-          stickySectionHeadersEnabled={false}
-          ListEmptyComponent={
-            <Text style={{ color: p.muted, padding: 16, textAlign: 'center' }}>
-              No socks match &quot;{query}&quot;.
-            </Text>
-          }
-          renderSectionHeader={({ section }) => (
-            <Text
-              style={{
-                fontSize: 12,
-                fontWeight: '700',
-                letterSpacing: 1,
-                color: p.muted,
-                marginTop: 12,
-                marginBottom: 8,
-                textTransform: 'uppercase',
-              }}
-            >
-              {section.brand}
-            </Text>
-          )}
-          renderItem={({ item }) => {
-            const selected = item.key === sockType;
-            return (
-              <Pressable
-                onPress={() => setSockType(item.key)}
-                style={{
-                  padding: 10,
-                  borderWidth: 1,
-                  borderColor: selected ? p.ctaBg : p.hairline,
-                  backgroundColor: selected ? p.ctaBg : p.card,
-                  borderRadius: 14,
-                  marginBottom: 8,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                }}
-              >
-                <SockThumb uri={item.imageUrl} brand={item.brand} />
-                <Text
+        <View style={{ flexDirection: 'row', flex: 1 }}>
+          <ScrollView
+            style={{ width: 92, flexGrow: 0, marginRight: 14 }}
+            showsVerticalScrollIndicator={false}
+          >
+            {brands.map((brand) => {
+              const active = activeBrand === brand;
+              return (
+                <Pressable
+                  key={brand}
+                  onPress={() => setActiveBrand(brand)}
                   style={{
-                    color: selected ? p.ctaText : p.text,
-                    fontWeight: '600',
-                    fontSize: 15,
-                    flex: 1,
+                    paddingVertical: 12,
+                    paddingLeft: 9,
+                    borderLeftWidth: 2,
+                    borderLeftColor: active ? p.text : 'transparent',
                   }}
                 >
-                  {item.name}
-                </Text>
-                <Text style={{ color: selected ? p.ctaText : p.muted, fontSize: 13 }}>
-                  +{item.thickness}mm
-                </Text>
-              </Pressable>
-            );
-          }}
-        />
+                  <Text style={{
+                    fontSize: 11,
+                    fontWeight: '800',
+                    letterSpacing: 1,
+                    textTransform: 'uppercase',
+                    color: active ? p.text : p.faint,
+                  }}>
+                    {brand}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+
+          <FlatList
+            style={{ flex: 1 }}
+            data={visibleSocks}
+            keyExtractor={(item) => item.key}
+            keyboardShouldPersistTaps="handled"
+            ListEmptyComponent={
+              <Text style={{ color: p.muted, padding: 16, textAlign: 'center' }}>
+                No socks match{query ? ` "${query}"` : ' this brand'}.
+              </Text>
+            }
+            renderItem={({ item }) => {
+              const selected = item.key === sockType;
+              return (
+                <Pressable
+                  onPress={() => setSockType(item.key)}
+                  style={{
+                    padding: 10,
+                    borderWidth: 1,
+                    borderColor: selected ? p.ctaBg : p.cardBorder,
+                    backgroundColor: selected ? p.ctaBg : p.card,
+                    borderRadius: 12,
+                    marginBottom: 8,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                  }}
+                >
+                  <SockThumb uri={item.imageUrl} brand={item.brand} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{
+                      fontSize: 9,
+                      fontWeight: '800',
+                      letterSpacing: 1,
+                      textTransform: 'uppercase',
+                      color: selected ? (p.dark ? '#666' : '#999') : p.faint,
+                      marginBottom: 2,
+                    }}>
+                      {item.brand}
+                    </Text>
+                    <Text
+                      style={{
+                        color: selected ? p.ctaText : p.text,
+                        fontWeight: '600',
+                        fontSize: 14,
+                      }}
+                    >
+                      {item.name}
+                    </Text>
+                  </View>
+                  <Text style={{ color: selected ? p.ctaText : p.muted, fontSize: 12 }}>
+                    +{item.thickness}mm
+                  </Text>
+                </Pressable>
+              );
+            }}
+          />
+        </View>
 
         <Pressable
           onPress={handleNext}
@@ -224,7 +252,7 @@ export default function SockSelectionScreen() {
             padding: 14,
             borderRadius: 999,
             alignItems: 'center',
-            marginTop: 8,
+            marginTop: 10,
           }}
         >
           <Text style={{ color: sockType ? p.ctaText : '#fff', fontWeight: '700', fontSize: 16 }}>Next</Text>

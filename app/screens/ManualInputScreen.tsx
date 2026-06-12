@@ -26,7 +26,7 @@ type InputMode = 'size' | 'manual';
 type Sport = 'football' | 'running' | 'rugby';
 type Gender = 'mens' | 'womens' | 'unisex' | 'kids';
 
-function SelectButton({
+function Chip({
   label,
   active,
   onPress,
@@ -41,20 +41,28 @@ function SelectButton({
     <Pressable
       onPress={onPress}
       style={{
-        paddingVertical: 10,
-        paddingHorizontal: 14,
+        paddingVertical: 11,
+        paddingHorizontal: 16,
         borderWidth: 1,
         borderColor: active ? p.ctaBg : p.chipBorder,
         backgroundColor: active ? p.ctaBg : p.card,
-        borderRadius: 8,
+        borderRadius: 4,
         marginRight: 8,
         marginBottom: 8,
       }}
     >
-      <Text style={{ color: active ? p.ctaText : p.text, fontWeight: '600' }}>
+      <Text style={{ color: active ? p.ctaText : p.text, fontSize: 12, fontWeight: '800', letterSpacing: 1 }}>
         {label}
       </Text>
     </Pressable>
+  );
+}
+
+function StepLabel({ children, p }: { children: string; p: Palette }) {
+  return (
+    <Text style={{ fontSize: 11, fontWeight: '800', color: p.faint, letterSpacing: 1.5, marginBottom: 10, marginTop: 6 }}>
+      {children}
+    </Text>
   );
 }
 
@@ -69,8 +77,9 @@ export default function ManualInputScreen() {
   const prefilledLength = footLength ?? '';
   const prefilledWidth = footWidth ?? '';
   const hasPrefill = prefilledLength !== '' || prefilledWidth !== '';
-  const [inputMode, setInputMode] = useState<InputMode>(hasPrefill ? 'manual' : 'size');
-  const [sizeSystem, setSizeSystem] = useState<SizeSystem>('UK');
+  // Progressive: each step appears once the previous one is answered.
+  const [inputMode, setInputMode] = useState<InputMode | null>(hasPrefill ? 'manual' : null);
+  const [sizeSystem, setSizeSystem] = useState<SizeSystem | null>(null);
   const [shoeSize, setShoeSize] = useState('');
   const [widthProfile, setWidthProfile] = useState<WidthProfile>('standard');
 
@@ -78,7 +87,7 @@ export default function ManualInputScreen() {
   const [manualWidth, setManualWidth] = useState(prefilledWidth);
 
   const estimatedLength = useMemo(() => {
-    if (inputMode !== 'size') return 0;
+    if (inputMode !== 'size' || !sizeSystem) return 0;
     return getEstimatedLengthMm(sizeSystem, shoeSize, gender === 'kids');
   }, [inputMode, sizeSystem, shoeSize, gender]);
 
@@ -112,8 +121,8 @@ export default function ManualInputScreen() {
       return;
     }
 
-    if (!shoeSize.trim()) {
-      Alert.alert('Missing size', `Enter your ${sizeSystem} shoe size first.`);
+    if (!sizeSystem || !shoeSize.trim()) {
+      Alert.alert('Missing size', 'Pick a size system and enter your shoe size first.');
       return;
     }
 
@@ -138,6 +147,10 @@ export default function ManualInputScreen() {
     });
   };
 
+  const showNext =
+    inputMode === 'manual' ||
+    (inputMode === 'size' && sizeSystem !== null && shoeSize.trim() !== '');
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
@@ -146,23 +159,6 @@ export default function ManualInputScreen() {
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
           <View style={{ padding: 20, flex: 1 }}>
-
-            <Text style={{ fontSize: 24, fontWeight: '700', color: p.text, marginBottom: 8 }}>
-              Measure your feet
-            </Text>
-
-            <Text style={{ fontSize: 15, color: p.muted, marginBottom: 12 }}>
-              Choose the easiest way to get your boot fit.
-            </Text>
-
-            <Pressable
-              onPress={() => router.push('/screens/MeasureGuideScreen')}
-              style={{ marginBottom: 16 }}
-            >
-              <Text style={{ fontSize: 13, color: p.muted, textDecorationLine: 'underline' }}>
-                Not sure how to measure? Open guide →
-              </Text>
-            </Pressable>
 
             <Pressable
               onPress={() =>
@@ -175,105 +171,114 @@ export default function ManualInputScreen() {
                 backgroundColor: p.heroBg,
                 borderWidth: 1,
                 borderColor: p.heroBorder,
-                borderRadius: 14,
-                paddingVertical: 14,
-                paddingHorizontal: 16,
-                marginBottom: 16,
+                borderRadius: 16,
+                padding: 18,
+                marginBottom: 20,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
               }}
             >
-              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>
-                Scan with your phone
-              </Text>
-              <Text style={{ color: '#bbb', fontSize: 12, marginTop: 3 }}>
-                Stand on A4 paper against a wall — measures your foot in mm automatically
-              </Text>
+              <View style={{ flex: 1, paddingRight: 10 }}>
+                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800', letterSpacing: 1.5, marginBottom: 3 }}>
+                  SCAN YOUR FEET
+                </Text>
+                <Text style={{ color: '#888', fontSize: 12 }}>
+                  Phone camera + a sheet of A4 — accurate to the millimetre
+                </Text>
+              </View>
+              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>→</Text>
             </Pressable>
 
-            <Text style={{ fontSize: 16, fontWeight: '600', color: p.text, marginBottom: 10 }}>
-              Input method
-            </Text>
+            <StepLabel p={p}>OR ENTER IT YOURSELF</StepLabel>
 
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 16 }}>
-              <SelectButton p={p} label="Shoe size" active={inputMode === 'size'} onPress={() => setInputMode('size')} />
-              <SelectButton p={p} label="Advanced manual" active={inputMode === 'manual'} onPress={() => setInputMode('manual')} />
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}>
+              <Chip p={p} label="SHOE SIZE" active={inputMode === 'size'} onPress={() => setInputMode('size')} />
+              <Chip p={p} label="EXACT MM" active={inputMode === 'manual'} onPress={() => setInputMode('manual')} />
             </View>
 
             {inputMode === 'size' && (
               <>
-                <Text style={{ fontSize: 16, fontWeight: '600', color: p.text, marginBottom: 10 }}>
-                  Size system
-                </Text>
+                <StepLabel p={p}>SIZE SYSTEM</StepLabel>
 
-                <View style={{ flexDirection: 'row', marginBottom: 16 }}>
-                  <SelectButton p={p} label="UK" active={sizeSystem === 'UK'} onPress={() => setSizeSystem('UK')} />
-                  <SelectButton p={p} label="EU" active={sizeSystem === 'EU'} onPress={() => setSizeSystem('EU')} />
-                  <SelectButton p={p} label="US" active={sizeSystem === 'US'} onPress={() => setSizeSystem('US')} />
+                <View style={{ flexDirection: 'row', marginBottom: 8 }}>
+                  <Chip p={p} label="UK" active={sizeSystem === 'UK'} onPress={() => setSizeSystem('UK')} />
+                  <Chip p={p} label="EU" active={sizeSystem === 'EU'} onPress={() => setSizeSystem('EU')} />
+                  <Chip p={p} label="US" active={sizeSystem === 'US'} onPress={() => setSizeSystem('US')} />
                 </View>
 
-                <Text style={{ fontSize: 16, fontWeight: '600', color: p.text, marginBottom: 6 }}>
-                  Enter your {sizeSystem} size
-                </Text>
+                {sizeSystem !== null && (
+                  <>
+                    <StepLabel p={p}>{`YOUR ${sizeSystem} SIZE`}</StepLabel>
 
-                <TextInput
-                  value={shoeSize}
-                  onChangeText={setShoeSize}
-                  placeholder={
-                    gender === 'kids'
-                      ? sizeSystem === 'EU' ? 'e.g. 33' : 'e.g. 12 or 2.5'
-                      : sizeSystem === 'UK' ? 'e.g. 8.5' : sizeSystem === 'US' ? 'e.g. 9.5' : 'e.g. 43'
-                  }
-                  keyboardType="decimal-pad"
-                  returnKeyType="done"
-                  onSubmitEditing={Keyboard.dismiss}
-                  placeholderTextColor={p.faint}
-                  style={{
-                    color: p.text,
-                    borderWidth: 1,
-                    borderColor: p.chipBorder,
-                    borderRadius: 8,
-                    padding: 12,
-                    marginBottom: gender === 'kids' ? 6 : 16,
-                  }}
-                />
-                {gender === 'kids' && (
-                  <Text style={{ fontSize: 12, color: p.muted, lineHeight: 17, marginBottom: 16 }}>
-                    Kids sizes: 10–13.5 are child sizes, 1–5.5 are junior sizes.
-                  </Text>
+                    <TextInput
+                      value={shoeSize}
+                      onChangeText={setShoeSize}
+                      placeholder={
+                        gender === 'kids'
+                          ? sizeSystem === 'EU' ? 'e.g. 33' : 'e.g. 12 or 2.5'
+                          : sizeSystem === 'UK' ? 'e.g. 8.5' : sizeSystem === 'US' ? 'e.g. 9.5' : 'e.g. 43'
+                      }
+                      keyboardType="decimal-pad"
+                      returnKeyType="done"
+                      onSubmitEditing={Keyboard.dismiss}
+                      placeholderTextColor={p.faint}
+                      style={{
+                        color: p.text,
+                        borderWidth: 1,
+                        borderColor: p.chipBorder,
+                        backgroundColor: p.card,
+                        borderRadius: 4,
+                        padding: 14,
+                        fontSize: 18,
+                        fontWeight: '700',
+                        marginBottom: gender === 'kids' ? 6 : 16,
+                      }}
+                    />
+                    {gender === 'kids' && (
+                      <Text style={{ fontSize: 12, color: p.muted, lineHeight: 17, marginBottom: 16 }}>
+                        Kids sizes: 10–13.5 are child sizes, 1–5.5 are junior sizes.
+                      </Text>
+                    )}
+
+                    <StepLabel p={p}>HOW DO YOUR FEET FEEL IN SHOES?</StepLabel>
+
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}>
+                      <Chip p={p} label="NARROW" active={widthProfile === 'narrow'} onPress={() => setWidthProfile('narrow')} />
+                      <Chip p={p} label="STANDARD" active={widthProfile === 'standard'} onPress={() => setWidthProfile('standard')} />
+                      <Chip p={p} label="WIDE" active={widthProfile === 'wide'} onPress={() => setWidthProfile('wide')} />
+                    </View>
+
+                    {estimatedLength > 0 && estimatedWidth > 0 && (
+                      <View style={{
+                        backgroundColor: p.card,
+                        borderWidth: 1,
+                        borderColor: p.cardBorder,
+                        borderRadius: 16,
+                        padding: 16,
+                        marginTop: 8,
+                        marginBottom: 8,
+                      }}>
+                        <Text style={{ fontSize: 11, fontWeight: '800', color: p.faint, letterSpacing: 1.5, marginBottom: 6 }}>
+                          YOUR ESTIMATED FEET
+                        </Text>
+                        <Text style={{ fontSize: 24, fontWeight: '800', color: p.text, marginBottom: 4 }}>
+                          {estimatedLength} × {estimatedWidth}
+                          <Text style={{ fontSize: 14, fontWeight: '700', color: p.faint }}>  mm</Text>
+                        </Text>
+                        <Text style={{ fontSize: 12, color: p.muted, lineHeight: 17 }}>
+                          Estimated from your shoe size — scan with your phone for exact numbers.
+                        </Text>
+                      </View>
+                    )}
+                  </>
                 )}
-
-                <Text style={{ fontSize: 16, fontWeight: '600', color: p.text, marginBottom: 10 }}>
-                  Foot width feel
-                </Text>
-
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 18 }}>
-                  <SelectButton p={p} label="Narrow" active={widthProfile === 'narrow'} onPress={() => setWidthProfile('narrow')} />
-                  <SelectButton p={p} label="Standard" active={widthProfile === 'standard'} onPress={() => setWidthProfile('standard')} />
-                  <SelectButton p={p} label="Wide" active={widthProfile === 'wide'} onPress={() => setWidthProfile('wide')} />
-                </View>
-
-                <View style={{
-                  backgroundColor: p.panel,
-                  borderRadius: 10,
-                  padding: 14,
-                  marginBottom: 20,
-                }}>
-                  <Text style={{ fontWeight: '700', color: p.text, marginBottom: 6 }}>
-                    Estimated measurements
-                  </Text>
-                  <Text style={{ color: p.text }}>Estimated foot length: {estimatedLength || '-'} mm</Text>
-                  <Text style={{ color: p.text }}>Estimated foot width: {estimatedWidth || '-'} mm</Text>
-                  <Text style={{ marginTop: 8, color: p.muted, fontSize: 13 }}>
-                    This is a size-based estimate. Use Advanced manual for exact mm.
-                  </Text>
-                </View>
               </>
             )}
 
             {inputMode === 'manual' && (
               <>
-                <Text style={{ fontSize: 16, fontWeight: '600', color: p.text, marginBottom: 6 }}>
-                  Foot length (mm)
-                </Text>
+                <StepLabel p={p}>FOOT LENGTH (MM)</StepLabel>
                 <TextInput
                   value={manualLength}
                   onChangeText={setManualLength}
@@ -286,15 +291,16 @@ export default function ManualInputScreen() {
                     color: p.text,
                     borderWidth: 1,
                     borderColor: p.chipBorder,
-                    borderRadius: 8,
-                    padding: 12,
+                    backgroundColor: p.card,
+                    borderRadius: 4,
+                    padding: 14,
+                    fontSize: 18,
+                    fontWeight: '700',
                     marginBottom: 16,
                   }}
                 />
 
-                <Text style={{ fontSize: 16, fontWeight: '600', color: p.text, marginBottom: 6 }}>
-                  Foot width (mm)
-                </Text>
+                <StepLabel p={p}>FOOT WIDTH (MM)</StepLabel>
                 <TextInput
                   value={manualWidth}
                   onChangeText={setManualWidth}
@@ -307,20 +313,25 @@ export default function ManualInputScreen() {
                     color: p.text,
                     borderWidth: 1,
                     borderColor: p.chipBorder,
-                    borderRadius: 8,
-                    padding: 12,
-                    marginBottom: 20,
+                    backgroundColor: p.card,
+                    borderRadius: 4,
+                    padding: 14,
+                    fontSize: 18,
+                    fontWeight: '700',
+                    marginBottom: 16,
                   }}
                 />
               </>
             )}
 
-            <Pressable
-              onPress={handleNext}
-              style={{ backgroundColor: p.ctaBg, borderRadius: 999, paddingVertical: 14, alignItems: 'center' }}
-            >
-              <Text style={{ color: p.ctaText, fontSize: 15, fontWeight: '700' }}>Next</Text>
-            </Pressable>
+            {showNext && (
+              <Pressable
+                onPress={handleNext}
+                style={{ backgroundColor: p.ctaBg, borderRadius: 999, paddingVertical: 14, alignItems: 'center', marginTop: 8 }}
+              >
+                <Text style={{ color: p.ctaText, fontSize: 15, fontWeight: '700' }}>Next</Text>
+              </Pressable>
+            )}
 
           </View>
         </ScrollView>
