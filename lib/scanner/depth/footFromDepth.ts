@@ -120,14 +120,34 @@ export type DepthMeasureDebug = {
   floorInlierRatio: number;
   /** Phone height above the fitted floor, mm — sanity check on the plane. */
   cameraHeightMm: number;
+  /** Raw depth at the map centre, mm — what the sensor itself says is below the phone. */
+  centerDepthMm: number;
+  /** Effective focal length in depth-map pixels — scale sanity (expect ~190 for ARKit). */
+  fxPx: number;
+  /** Angle between the fitted plane and the true horizontal from gravity; ~0° = real floor. */
+  gravityTiltDeg: number | null;
 };
 
-const ZERO_DEBUG: Omit<DepthMeasureDebug, 'cloudPoints'> = {
-  metrics: ZERO,
-  footPoints: 0,
-  floorInlierRatio: 0,
-  cameraHeightMm: 0,
-};
+function frameDiagnostics(frame: DepthFrame) {
+  const center =
+    frame.depthMm[Math.floor(frame.height / 2) * frame.width + Math.floor(frame.width / 2)];
+  return {
+    centerDepthMm: Number.isFinite(center) ? center : 0,
+    fxPx: frame.intrinsics.fx,
+  };
+}
+
+function gravityTilt(plane: FloorPlane, frame: DepthFrame): number | null {
+  const g = frame.gravity;
+  if (!g) return null;
+  const len = Math.hypot(g.x, g.y, g.z);
+  if (len < 1e-6) return null;
+  // The fitted normal points toward the camera; a true floor's normal is
+  // exactly opposite gravity.
+  const cos =
+    -(plane.normal.x * g.x + plane.normal.y * g.y + plane.normal.z * g.z) / len;
+  return (Math.acos(Math.max(-1, Math.min(1, cos))) * 180) / Math.PI;
+}
 
 /**
  * Full pure pipeline: depth frame → floor plane → foot points → oriented
@@ -141,14 +161,27 @@ export function measureFootFromDepthFrameDebug(
   options: PlaneFitOptions & { stride?: number } = {},
 ): DepthMeasureDebug {
   const { stride = 1, ...planeOptions } = options;
+  const diagnostics = frameDiagnostics(frame);
   const points = depthFrameToPoints(frame, stride);
   const plane = fitFloorPlane(points, planeOptions);
-  if (!plane) return { ...ZERO_DEBUG, cloudPoints: points.length };
+  if (!plane) {
+    return {
+      metrics: ZERO,
+      footPoints: 0,
+      floorInlierRatio: 0,
+      cameraHeightMm: 0,
+      gravityTiltDeg: null,
+      ...diagnostics,
+      cloudPoints: points.length,
+    };
+  }
 
   const partial = {
     cloudPoints: points.length,
     floorInlierRatio: plane.inlierRatio,
     cameraHeightMm: plane.dMm,
+    gravityTiltDeg: gravityTilt(plane, frame),
+    ...diagnostics,
   };
   const foot = segmentFootPoints(points, plane);
   if (foot.length < MIN_FOOT_POINTS) {

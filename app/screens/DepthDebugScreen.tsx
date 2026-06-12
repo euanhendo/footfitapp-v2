@@ -216,6 +216,11 @@ export default function DepthDebugScreen() {
             {'\n'}floor {(latest.debug.floorInlierRatio * 100).toFixed(0)}% · camera{' '}
             {latest.debug.cameraHeightMm.toFixed(0)} mm up · foot {latest.debug.footPoints} pts ·
             cloud {latest.debug.cloudPoints} pts
+            {'\n'}sensor centre {latest.debug.centerDepthMm.toFixed(0)} mm · fx{' '}
+            {latest.debug.fxPx.toFixed(1)} px · plane tilt{' '}
+            {latest.debug.gravityTiltDeg === null
+              ? 'n/a'
+              : `${latest.debug.gravityTiltDeg.toFixed(1)}°`}
           </Text>
         )}
         <Pressable
