@@ -159,9 +159,18 @@ function SportBand({
           onError={() => markBad(srcA)}
         />
       )}
-      <View style={{ position: 'absolute', width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.32)' }} />
+      <View style={{ position: 'absolute', width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.42)' }} />
       <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20 }}>
-        <Text style={{ color: '#fff', fontSize: 19, fontWeight: '900', letterSpacing: 2.5, textTransform: 'uppercase' }}>
+        <Text style={{
+          color: '#fff',
+          fontSize: 19,
+          fontWeight: '900',
+          letterSpacing: 2.5,
+          textTransform: 'uppercase',
+          textShadowColor: 'rgba(0,0,0,0.6)',
+          textShadowOffset: { width: 0, height: 1 },
+          textShadowRadius: 6,
+        }}>
           {label}
         </Text>
         <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800' }}>→</Text>
