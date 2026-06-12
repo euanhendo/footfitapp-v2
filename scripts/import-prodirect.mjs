@@ -1,7 +1,9 @@
-// One-off importer: Pro:Direct Shopify catalogue -> bootDatabase.json entries.
+// Importer: Pro:Direct Shopify catalogue -> bootDatabase.json entries.
 // Usage: node scripts/import-prodirect.mjs [--cutoff 2025-06-01] [--dry]
-// Expects raw pages in /tmp/football-{mens,womens,kids}-boots-p<N>.json
+// Expects raw pages in /tmp/<collection-handle>-p<N>.json (see COLLECTIONS)
 // (fetched from prodirectsport.com/collections/<handle>/products.json).
+// Re-runnable: collections with no /tmp pages are skipped; existing entries
+// get live link/image/price upgraded in place.
 //
 // What the scrape CANNOT provide is FootFit's fit knowledge. New entries
 // inherit width class / width band / sizeOffset / notes from a curated
@@ -31,10 +33,18 @@ const UK_MM = {
 
 function sizeToMm(raw, kidsProduct) {
   let s = String(raw).trim().toUpperCase().replace(/\s/g, '');
+  const childSuffix = /(K|C)$/.test(s);
   s = s.replace(/(K|C|Y)$/, '');
   const n = Number(s);
   if (!Number.isFinite(n) || n <= 0) return null;
-  if (kidsProduct && n >= 10 && n <= 13.5) return UK_MM[`${s}K`] ?? null;
+  if (kidsProduct) {
+    if (n >= 10 && n <= 13.5) return UK_MM[`${s}K`] ?? null;
+    // Below-10 child/infant sizes ("6K", "8.5" on a toddler shoe) sit under
+    // the table floor — mapping them through the adult run would poison
+    // lengths, so they contribute nothing.
+    if (childSuffix) return null;
+    if (n >= 7) return null;
+  }
   return UK_MM[s] ?? null;
 }
 
@@ -54,14 +64,25 @@ function loadCollection(handle) {
 }
 
 const COLLECTIONS = [
-  ['football-mens-boots', 'mens'],
-  ['football-womens-boots', 'womens'],
-  ['football-kids-boots', 'kids'],
+  ['football-mens-boots', 'mens', 'football'],
+  ['football-womens-boots', 'womens', 'football'],
+  ['football-kids-boots', 'kids', 'football'],
+  ['rugby-adults-boots', 'mens', 'rugby'],
+  ['rugby-kids-boots', 'kids', 'rugby'],
+  ['running-mens-shoes', 'mens', 'running'],
+  ['running-womens-shoes', 'womens', 'running'],
+  ['running-kids-shoes', 'kids', 'running'],
 ];
+
+// The rugby collection is ~90% cross-listed football boots (already in the DB
+// under football). Pro:Direct tags genuinely rugby-specific titles with the
+// word "Rugby" ("adidas Kakari Elite SG Rugby") — only those, plus rugby-only
+// brands, become new rugby entries.
+const RUGBY_ONLY_BRANDS = new Set(['canterbury', 'gilbert', 'oxen', 'tru']);
 
 // ---- filters
 const NOT_FOOTWEAR =
-  /glove|shin|sock|ball\b|bag|shirt|short|jacket|pant|tee\b|top\b|cap\b|bottle|pump|lace|insole|stud|guard|tape|kit\b|backpack|holdall/i;
+  /glove|shin|sock|ball\b|bag|shirt|short|jacket|pant|tee\b|top\b|cap\b|bottle|pump|lace|insole|stud|guard|tape|kit\b|backpack|holdall|sandal|slide|mule/i;
 
 const BRAND_NAME = {
   adidas: 'Adidas',
@@ -78,6 +99,8 @@ const BRAND_NAME = {
   "pantofola d'oro": "Pantofola d'Oro",
   joma: 'Joma',
   kappa: 'Kappa',
+  asics: 'ASICS',
+  'adidas originals': 'Adidas',
 };
 
 // Trailing tokens that are surface/edition noise, not model identity.
@@ -119,15 +142,29 @@ function splitSurface(model) {
   return { model: m.trim(), surface: surface.replace(/^ANTI-CLOG\s*/, '').trim() || surface };
 }
 
-function cleanModel(title, vendor) {
+function stripKidsNoise(m) {
+  m = m.replace(/\b(?:little kids|older kids|younger kids|juniors?|kids|infants?|toddlers?|baby|little)\b/gi, ' ');
+  m = m.replace(/\s{2,}/g, ' ').trim();
+  return m.replace(/\s+Boots?$/i, '').trim();
+}
+
+function cleanModel(title, vendor, sport, gender) {
   let m = title.trim();
   const v = vendor.trim();
   if (m.toLowerCase().startsWith(v.toLowerCase())) m = m.slice(v.length).trim();
   m = m.replace(/\s+-\s+.*$/, ''); // trailing " - Colour/Colour" descriptions
-  m = m.replace(/^(kids|junior|womens|women's)\s+/i, '');
-  m = m.replace(/\b(?:air\s+)?zoom\s+/gi, '');
-  m = m.replace(/\s+Boots?$/i, '');
-  return m.trim();
+  m = m.replace(/\s*\((?:GS|PS|TD)\)\s*$/i, ''); // running-feed grade-school markers
+  m = m.replace(/^(mens|men's|womens|women's)\s+/i, '');
+  m = m.replace(/\s+(womens|women's)$/i, '');
+  if (gender === 'kids') m = stripKidsNoise(m);
+  // Pro:Direct appends the category to rugby titles ("Kakari Elite SG Rugby")
+  // — strip it so the surface token becomes trailing and splitSurface sees it.
+  if (sport === 'rugby') m = m.replace(/(\s+(?:rugby|boots?))+\s*$/i, '');
+  // "Air Zoom" is colourway noise on football boots ("Air Zoom Mercurial");
+  // on running shoes Zoom is model identity ("Zoom Fly") — keep it there.
+  if (sport !== 'running') m = m.replace(/\b(?:air\s+)?zoom\s+/gi, '');
+  m = m.replace(/\s{2,}/g, ' ').trim();
+  return m.replace(/\s+Boots?$/i, '').trim();
 }
 
 // Match key: lowercase, dots out, Roman numerals (non-initial tokens) to
@@ -147,28 +184,69 @@ function normKey(model) {
 // ---- fit inheritance from the curated database
 const curated = JSON.parse(fs.readFileSync('bootDatabase.json', 'utf8'));
 
+// Earlier imports kept feed noise ("Boots Kids", "Little Kids") in a few kids
+// model names; clean them with the same rules so feed groups match them as
+// upgrades instead of duplicating under the clean name.
+for (const b of curated) {
+  if (b.gender === 'kids') b.model = stripKidsNoise(b.model);
+}
+
+// Entries whose names collapse to the same model after cleaning are the same
+// boot — keep one (prefer the one with a product image).
+{
+  const byKey = new Map();
+  for (const b of curated) {
+    const k = `${b.sport}|${b.gender}|${b.brand.toLowerCase()}|${normKey(b.model)}`;
+    const prev = byKey.get(k);
+    if (!prev || (!prev.imageUrl && b.imageUrl)) byKey.set(k, b);
+  }
+  if (byKey.size !== curated.length) {
+    console.log('curated dupes removed:', curated.length - byKey.size);
+    curated.length = 0;
+    curated.push(...byKey.values());
+  }
+}
+
 // family token -> curated model that carries the family's fit character.
 // X Crazyfast / F50 are the Speedportal lineage (same speed last).
-const FAMILY_TOKENS = [
-  'mercurial superfly', 'mercurial vapor', 'mercurial', 'phantom', 'tiempo',
-  'predator', 'copa', 'f50', 'x speedportal', 'x crazyfast',
-  'future', 'king', 'ultra',
-  'morelia', 'furon', 'tekela', 'magnetico', 'brasil', 'b-elite',
-];
+const FAMILY_TOKENS = {
+  football: [
+    'mercurial superfly', 'mercurial vapor', 'mercurial', 'phantom', 'tiempo',
+    'predator', 'copa', 'f50', 'x speedportal', 'x crazyfast',
+    'future', 'king', 'ultra',
+    'morelia', 'furon', 'tekela', 'magnetico', 'brasil', 'b-elite',
+  ],
+  rugby: [
+    'kakari', 'malice', 'stampede', 'speed infinite', 'sidestep',
+    'tiempo rugby', 'phoenix',
+  ],
+  running: [
+    'pegasus', 'vomero', 'ultraboost', 'ghost', 'adrenaline',
+    'gel-nimbus', 'gel-kayano', 'clifton', 'bondi', '1080',
+    'speedcross', 'ride',
+  ],
+};
 const FAMILY_ALIAS = { 'x crazyfast': 'x speedportal', f50: 'x speedportal' };
 
-function familyOf(model) {
+function familyOf(model, sport) {
   const lower = normKey(model);
-  for (const tok of FAMILY_TOKENS) {
-    if (lower.includes(tok)) return FAMILY_ALIAS[tok] ?? tok;
+  const tokens = lower.split(' ');
+  for (const tok of FAMILY_TOKENS[sport] ?? []) {
+    // single words match whole tokens ("ride" must not match "stride");
+    // multi-word/numeric families match as substrings ("1080" in "1080v13").
+    const hit =
+      tok.includes(' ') || /\d/.test(tok) || tok.includes('-')
+        ? lower.includes(tok)
+        : tokens.includes(tok);
+    if (hit) return FAMILY_ALIAS[tok] ?? tok;
   }
   return null;
 }
 
-function curatedTemplate(family, gender) {
+function curatedTemplate(family, gender, sport) {
   if (!family) return null;
   const candidates = curated.filter(
-    (b) => b.sport === 'football' && familyOf(b.model) === family,
+    (b) => b.sport === sport && familyOf(b.model, sport) === family,
   );
   if (candidates.length === 0) return null;
   return candidates.find((b) => b.gender === gender) ?? candidates[0];
@@ -196,20 +274,23 @@ const WOMENS_LENGTH_RANGE = [220, 262];
 const groups = new Map();
 const counts = {};
 
-for (const [handle, gender] of COLLECTIONS) {
+for (const [handle, gender, sport] of COLLECTIONS) {
   const products = loadCollection(handle);
-  counts[gender] = { colourways: products.length };
+  counts[`${sport}-${gender}`] = { colourways: products.length };
   for (const p of products) {
     if (NOT_FOOTWEAR.test(p.title)) continue;
+    if (gender === 'kids' && /\(TD\)|toddler|infant|baby|crib/i.test(p.title)) continue;
     if (!p.variants?.length || !p.vendor) continue;
     const brand = BRAND_NAME[p.vendor.toLowerCase()] ?? p.vendor;
-    const { model, surface } = splitSurface(cleanModel(p.title, p.vendor));
+    const { model, surface } = splitSurface(cleanModel(p.title, p.vendor, sport, gender));
     if (!model) continue;
-    const key = `${gender}|${brand.toLowerCase()}|${normKey(model)}`;
+    const key = `${sport}|${gender}|${brand.toLowerCase()}|${normKey(model)}`;
     if (!groups.has(key)) {
-      groups.set(key, { gender, brand, model, products: [] });
+      groups.set(key, { sport, gender, brand, model, products: [], rugbyTagged: false });
     }
-    groups.get(key).products.push({ ...p, surface });
+    const g = groups.get(key);
+    if (sport === 'rugby' && /\brugby\b/i.test(p.title)) g.rugbyTagged = true;
+    g.products.push({ ...p, surface });
   }
 }
 
@@ -218,6 +299,7 @@ const newEntries = [];
 const upgrades = [];
 let skippedOld = 0;
 let skippedNoSizes = 0;
+let skippedCrossover = 0;
 
 const curatedByKey = new Map(
   curated.map((b) => [`${b.gender}|${b.brand.toLowerCase()}|${normKey(b.model)}`, b]),
@@ -242,16 +324,19 @@ for (const group of groups.values()) {
 
   // Which surface categories this model is sold in, normalised to the five
   // standard football categories. MG (multi-ground) plays on firm + artificial.
+  // Running shoes have no surface category — they carry no surfaces field.
   const surfaceSet = new Set();
-  for (const p of group.products) {
-    for (const raw of (p.surface || 'FG').split('/')) {
-      const tok = raw.replace(/-PRO|ANTI-CLOG/g, '').trim();
-      if (tok === 'FG' || tok === 'HG') surfaceSet.add('FG');
-      else if (tok === 'SG') surfaceSet.add('SG');
-      else if (tok === 'AG') surfaceSet.add('AG');
-      else if (tok === 'TF' || tok === 'ASTRO' || tok === 'TURF') surfaceSet.add('TF');
-      else if (tok === 'IC' || tok === 'IN' || tok === 'INDOOR' || tok === 'COURT') surfaceSet.add('IC');
-      else surfaceSet.add('FG');
+  if (group.sport !== 'running') {
+    for (const p of group.products) {
+      for (const raw of (p.surface || 'FG').split('/')) {
+        const tok = raw.replace(/-PRO|ANTI-CLOG/g, '').trim();
+        if (tok === 'FG' || tok === 'HG') surfaceSet.add('FG');
+        else if (tok === 'SG') surfaceSet.add('SG');
+        else if (tok === 'AG') surfaceSet.add('AG');
+        else if (tok === 'TF' || tok === 'ASTRO' || tok === 'TURF') surfaceSet.add('TF');
+        else if (tok === 'IC' || tok === 'IN' || tok === 'INDOOR' || tok === 'COURT') surfaceSet.add('IC');
+        else surfaceSet.add('FG');
+      }
     }
   }
   const surfaces = ['FG', 'SG', 'AG', 'TF', 'IC'].filter((s) => surfaceSet.has(s));
@@ -287,10 +372,16 @@ for (const group of groups.values()) {
   const purchaseUrl = `https://www.prodirectsport.com/products/${canonical.handle}`;
   const imageUrl = canonical.images?.[0]?.src ?? '';
 
-  // already curated? upgrade live fields, keep the curated fit data.
+  // already in the DB? Same sport: upgrade live fields, keep curated fit data.
+  // Different sport (a football boot cross-listed in the rugby feed): skip —
+  // the model is already represented; don't duplicate or clobber its data.
   const curatedKey = `${group.gender}|${group.brand.toLowerCase()}|${normKey(group.model)}`;
   const existing = curatedByKey.get(curatedKey);
   if (existing) {
+    if (existing.sport !== group.sport) {
+      skippedCrossover++;
+      continue;
+    }
     existing.purchaseUrl = purchaseUrl;
     if (imageUrl) existing.imageUrl = imageUrl;
     if (price > 0) existing.price = price;
@@ -299,12 +390,25 @@ for (const group of groups.values()) {
     continue;
   }
 
-  const family = familyOf(group.model);
-  const template = curatedTemplate(family, group.gender);
-  const widthClass = template?.width ?? 'standard';
-  // A same-gender curated template carries exact bands; otherwise derive.
+  // Rugby gate: only rugby-tagged titles or rugby-only brands enter as rugby —
+  // everything else in that feed is a cross-listed football boot.
+  if (
+    group.sport === 'rugby' &&
+    !group.rugbyTagged &&
+    !RUGBY_ONLY_BRANDS.has(group.brand.toLowerCase())
+  ) {
+    skippedCrossover++;
+    continue;
+  }
+
+  const family = familyOf(group.model, group.sport);
+  const template = curatedTemplate(family, group.gender, group.sport);
+  let widthClass = template?.width ?? 'standard';
+  // Running brands sell explicit Wide variants as separate models.
+  if (group.sport === 'running' && /\bwide\b/i.test(group.model)) widthClass = 'wide';
+  // A same-gender, same-width curated template carries exact bands; otherwise derive.
   const [minWidth, maxWidth] =
-    template && template.gender === group.gender
+    template && template.gender === group.gender && template.width === widthClass
       ? [template.minWidth, template.maxWidth]
       : widthBand(widthClass, minLength, maxLength, group.gender);
   const notes = template
@@ -315,7 +419,7 @@ for (const group of groups.values()) {
     brand: group.brand,
     model: group.model,
     gender: group.gender,
-    sport: 'football',
+    sport: group.sport,
     width: widthClass,
     minLength,
     maxLength,
@@ -326,7 +430,7 @@ for (const group of groups.values()) {
     notes,
     purchaseUrl,
     imageUrl,
-    surfaces,
+    ...(surfaces.length > 0 ? { surfaces } : {}),
   });
 }
 
@@ -338,22 +442,34 @@ for (const b of curated) {
 
 newEntries.sort(
   (a, b) =>
+    a.sport.localeCompare(b.sport) ||
     a.gender.localeCompare(b.gender) ||
     a.brand.localeCompare(b.brand) ||
     a.model.localeCompare(b.model),
 );
 
 const byGender = {};
-for (const e of newEntries) byGender[e.gender] = (byGender[e.gender] ?? 0) + 1;
+for (const e of newEntries) {
+  const k = `${e.sport}-${e.gender}`;
+  byGender[k] = (byGender[k] ?? 0) + 1;
+}
 
 console.log('cutoff:', CUTOFF);
 console.log('colourways:', JSON.stringify(counts));
 console.log('model groups:', groups.size);
-console.log('skipped (pre-cutoff):', skippedOld, '· skipped (no sizes):', skippedNoSizes);
+console.log(
+  'skipped (pre-cutoff):', skippedOld,
+  '· skipped (no sizes):', skippedNoSizes,
+  '· skipped (cross-listed):', skippedCrossover,
+);
 console.log('curated entries upgraded with live link/image/price:', upgrades.length);
 console.log('new entries:', newEntries.length, JSON.stringify(byGender));
 const inherited = newEntries.filter((e) => e.notes && !e.notes.startsWith('Standard fit profile')).length;
 console.log('fit inherited from curated families:', inherited, '· standard defaults:', newEntries.length - inherited);
+
+if (process.env.DUMP) {
+  fs.writeFileSync('/tmp/new-entries.json', JSON.stringify(newEntries, null, 2));
+}
 
 if (!DRY) {
   fs.writeFileSync('bootDatabase.json', JSON.stringify([...curated, ...newEntries], null, 2) + '\n');
