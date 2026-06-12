@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -6,7 +6,7 @@ import * as SecureStore from 'expo-secure-store';
 import { createFitProfileStore, FitProfile, StorageAdapter } from '../../lib/fitProfile';
 
 type Sport = 'football' | 'running' | 'rugby';
-type Gender = 'mens' | 'womens' | 'unisex';
+type Gender = 'mens' | 'womens';
 
 // Boot-level action shots — every hero image is about feet, like the app.
 const SPORTS: { id: Sport; label: string; imageUrl: string }[] = [
@@ -25,6 +25,13 @@ const SPORTS: { id: Sport; label: string; imageUrl: string }[] = [
     label: 'Rugby',
     imageUrl: 'https://images.unsplash.com/photo-1558151507-c1aa3d917dbb?w=1200&q=70&fit=crop',
   },
+];
+
+// Kids stays visible but disabled until junior boots land in bootDatabase.json.
+const GENDER_TABS: { id: Gender | 'kids'; label: string; enabled: boolean }[] = [
+  { id: 'mens', label: 'MEN', enabled: true },
+  { id: 'womens', label: 'WOMEN', enabled: true },
+  { id: 'kids', label: 'KIDS', enabled: false },
 ];
 
 const storage: StorageAdapter = {
@@ -51,12 +58,10 @@ function daysAgo(isoDate: string): string {
 function SportBand({
   label,
   imageUrl,
-  state,
   onPress,
 }: {
   label: string;
   imageUrl: string;
-  state: 'none' | 'selected' | 'dimmed';
   onPress: () => void;
 }) {
   const [imageFailed, setImageFailed] = useState(false);
@@ -69,7 +74,6 @@ function SportBand({
         overflow: 'hidden',
         backgroundColor: '#1a1a1a',
         marginBottom: 12,
-        opacity: state === 'dimmed' ? 0.45 : 1,
       }}
     >
       {!imageFailed && (
@@ -81,41 +85,58 @@ function SportBand({
         />
       )}
       <View style={{ position: 'absolute', width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.32)' }} />
-      <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 20 }}>
+      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20 }}>
         <Text style={{ color: '#fff', fontSize: 19, fontWeight: '900', letterSpacing: 2.5, textTransform: 'uppercase' }}>
           {label}
         </Text>
+        <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800' }}>→</Text>
       </View>
-      {state === 'selected' && (
-        <View style={{
-          position: 'absolute',
-          top: 10,
-          right: 10,
-          backgroundColor: '#fff',
-          borderRadius: 4,
-          paddingHorizontal: 8,
-          paddingVertical: 4,
-        }}>
-          <Text style={{ fontSize: 9, fontWeight: '800', letterSpacing: 1, color: '#111' }}>SELECTED</Text>
-        </View>
-      )}
     </Pressable>
   );
 }
 
 export default function HomeScreen() {
-  const [selectedSport, setSelectedSport] = useState<Sport | null>(null);
+  const { footLength, footWidth, measureSource } = useLocalSearchParams<{
+    footLength: string;
+    footWidth: string;
+    measureSource: string;
+  }>();
+
+  const [genderTab, setGenderTab] = useState<Gender>('mens');
   const [savedProfile, setSavedProfile] = useState<FitProfile | null>(null);
 
   useEffect(() => {
     profileStore.load().then(setSavedProfile);
   }, []);
 
-  const handleGenderSelect = (gender: Gender) => {
-    if (!selectedSport) return;
+  // Measurements handed over from an onboarding scan (Welcome → Scanner → here).
+  const scannedLength = Number(footLength);
+  const scannedWidth = Number(footWidth);
+  const scannedReady =
+    measureSource === 'scanned' &&
+    Number.isFinite(scannedLength) &&
+    Number.isFinite(scannedWidth) &&
+    scannedLength > 0 &&
+    scannedWidth > 0;
+
+  const handleSportPress = (sport: Sport) => {
+    if (scannedReady) {
+      router.push({
+        pathname: '/screens/SockSelectionScreen',
+        params: {
+          footLength: String(scannedLength),
+          footWidth: String(scannedWidth),
+          sport,
+          gender: genderTab,
+          widthProfile: '',
+          measureSource: 'scanned',
+        },
+      });
+      return;
+    }
     router.push({
       pathname: '/screens/ManualInputScreen',
-      params: { sport: selectedSport, gender },
+      params: { sport, gender: genderTab },
     });
   };
 
@@ -160,11 +181,72 @@ export default function HomeScreen() {
         <Text style={{ fontSize: 32, fontWeight: '800', color: '#111', marginBottom: 4 }}>
           Find your fit.
         </Text>
-        <Text style={{ fontSize: 15, color: '#666', lineHeight: 21, marginBottom: 28 }}>
+        <Text style={{ fontSize: 15, color: '#666', lineHeight: 21, marginBottom: 24 }}>
           Footwear matched to your measured feet — not the size on the box.
         </Text>
 
-        {savedProfile && (
+        <View style={{
+          flexDirection: 'row',
+          gap: 24,
+          borderBottomWidth: 1,
+          borderBottomColor: '#e8e8e8',
+          marginBottom: 24,
+        }}>
+          {GENDER_TABS.map((tab) => {
+            const active = tab.enabled && genderTab === tab.id;
+            return (
+              <Pressable
+                key={tab.id}
+                onPress={() => tab.enabled && setGenderTab(tab.id as Gender)}
+                style={{
+                  paddingBottom: 10,
+                  borderBottomWidth: 2,
+                  borderBottomColor: active ? '#111' : 'transparent',
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                }}
+              >
+                <Text style={{
+                  fontSize: 13,
+                  fontWeight: '800',
+                  letterSpacing: 1.5,
+                  color: !tab.enabled ? '#ccc' : active ? '#111' : '#999',
+                }}>
+                  {tab.label}
+                </Text>
+                {!tab.enabled && (
+                  <Text style={{ fontSize: 8, fontWeight: '800', letterSpacing: 1, color: '#ccc', marginLeft: 3 }}>
+                    SOON
+                  </Text>
+                )}
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {scannedReady && (
+          <View style={{
+            backgroundColor: '#fff',
+            borderRadius: 16,
+            borderWidth: 1,
+            borderColor: '#ebebeb',
+            padding: 16,
+            marginBottom: 24,
+          }}>
+            <Text style={{ fontSize: 11, fontWeight: '800', color: '#2a8a3a', letterSpacing: 1.5, marginBottom: 4 }}>
+              ✓ FEET MEASURED
+            </Text>
+            <Text style={{ fontSize: 20, fontWeight: '800', color: '#111', marginBottom: 4 }}>
+              {scannedLength} × {scannedWidth}
+              <Text style={{ fontSize: 13, fontWeight: '700', color: '#999' }}>  mm</Text>
+            </Text>
+            <Text style={{ fontSize: 13, color: '#666' }}>
+              Pick a sport below to see what fits.
+            </Text>
+          </View>
+        )}
+
+        {savedProfile && !scannedReady && (
           <View style={{ marginBottom: 28 }}>
             <Pressable
               onPress={handleContinue}
@@ -248,83 +330,9 @@ export default function HomeScreen() {
             key={sport.id}
             label={sport.label}
             imageUrl={sport.imageUrl}
-            state={selectedSport === sport.id ? 'selected' : selectedSport ? 'dimmed' : 'none'}
-            onPress={() => setSelectedSport(sport.id)}
+            onPress={() => handleSportPress(sport.id)}
           />
         ))}
-
-        {selectedSport && (
-          <>
-            <Text style={{ fontSize: 11, fontWeight: '800', color: '#999', letterSpacing: 1.5, marginTop: 12, marginBottom: 12 }}>
-              SHOPPING FOR
-            </Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              {(['mens', 'womens', 'unisex'] as Gender[]).map((gender) => {
-                const label = gender === 'mens' ? "MEN'S" : gender === 'womens' ? "WOMEN'S" : 'UNISEX';
-                return (
-                  <Pressable
-                    key={gender}
-                    onPress={() => handleGenderSelect(gender)}
-                    style={{
-                      flex: 1,
-                      backgroundColor: '#fff',
-                      borderWidth: 1,
-                      borderColor: '#d5d5d5',
-                      borderRadius: 4,
-                      paddingVertical: 14,
-                      alignItems: 'center',
-                    }}
-                  >
-                    <Text style={{ fontSize: 12, fontWeight: '800', color: '#111', letterSpacing: 1 }}>
-                      {label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </>
-        )}
-
-        {!savedProfile && (
-          <View style={{ backgroundColor: '#111', borderRadius: 16, padding: 20, marginTop: 16 }}>
-            <View style={{
-              alignSelf: 'flex-start',
-              backgroundColor: '#fff',
-              borderRadius: 4,
-              paddingHorizontal: 8,
-              paddingVertical: 3,
-              marginBottom: 10,
-            }}>
-              <Text style={{ fontSize: 9, fontWeight: '800', letterSpacing: 1, color: '#111' }}>NEW</Text>
-            </View>
-            <Text style={{ fontSize: 17, fontWeight: '800', color: '#fff', marginBottom: 6 }}>
-              Scan your feet with your phone
-            </Text>
-            <Text style={{ fontSize: 13, color: '#aaa', lineHeight: 18 }}>
-              A sheet of A4 paper and your camera measure your foot to the millimetre.
-              Pick a sport above to get started.
-            </Text>
-          </View>
-        )}
-
-        {__DEV__ && (
-          <Pressable
-            onPress={() => router.push('/screens/ScannerDebugScreen')}
-            style={{
-              marginTop: 24,
-              borderRadius: 10,
-              borderWidth: 1,
-              borderStyle: 'dashed',
-              borderColor: '#b55a1a',
-              paddingVertical: 10,
-              alignItems: 'center',
-            }}
-          >
-            <Text style={{ fontSize: 12, fontWeight: '700', color: '#b55a1a', letterSpacing: 1 }}>
-              SCANNER DEBUG (DEV ONLY)
-            </Text>
-          </Pressable>
-        )}
 
       </ScrollView>
     </SafeAreaView>

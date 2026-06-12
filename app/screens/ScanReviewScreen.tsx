@@ -60,8 +60,23 @@ export default function ScanReviewScreen() {
     });
   };
 
+  // Onboarding scan (Welcome → Scanner): no sport/gender chosen yet, so hand the
+  // measurements to Home and let the sport bands carry them forward.
+  const onboarding = !sport || !gender;
+
   const handleUse = () => {
     if (!valid) return;
+    if (onboarding) {
+      router.replace({
+        pathname: '/screens/HomeScreen',
+        params: {
+          footLength: String(Math.round(lengthMm)),
+          footWidth: String(Math.round(widthMm)),
+          measureSource: 'scanned',
+        },
+      });
+      return;
+    }
     router.replace({
       pathname: '/screens/SockSelectionScreen',
       params: {
@@ -77,6 +92,11 @@ export default function ScanReviewScreen() {
 
   const handleEditManually = () => {
     if (!valid) return;
+    if (onboarding) {
+      // ManualInput needs a sport — send them to Home to pick one instead.
+      router.replace('/screens/HomeScreen');
+      return;
+    }
     router.replace({
       pathname: '/screens/ManualInputScreen',
       params: {
@@ -196,7 +216,7 @@ export default function ScanReviewScreen() {
             }}
           >
             <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>
-              Edit measurements
+              {onboarding ? 'Continue without scan' : 'Edit measurements'}
             </Text>
           </Pressable>
         ) : (
