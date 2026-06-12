@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Animated,
   FlatList,
   Image,
   Pressable,
@@ -143,8 +144,29 @@ function SurfaceCard({ title, desc, imageUrl, width, active }: {
   );
 }
 
+// Shimmer placeholder while a product photo streams in.
+function ImagePulse() {
+  const v = useRef(new Animated.Value(0.45)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(v, { toValue: 0.85, duration: 700, useNativeDriver: true }),
+        Animated.timing(v, { toValue: 0.45, duration: 700, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [v]);
+  return (
+    <Animated.View
+      style={{ position: 'absolute', width: '100%', height: '100%', backgroundColor: '#dddddd', opacity: v }}
+    />
+  );
+}
+
 function BootImage({ uri, brand, model }: { uri: string; brand: string; model: string }) {
   const [failed, setFailed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const usable = !!uri && !uri.includes('via.placeholder.com') && !failed;
   if (!usable) {
     return (
@@ -157,12 +179,16 @@ function BootImage({ uri, brand, model }: { uri: string; brand: string; model: s
     );
   }
   return (
-    <Image
-      source={{ uri }}
-      style={{ width: '100%', height: 230, backgroundColor: '#f5f5f5' }}
-      resizeMode="contain"
-      onError={() => setFailed(true)}
-    />
+    <View style={{ width: '100%', height: 230, backgroundColor: '#f5f5f5' }}>
+      {!loaded && <ImagePulse />}
+      <Image
+        source={{ uri }}
+        style={{ width: '100%', height: 230, opacity: loaded ? 1 : 0 }}
+        resizeMode="contain"
+        onLoad={() => setLoaded(true)}
+        onError={() => setFailed(true)}
+      />
+    </View>
   );
 }
 
@@ -170,6 +196,7 @@ function BootCard({
   item,
   muted,
   best,
+  index = 0,
   affinityBoost,
   adjustedLength,
   ownedShoes,
@@ -178,6 +205,7 @@ function BootCard({
   item: ScoredBoot;
   muted?: boolean;
   best?: boolean;
+  index?: number;
   affinityBoost: number;
   adjustedLength: number;
   ownedShoes: OwnedShoe[];
@@ -188,7 +216,21 @@ function BootCard({
   const breakdown = getScoreBreakdown(item);
   const total = Math.min(100, breakdown.baseScore + affinityBoost);
   const suggestedSize = recommendSize(adjustedLength, effectiveSizeOffset(boot, ownedShoes));
+  // Staggered entrance as cards first appear.
+  const entrance = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(entrance, {
+      toValue: 1,
+      duration: 320,
+      delay: Math.min(index, 6) * 70,
+      useNativeDriver: true,
+    }).start();
+  }, [entrance, index]);
   return (
+    <Animated.View style={{
+      opacity: entrance,
+      transform: [{ translateY: entrance.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }],
+    }}>
     <Pressable
       onPress={onPress}
       style={({ pressed }) => ({
@@ -266,6 +308,7 @@ function BootCard({
         </View>
       </View>
     </Pressable>
+    </Animated.View>
   );
 }
 
@@ -443,6 +486,11 @@ export default function ResultScreen() {
   // once the user starts browsing, the screen belongs to the boots.
   const listHeader = (
     <View>
+      <View style={{ flexDirection: 'row', gap: 4, marginTop: 12 }}>
+        {[0, 1, 2].map((i) => (
+          <View key={i} style={{ flex: 1, height: 2, borderRadius: 1, backgroundColor: p.text }} />
+        ))}
+      </View>
       <View style={{
         backgroundColor: p.heroBg,
         borderWidth: 1,
@@ -635,6 +683,7 @@ export default function ResultScreen() {
           <BootCard
             item={item.scored}
             best={index === 0 && sort === 'score'}
+            index={index}
             affinityBoost={item.boost}
             adjustedLength={adjustedLength}
             ownedShoes={ownedShoes}

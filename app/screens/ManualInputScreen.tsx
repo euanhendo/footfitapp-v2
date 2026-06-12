@@ -161,6 +161,12 @@ export default function ManualInputScreen() {
         <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
           <View style={{ padding: 20, flex: 1 }}>
 
+            <View style={{ flexDirection: 'row', gap: 4, marginBottom: 16 }}>
+              {[0, 1, 2].map((i) => (
+                <View key={i} style={{ flex: 1, height: 2, borderRadius: 1, backgroundColor: i === 0 ? p.text : p.hairline }} />
+              ))}
+            </View>
+
             <Pressable
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

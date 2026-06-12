@@ -135,6 +135,11 @@ export default function SockSelectionScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={{ padding: 20, flex: 1 }}>
+        <View style={{ flexDirection: 'row', gap: 4, marginBottom: 14 }}>
+          {[0, 1, 2].map((i) => (
+            <View key={i} style={{ flex: 1, height: 2, borderRadius: 1, backgroundColor: i <= 1 ? p.text : p.hairline }} />
+          ))}
+        </View>
         <TextInput
           value={query}
           onChangeText={setQuery}

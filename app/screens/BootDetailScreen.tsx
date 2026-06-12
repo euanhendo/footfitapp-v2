@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { Image, Linking, Pressable, ScrollView, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Image, Linking, Pressable, Text, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import * as SecureStore from 'expo-secure-store';
 import {
@@ -69,6 +69,57 @@ function SectionLabel({ children }: { children: string }) {
   );
 }
 
+// Shimmer placeholder while the product photo streams in.
+function ImagePulse() {
+  const v = useRef(new Animated.Value(0.45)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(v, { toValue: 0.85, duration: 700, useNativeDriver: true }),
+        Animated.timing(v, { toValue: 0.45, duration: 700, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [v]);
+  return (
+    <Animated.View
+      style={{ position: 'absolute', width: '100%', height: '100%', backgroundColor: '#dddddd', opacity: v }}
+    />
+  );
+}
+
+// Score contribution as a filling bar — the breakdown you can read at a glance.
+function ScoreBar({ value, max }: { value: number; max: number }) {
+  const p = usePalette();
+  const anim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(anim, {
+      toValue: Math.max(0, Math.min(value / max, 1)),
+      duration: 650,
+      delay: 150,
+      useNativeDriver: false,
+    }).start();
+  }, [anim, value, max]);
+  return (
+    <View style={{
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: p.dark ? '#333' : '#e4e4e4',
+      overflow: 'hidden',
+      marginTop: 5,
+      marginBottom: 8,
+    }}>
+      <Animated.View style={{
+        height: 4,
+        borderRadius: 2,
+        backgroundColor: p.text,
+        width: anim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
+      }} />
+    </View>
+  );
+}
+
 export default function BootDetailScreen() {
   const p = usePalette();
   const { brand, model, bootGender, sport, footLength, footWidth, sockType } =
@@ -83,7 +134,9 @@ export default function BootDetailScreen() {
     }>();
 
   const [imageFailed, setImageFailed] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
   const [ownedShoes, setOwnedShoes] = useState<OwnedShoe[]>([]);
+  const scrollY = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     ownedStore.load().then(setOwnedShoes);
   }, []);
@@ -127,15 +180,45 @@ export default function BootDetailScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: p.bg }}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 110 }}>
-        <View style={{ backgroundColor: '#f5f5f5' }}>
+      <Animated.ScrollView
+        contentContainerStyle={{ paddingBottom: 110 }}
+        scrollEventThrottle={16}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true },
+        )}
+      >
+        {/* Pull down and the photo stretches (GOAT-style rubber-band hero). */}
+        <Animated.View style={{
+          backgroundColor: '#f5f5f5',
+          transform: [
+            {
+              translateY: scrollY.interpolate({
+                inputRange: [-320, 0],
+                outputRange: [-160, 0],
+                extrapolateRight: 'clamp',
+              }),
+            },
+            {
+              scale: scrollY.interpolate({
+                inputRange: [-320, 0],
+                outputRange: [2, 1],
+                extrapolateRight: 'clamp',
+              }),
+            },
+          ],
+        }}>
           {showImage ? (
-            <Image
-              source={{ uri: boot.imageUrl }}
-              style={{ width: '100%', height: 320 }}
-              resizeMode="contain"
-              onError={() => setImageFailed(true)}
-            />
+            <View style={{ width: '100%', height: 320 }}>
+              {!imageLoaded && <ImagePulse />}
+              <Image
+                source={{ uri: boot.imageUrl }}
+                style={{ width: '100%', height: 320, opacity: imageLoaded ? 1 : 0 }}
+                resizeMode="contain"
+                onLoad={() => setImageLoaded(true)}
+                onError={() => setImageFailed(true)}
+              />
+            </View>
           ) : (
             <View style={{ width: '100%', height: 320, alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ color: '#999', fontSize: 13, fontWeight: '800', letterSpacing: 2 }}>
@@ -157,7 +240,7 @@ export default function BootDetailScreen() {
               {total}% FIT
             </Text>
           </View>
-        </View>
+        </Animated.View>
 
         <View style={{ padding: 20 }}>
           <Text style={{ fontSize: 11, fontWeight: '800', color: p.faint, letterSpacing: 1.5, marginBottom: 4 }}>
@@ -263,12 +346,14 @@ export default function BootDetailScreen() {
             <Text style={{ fontSize: 13, color: p.text, fontWeight: '700' }}>
               Length: {breakdown.lengthContribution} / {breakdown.lengthMax}
             </Text>
+            <ScoreBar value={breakdown.lengthContribution} max={breakdown.lengthMax} />
             <Text style={{ fontSize: 12, color: p.muted, lineHeight: 17, marginBottom: 4 }}>
               {describeLengthFit(boot, adjustedLength, ownedShoes)}
             </Text>
             <Text style={{ fontSize: 13, color: p.text, fontWeight: '700' }}>
               Width: {breakdown.widthContribution} / {breakdown.widthMax}
             </Text>
+            <ScoreBar value={breakdown.widthContribution} max={breakdown.widthMax} />
             <Text style={{ fontSize: 12, color: p.muted, lineHeight: 17 }}>
               {describeWidthFit(boot, adjustedWidth)}
             </Text>
@@ -289,7 +374,7 @@ export default function BootDetailScreen() {
             </Text>
           </View>
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
 
       <View style={{
         position: 'absolute',
