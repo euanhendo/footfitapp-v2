@@ -4,133 +4,133 @@
     "name": "Grip Socks",
     "thickness": 0.9,
     "sport": "football",
-    "imageUrl": "https://via.placeholder.com/120x120/111111/ffffff?text=Nike"
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/154406_main.jpg?v=1774015526"
   },
   "trusox_mid": {
     "brand": "Trusox",
     "name": "Midweight",
     "thickness": 1.8,
     "sport": "football",
-    "imageUrl": "https://via.placeholder.com/120x120/1a4c96/ffffff?text=Trusox"
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/233380_main.jpg?v=1774009626"
   },
   "trusox_thin": {
     "brand": "Trusox",
     "name": "Thin",
     "thickness": 1.2,
     "sport": "football",
-    "imageUrl": "https://via.placeholder.com/120x120/1a4c96/ffffff?text=Trusox"
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/233384_main.jpg?v=1774006332"
   },
   "alphaskin": {
     "brand": "Adidas",
     "name": "Alphaskin",
     "thickness": 0.6,
     "sport": "football",
-    "imageUrl": "https://via.placeholder.com/120x120/000000/ffffff?text=Adidas"
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/205349_main.jpg?v=1774706728"
   },
   "gain_the_edge": {
     "brand": "Gain The Edge",
     "name": "Grip",
     "thickness": 1.2,
     "sport": "football",
-    "imageUrl": "https://via.placeholder.com/120x120/444444/ffffff?text=GTE"
+    "imageUrl": ""
   },
   "tapedesign": {
     "brand": "TapeDesign",
     "name": "Anti-Slip",
     "thickness": 1.5,
     "sport": "football",
-    "imageUrl": "https://via.placeholder.com/120x120/333333/ffffff?text=TD"
+    "imageUrl": ""
   },
   "darn_tough": {
     "brand": "Darn Tough",
     "name": "Element Micro Crew",
     "thickness": 0.9,
     "sport": "running",
-    "imageUrl": "https://via.placeholder.com/120x120/2a5d3a/ffffff?text=Darn+Tough"
+    "imageUrl": ""
   },
   "smartwool_run": {
     "brand": "Smartwool",
     "name": "Run Cold Weather",
     "thickness": 1.5,
     "sport": "running",
-    "imageUrl": "https://via.placeholder.com/120x120/c0392b/ffffff?text=Smartwool"
+    "imageUrl": ""
   },
   "injinji_ultra": {
     "brand": "Injinji",
     "name": "Ultra Run No-Show",
     "thickness": 1.5,
     "sport": "running",
-    "imageUrl": "https://via.placeholder.com/120x120/e67e22/ffffff?text=Injinji"
+    "imageUrl": ""
   },
   "inov8_active": {
     "brand": "Inov-8",
     "name": "Active Mid",
     "thickness": 2.1,
     "sport": "running",
-    "imageUrl": "https://via.placeholder.com/120x120/1a6bb5/ffffff?text=Inov-8"
+    "imageUrl": ""
   },
   "hilly_marathon": {
     "brand": "Hilly",
     "name": "Marathon Fresh",
     "thickness": 1.5,
     "sport": "running",
-    "imageUrl": "https://via.placeholder.com/120x120/8e44ad/ffffff?text=Hilly"
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/1029390_main.jpg?v=1774357887"
   },
   "balega_hidden": {
     "brand": "Balega",
     "name": "Hidden Comfort",
     "thickness": 1.8,
     "sport": "running",
-    "imageUrl": "https://via.placeholder.com/120x120/16a085/ffffff?text=Balega"
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/249085_main.jpg?v=1774354761"
   },
   "danish_endurance": {
     "brand": "Danish Endurance",
     "name": "Running Sock",
     "thickness": 1.2,
     "sport": "running",
-    "imageUrl": "https://via.placeholder.com/120x120/c0392b/ffffff?text=Danish"
+    "imageUrl": ""
   },
   "canterbury_grip": {
     "brand": "Canterbury",
     "name": "Grip Rugby",
     "thickness": 1.5,
     "sport": "rugby",
-    "imageUrl": "https://via.placeholder.com/120x120/006400/ffffff?text=Canterbury"
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/268027_main.jpg?v=1774358939"
   },
   "adidas_rugby": {
     "brand": "Adidas",
     "name": "Rugby Match",
     "thickness": 2.1,
     "sport": "rugby",
-    "imageUrl": "https://via.placeholder.com/120x120/000000/ffffff?text=Adidas"
+    "imageUrl": ""
   },
   "trusox_rugby": {
     "brand": "Trusox",
     "name": "Rugby Mid",
     "thickness": 1.8,
     "sport": "rugby",
-    "imageUrl": "https://via.placeholder.com/120x120/1a4c96/ffffff?text=Trusox"
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/233380_main.jpg?v=1774009626"
   },
   "gilbert_rugby": {
     "brand": "Gilbert",
     "name": "Training Rugby",
     "thickness": 2.4,
     "sport": "rugby",
-    "imageUrl": "https://via.placeholder.com/120x120/b55a1a/ffffff?text=Gilbert"
+    "imageUrl": ""
   },
   "nike_everyday_cushion_football": {
     "brand": "Nike",
     "name": "Everyday Cushion Crew",
     "thickness": 1.2,
     "sport": "football",
-    "imageUrl": ""
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/197403_main.jpg?v=1774211731"
   },
   "adidas_crew_basic_football": {
     "brand": "Adidas",
     "name": "Crew Sock",
     "thickness": 1.2,
     "sport": "football",
-    "imageUrl": ""
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/1038301_main.jpg?v=1774347668"
   },
   "cotton_crew_football": {
     "brand": "Generic",
@@ -158,28 +158,28 @@
     "name": "Team Liga Sock",
     "thickness": 1.8,
     "sport": "football",
-    "imageUrl": ""
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/173118_main.jpg?v=1774353286"
   },
   "umbro_team_football": {
     "brand": "Umbro",
     "name": "Club Sock",
     "thickness": 1.8,
     "sport": "football",
-    "imageUrl": ""
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/186941_main.jpg?v=1775831348"
   },
   "nike_everyday_plus_running": {
     "brand": "Nike",
     "name": "Everyday Plus Cushion",
     "thickness": 1.5,
     "sport": "running",
-    "imageUrl": ""
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/282373_main.jpg?v=1774358956"
   },
   "adidas_running_crew": {
     "brand": "Adidas",
     "name": "Performance Cushioned",
     "thickness": 1.5,
     "sport": "running",
-    "imageUrl": ""
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/1041934_main.jpg?v=1774289245"
   },
   "cotton_no_show_running": {
     "brand": "Generic",
@@ -228,42 +228,42 @@
     "name": "Squad Crew",
     "thickness": 1.5,
     "sport": "football",
-    "imageUrl": ""
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/222840_main.jpg?v=1774209320"
   },
   "nike_strike_crew": {
     "brand": "Nike",
     "name": "Strike Mercurial Crew",
     "thickness": 1.2,
     "sport": "football",
-    "imageUrl": ""
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/1013669_main.jpg?v=1774006968"
   },
   "nike_academy_otc": {
     "brand": "Nike",
     "name": "Academy Over-the-Calf",
     "thickness": 1.8,
     "sport": "football",
-    "imageUrl": ""
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/249531_main.jpg?v=1774356110"
   },
   "nike_grip_strike_long": {
     "brand": "Nike",
     "name": "Grip Strike Long",
     "thickness": 1.2,
     "sport": "football",
-    "imageUrl": ""
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/285563_main.jpg?v=1774202166"
   },
   "adidas_milano_23": {
     "brand": "Adidas",
     "name": "Milano 23 Team Sock",
     "thickness": 1.8,
     "sport": "football",
-    "imageUrl": ""
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/279840_main.jpg?v=1773999457"
   },
   "adidas_santos_18": {
     "brand": "Adidas",
     "name": "Santos 18 Team Sock",
     "thickness": 1.8,
     "sport": "football",
-    "imageUrl": ""
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/176495_main.jpg?v=1774352741"
   },
   "adidas_copa_zone": {
     "brand": "Adidas",
@@ -277,7 +277,7 @@
     "name": "Liga Core Team Sock",
     "thickness": 1.8,
     "sport": "football",
-    "imageUrl": ""
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/173121_main.jpg?v=1774043150"
   },
   "puma_grip_performance": {
     "brand": "Puma",
@@ -298,7 +298,7 @@
     "name": "3.0 Cushion",
     "thickness": 2.1,
     "sport": "football",
-    "imageUrl": ""
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/233380_main.jpg?v=1774009626"
   },
   "gte_grip_long": {
     "brand": "Gain The Edge",
@@ -354,14 +354,14 @@
     "name": "Team Long Sock",
     "thickness": 2.4,
     "sport": "rugby",
-    "imageUrl": ""
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/1020046_main.jpg?v=1774361543"
   },
   "canterbury_playing": {
     "brand": "Canterbury",
     "name": "Playing Sock",
     "thickness": 2.1,
     "sport": "rugby",
-    "imageUrl": ""
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/268027_main.jpg?v=1774358939"
   },
   "gilbert_kryten_match": {
     "brand": "Gilbert",
@@ -375,21 +375,21 @@
     "name": "3-Stripe Rugby Long",
     "thickness": 2.1,
     "sport": "rugby",
-    "imageUrl": ""
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/127562_main.jpg?v=1774353295"
   },
   "umbro_rugby_long": {
     "brand": "Umbro",
     "name": "Rugby Long Sock",
     "thickness": 2.1,
     "sport": "rugby",
-    "imageUrl": ""
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/186940_main.jpg?v=1776157166"
   },
   "nike_rugby_match": {
     "brand": "Nike",
     "name": "Rugby Match Sock",
     "thickness": 1.8,
     "sport": "rugby",
-    "imageUrl": ""
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/154406_main.jpg?v=1774015526"
   },
   "gte_rugby_grip": {
     "brand": "Gain The Edge",
@@ -410,28 +410,28 @@
     "name": "Spark Cushioned Ankle",
     "thickness": 1.8,
     "sport": "running",
-    "imageUrl": ""
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/197402_main.jpg?v=1774349015"
   },
   "nike_racing_ankle": {
     "brand": "Nike",
     "name": "Racing Ankle",
     "thickness": 0.9,
     "sport": "running",
-    "imageUrl": ""
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/227500_main.jpg?v=1774358444"
   },
   "adidas_supernova_run": {
     "brand": "Adidas",
     "name": "Supernova Cushioned",
     "thickness": 1.8,
     "sport": "running",
-    "imageUrl": ""
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/219476_main.jpg?v=1774270729"
   },
   "asics_road_quarter": {
     "brand": "ASICS",
     "name": "Road Quarter",
     "thickness": 1.5,
     "sport": "running",
-    "imageUrl": ""
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/155414_main.jpg?v=1774349418"
   },
   "brooks_ghost_crew": {
     "brand": "Brooks",
@@ -445,28 +445,28 @@
     "name": "Blister Resist",
     "thickness": 2.1,
     "sport": "running",
-    "imageUrl": ""
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/1032400_main.jpg?v=1774278955"
   },
   "feetures_elite_light": {
     "brand": "Feetures",
     "name": "Elite Light Cushion",
     "thickness": 1.2,
     "sport": "running",
-    "imageUrl": ""
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/1013961_main.jpg?v=1774357597"
   },
   "feetures_elite_max": {
     "brand": "Feetures",
     "name": "Elite Max Cushion",
     "thickness": 2.1,
     "sport": "running",
-    "imageUrl": ""
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/1034690_main.jpg?v=1774294037"
   },
   "stance_run_light": {
     "brand": "Stance",
     "name": "Run Light",
     "thickness": 1.2,
     "sport": "running",
-    "imageUrl": ""
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/232857_main.jpg?v=1774358206"
   },
   "falke_ru4": {
     "brand": "Falke",
@@ -487,7 +487,7 @@
     "name": "Run Compression Tall",
     "thickness": 1.5,
     "sport": "running",
-    "imageUrl": ""
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0695/5689/5834/files/1032397_main.jpg?v=1774347243"
   },
   "thousand_mile_fusion": {
     "brand": "1000 Mile",
