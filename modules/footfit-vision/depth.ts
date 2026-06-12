@@ -8,6 +8,8 @@ export type NativeDepthFrame = {
   height: number;
   /** Base64 of row-major Float32 depth in metres (ARKit's native unit). */
   depthBase64: string;
+  /** Base64 of row-major uint8 confidence (0 low / 1 med / 2 high); '' if unavailable. */
+  confidenceBase64: string;
   fx: number;
   fy: number;
   cx: number;

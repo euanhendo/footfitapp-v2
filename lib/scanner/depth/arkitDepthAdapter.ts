@@ -23,10 +23,15 @@ export const arkitDepthAdapter: DepthAdapter = {
     for (let i = 0; i < count; i++) {
       depthMm[i] = metres[i] * 1000;
     }
+    const confidenceBytes = raw.confidenceBase64 ? base64ToBytes(raw.confidenceBase64) : null;
     return {
       width: raw.width,
       height: raw.height,
       depthMm,
+      confidence:
+        confidenceBytes && confidenceBytes.byteLength >= count
+          ? confidenceBytes.subarray(0, count)
+          : undefined,
       intrinsics: { fx: raw.fx, fy: raw.fy, cx: raw.cx, cy: raw.cy },
       gravity:
         raw.gravity && raw.gravity.length === 3

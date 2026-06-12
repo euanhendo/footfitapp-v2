@@ -195,6 +195,25 @@ final class DepthCapture: NSObject, ARSessionDelegate {
       data.append(Data(bytes: base.advanced(by: row * bytesPerRow), count: width * 4))
     }
 
+    // Per-pixel confidence (0 low / 1 medium / 2 high). Scene depth is
+    // RGB-fused: on laser-absorbing surfaces (black fabric) ARKit invents
+    // smooth in-between depths and marks them low confidence — the JS side
+    // must be able to drop them.
+    var confidence = Data()
+    if let confMap = depth.confidenceMap,
+       CVPixelBufferGetPixelFormatType(confMap) == kCVPixelFormatType_OneComponent8 {
+      CVPixelBufferLockBaseAddress(confMap, .readOnly)
+      defer { CVPixelBufferUnlockBaseAddress(confMap, .readOnly) }
+      if let confBase = CVPixelBufferGetBaseAddress(confMap),
+         CVPixelBufferGetWidth(confMap) == width, CVPixelBufferGetHeight(confMap) == height {
+        let confBytesPerRow = CVPixelBufferGetBytesPerRow(confMap)
+        confidence.reserveCapacity(width * height)
+        for row in 0..<height {
+          confidence.append(Data(bytes: confBase.advanced(by: row * confBytesPerRow), count: width))
+        }
+      }
+    }
+
     // Intrinsics describe the full-resolution camera image — rescale to the
     // depth map's own pixel grid.
     let k = frame.camera.intrinsics
@@ -216,6 +235,7 @@ final class DepthCapture: NSObject, ARSessionDelegate {
       "width": width,
       "height": height,
       "depthBase64": data.base64EncodedString(),
+      "confidenceBase64": confidence.isEmpty ? "" : confidence.base64EncodedString(),
       "fx": k[0][0] * sx,
       "fy": k[1][1] * sy,
       "cx": k[2][0] * sx,

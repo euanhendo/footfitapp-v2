@@ -258,6 +258,20 @@ export default function DepthDebugScreen() {
               : `Capture depth frame${rows.length ? ` (${rows.length + 1})` : ''}`}
           </Text>
         </Pressable>
+        {rows.length > 0 && (
+          <Pressable onPress={() => setRows([])} style={{ alignSelf: 'center', marginTop: 10 }}>
+            <Text
+              style={{
+                color: '#888',
+                fontSize: 12,
+                fontWeight: '700',
+                textDecorationLine: 'underline',
+              }}
+            >
+              Reset session
+            </Text>
+          </Pressable>
+        )}
       </View>
     </SafeAreaView>
   );

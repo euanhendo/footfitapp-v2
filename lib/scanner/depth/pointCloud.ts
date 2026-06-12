@@ -16,22 +16,30 @@ export function unprojectPixel(
 
 const DEFAULT_MAX_DEPTH_MM = 3000;
 
+/** Only pixels the sensor marks high-confidence (2) are trusted by default. */
+const DEFAULT_MIN_CONFIDENCE = 2;
+
 /**
  * Unproject a whole frame into a camera-space point cloud. `stride` subsamples
  * the grid (ARKit depth is 256×192 — stride 1 is ~49k points, fine for the
  * math but worth thinning on older devices). Zero, negative, non-finite and
- * far-away depths are dropped — ARKit emits zeros where it has no estimate.
+ * far-away depths are dropped — ARKit emits zeros where it has no estimate —
+ * and so are pixels below `minConfidence` when the frame carries a
+ * confidence map (invented depths on laser-absorbing surfaces).
  */
 export function depthFrameToPoints(
   frame: DepthFrame,
   stride = 1,
   maxDepthMm = DEFAULT_MAX_DEPTH_MM,
+  minConfidence = DEFAULT_MIN_CONFIDENCE,
 ): Vec3[] {
   const points: Vec3[] = [];
   for (let v = 0; v < frame.height; v += stride) {
     for (let u = 0; u < frame.width; u += stride) {
-      const d = frame.depthMm[v * frame.width + u];
+      const i = v * frame.width + u;
+      const d = frame.depthMm[i];
       if (!Number.isFinite(d) || d <= 0 || d > maxDepthMm) continue;
+      if (frame.confidence && frame.confidence[i] < minConfidence) continue;
       points.push(unprojectPixel(u, v, d, frame.intrinsics));
     }
   }

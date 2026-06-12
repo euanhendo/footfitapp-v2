@@ -18,6 +18,12 @@ export type DepthFrame = {
   height: number;
   /** Row-major, length = width * height. Millimetres along the camera z-axis. */
   depthMm: Float32Array;
+  /**
+   * Per-pixel sensor confidence (0 low / 1 medium / 2 high), row-major.
+   * Scene depth is RGB-fused — laser-absorbing surfaces (black fabric) get
+   * invented depths flagged low. Absent on synthetic frames.
+   */
+  confidence?: Uint8Array;
   intrinsics: CameraIntrinsics;
   /** Gravity direction in camera space (unit vector), when the device provides it. */
   gravity?: Vec3;
