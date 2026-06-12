@@ -12,6 +12,7 @@ export default function Layout() {
         contentStyle: { backgroundColor: dark ? '#000' : '#f9f9f9' },
       }}
     >
+      <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="screens/WelcomeScreen" options={{ headerShown: false }} />
       <Stack.Screen name="screens/HomeScreen" options={{ headerShown: false }} />
       <Stack.Screen name="screens/ManualInputScreen" options={{ title: 'Your Measurements' }} />

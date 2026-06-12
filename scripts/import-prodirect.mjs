@@ -300,6 +300,19 @@ const upgrades = [];
 let skippedOld = 0;
 let skippedNoSizes = 0;
 let skippedCrossover = 0;
+let skippedSoldOut = 0;
+
+// Availability is the only honest age signal: published_at lies (retro
+// re-releases get fresh dates — a 2016 Messi 16+ shows published 2026).
+const stockByKey = new Map(); // gender|brand|model -> any variant available
+const stockByModel = new Map(); // brand|model -> any variant available, any gender
+for (const g of groups.values()) {
+  const inStock = g.products.some((p) => p.variants.some((v) => v.available));
+  const k = `${g.gender}|${g.brand.toLowerCase()}|${normKey(g.model)}`;
+  const mk = `${g.brand.toLowerCase()}|${normKey(g.model)}`;
+  stockByKey.set(k, (stockByKey.get(k) ?? false) || inStock);
+  stockByModel.set(mk, (stockByModel.get(mk) ?? false) || inStock);
+}
 
 const curatedByKey = new Map(
   curated.map((b) => [`${b.gender}|${b.brand.toLowerCase()}|${normKey(b.model)}`, b]),
@@ -383,6 +396,12 @@ for (const group of groups.values()) {
     continue;
   }
 
+  // Fully sold out across every colourway and size = not buyable = no entry.
+  if (!group.products.some((pr) => pr.variants.some((v) => v.available))) {
+    skippedSoldOut++;
+    continue;
+  }
+
   const kidsProduct = group.gender === 'kids';
   let minLength;
   let maxLength;
@@ -443,6 +462,26 @@ for (const b of curated) {
   if (b.sport === 'football' && !b.surfaces) b.surfaces = ['FG'];
 }
 
+// ---- prune dead stock. An entry is dead when its model is delisted from the
+// feed or listed with zero purchasable sizes in any colourway. Womens/unisex
+// entries fall back to the model's stock under any gender (Pro:Direct lists
+// many of them under the mens/adults collection only). Sports whose feed
+// pages weren't loaded are left untouched.
+const feedSports = new Set();
+for (const [, gender, sport] of COLLECTIONS) {
+  if ((counts[`${sport}-${gender}`]?.colourways ?? 0) > 0) feedSports.add(sport);
+}
+const pruned = [];
+const liveCurated = curated.filter((b) => {
+  if (!feedSports.has(b.sport)) return true;
+  const k = `${b.gender}|${b.brand.toLowerCase()}|${normKey(b.model)}`;
+  const mk = `${b.brand.toLowerCase()}|${normKey(b.model)}`;
+  const inStock = stockByKey.has(k) ? stockByKey.get(k) : stockByModel.get(mk);
+  if (inStock) return true;
+  pruned.push(`${b.brand} ${b.model} (${b.gender}, ${b.sport})${inStock === undefined ? ' — delisted' : ' — sold out'}`);
+  return false;
+});
+
 newEntries.sort(
   (a, b) =>
     a.sport.localeCompare(b.sport) ||
@@ -464,7 +503,10 @@ console.log(
   'skipped (pre-cutoff):', skippedOld,
   '· skipped (no sizes):', skippedNoSizes,
   '· skipped (cross-listed):', skippedCrossover,
+  '· skipped (sold out):', skippedSoldOut,
 );
+console.log('pruned (delisted/sold out):', pruned.length);
+if (process.env.VERBOSE) for (const line of pruned) console.log('  -', line);
 console.log('curated entries upgraded with live link/image/price:', upgrades.length);
 console.log('new entries:', newEntries.length, JSON.stringify(byGender));
 const inherited = newEntries.filter((e) => e.notes && !e.notes.startsWith('Standard fit profile')).length;
@@ -475,6 +517,6 @@ if (process.env.DUMP) {
 }
 
 if (!DRY) {
-  fs.writeFileSync('bootDatabase.json', JSON.stringify([...curated, ...newEntries], null, 2) + '\n');
-  console.log('bootDatabase.json written:', curated.length + newEntries.length, 'entries');
+  fs.writeFileSync('bootDatabase.json', JSON.stringify([...liveCurated, ...newEntries], null, 2) + '\n');
+  console.log('bootDatabase.json written:', liveCurated.length + newEntries.length, 'entries');
 }
