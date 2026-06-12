@@ -54,11 +54,46 @@ native bridge — same rule as `VisionAdapter`/`visionKitAdapter`.
 - Pure math + tests shipped: 9 new tests, suite at 275 green. Synthetic
   scenes cover clean foot, bare floor, ankle-lobe contamination, and both
   foot orientations.
-- Native one-shot ARKit capture shipped (`FootfitDepthModule.swift`: warm-up
-  frames, sceneDepth → base64 Float32 metres, intrinsics rescaled to the
-  depth grid, gravity in the maths' camera convention), with
-  `arkitDepthAdapter` as the sole bridge importer and a dev-only
-  `DepthDebugScreen` for instrumented captures.
-- **Unvalidated on device.** Next hardware session: capture over a real foot,
-  compare to tape (~265 × 110), tune capture height guidance, then fit the
-  v3 trust threshold from real confidence values.
+- Native ARKit capture shipped (`FootfitDepthModule.swift`), plus a live
+  `FootfitDepthARView` (camera feed + ~4 Hz centre-depth/tilt events) driving
+  a height-coach on the dev-only `DepthDebugScreen` (green at 50–70 cm,
+  <12° tilt). `arkitDepthAdapter` is the sole bridge importer.
+
+## First device session (2026-06-12 evening, iPhone 15 Pro Max)
+
+Iterated live against the user's foot (tape ground truth ~265 × 110). Each
+failure mode met on device now has a unit-tested defence:
+
+1. **Everything-raised-is-foot** → 975 mm "foot" (other foot + shin joined
+   in). Fix: cluster raised points on a 25 mm floor grid, measure only the
+   cluster nearest the frame-centre aim point (`pickAimedCluster`).
+2. **Black fabric** (trousers): sceneDepth is RGB-fused and invents smooth
+   ramps on laser-absorbing cloth → 695 mm. Fix: bridge ships ARKit's
+   per-pixel confidence map; low-confidence pixels are dropped.
+   High-only proved too strict (edges are medium → contour eroded to
+   196 × 95); medium+ is the setting.
+3. **Toes are thinner than 10 mm** (and sink into carpet) → length
+   under-read. Foot height floor lowered to 6 mm.
+4. **Leg occlusion shadow** is connected to the foot, so clustering can't
+   remove it → 353 median. Fix (`trimLegShadow`): rear slices whose points
+   hover (no meaningful low fraction) are amputated; the heel survives
+   because it touches the floor. "Any low point" was not enough — bright
+   light adds a thin floor-blended halo along the shin (~10% of a slice), so
+   the rule is ≥20% low points.
+
+**End of session: median 258.8 × 98.3 over 7 captures on hard floor in good
+light** (length within ~6 mm; occasional low-confidence dud frames are
+median-resistant — production flow should burst-and-median like v2).
+
+## Next session
+
+- **Fresh ground truth first**: pen-mark length + tape width on the SAME
+  foot being scanned, note which foot — the 255 (pen, 06-11) vs ~263–265
+  (tape, 06-12) length discrepancy is still unresolved.
+- Width sits consistently −11 mm (98–101 vs 110): signature of edge-pixel
+  erosion on both sides. Fit a v3 silhouette bias (the depth twin of
+  `WIDTH_SILHOUETTE_BIAS_MM`) from several trusted bright-light captures —
+  not from tonight's mixed data.
+- Then: burst capture + median, v3 trust threshold from real confidence
+  values, and capture-condition guidance (hard floor beats carpet; ambient
+  light helps the RGB-fused depth).
