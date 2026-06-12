@@ -111,23 +111,49 @@ export function orientHeelAtOrigin(points: Point[]): Point[] {
   return rotated;
 }
 
+export type DepthMeasureDebug = {
+  metrics: FootMetrics;
+  /** Unprojected cloud size — zero means the depth map was empty/invalid. */
+  cloudPoints: number;
+  /** Points inside the 10–120 mm foot height band. */
+  footPoints: number;
+  floorInlierRatio: number;
+  /** Phone height above the fitted floor, mm — sanity check on the plane. */
+  cameraHeightMm: number;
+};
+
+const ZERO_DEBUG: Omit<DepthMeasureDebug, 'cloudPoints'> = {
+  metrics: ZERO,
+  footPoints: 0,
+  floorInlierRatio: 0,
+  cameraHeightMm: 0,
+};
+
 /**
  * Full pure pipeline: depth frame → floor plane → foot points → oriented
  * floor-mm contour → FootMetrics, reusing the device-validated
  * widthAcrossFootBand from the paper pipeline. Native capture is the only
- * part that lives outside this function.
+ * part that lives outside this function. The debug variant exposes the
+ * intermediate signals for the depth debug screen.
  */
-export function measureFootFromDepthFrame(
+export function measureFootFromDepthFrameDebug(
   frame: DepthFrame,
   options: PlaneFitOptions & { stride?: number } = {},
-): FootMetrics {
+): DepthMeasureDebug {
   const { stride = 1, ...planeOptions } = options;
   const points = depthFrameToPoints(frame, stride);
   const plane = fitFloorPlane(points, planeOptions);
-  if (!plane) return ZERO;
+  if (!plane) return { ...ZERO_DEBUG, cloudPoints: points.length };
 
+  const partial = {
+    cloudPoints: points.length,
+    floorInlierRatio: plane.inlierRatio,
+    cameraHeightMm: plane.dMm,
+  };
   const foot = segmentFootPoints(points, plane);
-  if (foot.length < MIN_FOOT_POINTS) return ZERO;
+  if (foot.length < MIN_FOOT_POINTS) {
+    return { ...partial, metrics: ZERO, footPoints: foot.length };
+  }
 
   const oriented = orientHeelAtOrigin(foot);
   let lengthMm = 0;
@@ -135,11 +161,24 @@ export function measureFootFromDepthFrame(
     if (p.y > lengthMm) lengthMm = p.y;
   }
   const widthMm = widthAcrossFootBand(oriented, lengthMm);
-  if (lengthMm <= 0 || widthMm <= 0) return ZERO;
+  if (lengthMm <= 0 || widthMm <= 0) {
+    return { ...partial, metrics: ZERO, footPoints: foot.length };
+  }
 
   const aspect = lengthMm / Math.max(widthMm, 1);
   const floorScore = rangeScore(plane.inlierRatio, FLOOR_INLIER_GOOD_MIN, 1);
   const footScore = rangeScore(aspect, ASPECT_MIN, ASPECT_MAX);
   const confidence = Math.max(0, Math.min(1, floorScore * footScore));
-  return { lengthMm, widthMm, confidence };
+  return {
+    ...partial,
+    metrics: { lengthMm, widthMm, confidence },
+    footPoints: foot.length,
+  };
+}
+
+export function measureFootFromDepthFrame(
+  frame: DepthFrame,
+  options: PlaneFitOptions & { stride?: number } = {},
+): FootMetrics {
+  return measureFootFromDepthFrameDebug(frame, options).metrics;
 }

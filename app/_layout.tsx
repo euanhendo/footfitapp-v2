@@ -12,6 +12,7 @@ export default function Layout() {
       <Stack.Screen name="screens/ScannerScreen" options={{ title: 'Scan your foot' }} />
       <Stack.Screen name="screens/ScanReviewScreen" options={{ title: 'Scan result' }} />
       <Stack.Screen name="screens/ScannerDebugScreen" options={{ title: 'Scanner debug' }} />
+      <Stack.Screen name="screens/DepthDebugScreen" options={{ title: 'Depth debug (v3)' }} />
     </Stack>
   );
 }

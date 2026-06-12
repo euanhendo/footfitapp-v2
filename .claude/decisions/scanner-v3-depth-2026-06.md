@@ -54,5 +54,11 @@ native bridge — same rule as `VisionAdapter`/`visionKitAdapter`.
 - Pure math + tests shipped: 9 new tests, suite at 275 green. Synthetic
   scenes cover clean foot, bare floor, ankle-lobe contamination, and both
   foot orientations.
-- **Not started:** native ARKit capture, screens, debug instrumentation.
-  Per the scope-gate rule, device-dependent steps wait for hardware time.
+- Native one-shot ARKit capture shipped (`FootfitDepthModule.swift`: warm-up
+  frames, sceneDepth → base64 Float32 metres, intrinsics rescaled to the
+  depth grid, gravity in the maths' camera convention), with
+  `arkitDepthAdapter` as the sole bridge importer and a dev-only
+  `DepthDebugScreen` for instrumented captures.
+- **Unvalidated on device.** Next hardware session: capture over a real foot,
+  compare to tape (~265 × 110), tune capture height guidance, then fit the
+  v3 trust threshold from real confidence values.

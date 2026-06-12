@@ -200,6 +200,25 @@ export default function HomeScreen() {
           </Pressable>
         )}
 
+        {__DEV__ && (
+          <Pressable
+            onPress={() => router.push('/screens/DepthDebugScreen')}
+            style={{
+              marginBottom: 16,
+              borderRadius: 10,
+              borderWidth: 1,
+              borderStyle: 'dashed',
+              borderColor: '#1a6bb5',
+              paddingVertical: 10,
+              alignItems: 'center',
+            }}
+          >
+            <Text style={{ fontSize: 12, fontWeight: '700', color: '#1a6bb5', letterSpacing: 1 }}>
+              DEPTH DEBUG — V3 (DEV ONLY)
+            </Text>
+          </Pressable>
+        )}
+
         {selectedSport && (
           <>
             <Text style={{ fontSize: 13, fontWeight: '700', color: '#999', letterSpacing: 1, marginBottom: 12, textTransform: 'uppercase' }}>

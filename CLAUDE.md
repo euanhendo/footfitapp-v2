@@ -10,7 +10,7 @@ Three rules are load-bearing enough to inline here:
 
 - **Route params are strings.** Parse with `Number()` on the receiving screen. Never type a param as `number`. Scanner outputs (`lengthMm`, `widthMm`, `confidence`) follow the same rule on the way out of `ScannerScreen`.
 - **Persistence goes through `StorageAdapter`.** Components and screens never import `expo-secure-store` directly — inject the adapter so tests can swap it.
-- **Vision goes through `VisionAdapter`.** Scanner screens never import native vision/ML modules directly — `ScannerScreen` talks to `visionKitAdapter`; only `lib/scanner/visionKitAdapter.ts` may import `modules/footfit-vision`, and only `lib/scanner/tfliteVisionAdapter.ts` (legacy) may import `react-native-fast-tflite`. Math in `lib/scanner/*` stays pure. (`ScannerDebugScreen` deliberately pokes the raw pipeline — it is the one exception.)
+- **Vision goes through `VisionAdapter`.** Scanner screens never import native vision/ML modules directly — `ScannerScreen` talks to `visionKitAdapter`; only `lib/scanner/visionKitAdapter.ts` may import `modules/footfit-vision`, and only `lib/scanner/tfliteVisionAdapter.ts` (legacy) may import `react-native-fast-tflite`. Math in `lib/scanner/*` stays pure. The depth bridge (v3) follows the same pattern: only `lib/scanner/depth/arkitDepthAdapter.ts` may import `modules/footfit-vision/depth`. (`ScannerDebugScreen` and `DepthDebugScreen` deliberately poke their raw pipelines — they are the exceptions.)
 
 ## Slash commands
 
@@ -56,7 +56,7 @@ npx expo run:ios --device   # plugged-in iPhone, free Apple ID signing OK
 
 The ML route stays dead — the 2026-04-20 TFLite op-resolver failure is documented in [.claude/decisions/roadmap-2026-04.md](.claude/decisions/roadmap-2026-04.md); do not attempt segmentation models again. `lib/scanner/tfliteVisionAdapter.ts` is legacy and unused by screens. **Do not re-tune scanner optics or thresholds without a new pen-measured ground truth.**
 
-**Scanner v3 (LiDAR paperless) — groundwork in progress since 2026-06-12** (v2's full validation was the gate; see [.claude/decisions/scanner-v3-depth-2026-06.md](.claude/decisions/scanner-v3-depth-2026-06.md)). Pure depth math lives in `lib/scanner/depth/` (point cloud → RANSAC floor plane → height-band foot segmentation → the same validated `widthAcrossFootBand`), behind a `DepthAdapter` boundary mirroring `VisionAdapter` — only a future `arkitDepthAdapter.ts` may import the native ARKit bridge. Native capture, screens, and the v3 trust threshold are not started; they need device time (user's iPhone 15 Pro Max has LiDAR).
+**Scanner v3 (LiDAR paperless) — groundwork in progress since 2026-06-12** (v2's full validation was the gate; see [.claude/decisions/scanner-v3-depth-2026-06.md](.claude/decisions/scanner-v3-depth-2026-06.md)). Pure depth math lives in `lib/scanner/depth/` (point cloud → RANSAC floor plane → height-band foot segmentation → the same validated `widthAcrossFootBand`), behind a `DepthAdapter` boundary mirroring `VisionAdapter` — only a future `arkitDepthAdapter.ts` may import the native ARKit bridge. The native ARKit bridge (`modules/footfit-vision/ios/FootfitDepthModule.swift`, one-shot sceneDepth capture) and a dev-only `DepthDebugScreen` (Home → dashed blue entry) exist; **v3 device accuracy is unvalidated** and the v3 trust threshold is unfitted — both wait on real captures (user's iPhone 15 Pro Max has LiDAR).
 
 ## Key Files
 

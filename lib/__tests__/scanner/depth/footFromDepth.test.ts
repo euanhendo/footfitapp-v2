@@ -1,5 +1,6 @@
 import {
   measureFootFromDepthFrame,
+  measureFootFromDepthFrameDebug,
   orientHeelAtOrigin,
   segmentFootPoints,
 } from '../../../scanner/depth/footFromDepth';
@@ -100,6 +101,16 @@ describe('measureFootFromDepthFrame', () => {
     const metrics = measureFootFromDepthFrame(scene, OPTS);
     expect(Math.abs(metrics.widthMm - 110)).toBeLessThanOrEqual(4);
     expect(Math.abs(metrics.lengthMm - 255)).toBeLessThanOrEqual(6);
+  });
+
+  it('exposes pipeline internals through the debug variant', () => {
+    const scene = makeScene([ellipseFoot]);
+    const debug = measureFootFromDepthFrameDebug(scene, OPTS);
+    expect(debug.metrics).toEqual(measureFootFromDepthFrame(scene, OPTS));
+    expect(debug.cloudPoints).toBe(256 * 192);
+    expect(debug.footPoints).toBeGreaterThan(1000);
+    expect(debug.floorInlierRatio).toBeGreaterThan(0.5);
+    expect(Math.abs(debug.cameraHeightMm - 600)).toBeLessThanOrEqual(5);
   });
 
   it('measures the same foot whichever way the toes point', () => {
