@@ -1,6 +1,7 @@
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Image, Linking, Pressable, Text, View } from 'react-native';
+import { Animated, Image, Linking, Pressable, ScrollView, Share, Text, View } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as SecureStore from 'expo-secure-store';
 import {
@@ -89,6 +90,55 @@ function ImagePulse() {
   );
 }
 
+// Compact card for the similar-fits rail.
+function MiniBootCard({ boot, score, onPress }: { boot: Boot; score: number; onPress: () => void }) {
+  const p = usePalette();
+  const [failed, setFailed] = useState(false);
+  const usable = !!boot.imageUrl && !boot.imageUrl.includes('via.placeholder.com') && !failed;
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => ({
+        width: 150,
+        marginRight: 10,
+        borderRadius: 12,
+        overflow: 'hidden',
+        backgroundColor: p.card,
+        borderWidth: 1,
+        borderColor: p.cardBorder,
+        transform: [{ scale: pressed ? 0.97 : 1 }],
+      })}
+    >
+      <View style={{ height: 96, backgroundColor: '#f5f5f5', alignItems: 'center', justifyContent: 'center' }}>
+        {usable ? (
+          <Image
+            source={{ uri: boot.imageUrl }}
+            style={{ width: '100%', height: 96 }}
+            resizeMode="contain"
+            onError={() => setFailed(true)}
+          />
+        ) : (
+          <Text style={{ color: '#999', fontSize: 10, fontWeight: '800', letterSpacing: 1.5 }}>
+            {boot.brand.toUpperCase()}
+          </Text>
+        )}
+      </View>
+      <View style={{ padding: 9 }}>
+        <Text style={{ fontSize: 9, fontWeight: '800', letterSpacing: 1, color: p.faint, marginBottom: 2 }}>
+          {boot.brand.toUpperCase()}
+        </Text>
+        <Text numberOfLines={1} style={{ fontSize: 12, fontWeight: '700', color: p.text, marginBottom: 4 }}>
+          {boot.model}
+        </Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text style={{ fontSize: 11, fontWeight: '800', color: p.text }}>{score}%</Text>
+          <Text style={{ fontSize: 11, color: p.muted }}>£{boot.price}</Text>
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
 // Score contribution as a filling bar — the breakdown you can read at a glance.
 function ScoreBar({ value, max }: { value: number; max: number }) {
   const p = usePalette();
@@ -159,6 +209,21 @@ export default function BootDetailScreen() {
   const sockAdjustment = sockEntry ? sockEntry.thickness : 0;
   const sockLabel = sockEntry ? `${sockEntry.brand} ${sockEntry.name}` : 'no socks selected';
   const { adjustedLength, adjustedWidth } = applySocketAdjustment(safeLength, safeWidth, sockAdjustment);
+
+  // Other strong fits in the same sport/gender — GOAT-style related rail.
+  const similar = useMemo(() => {
+    if (!boot) return [];
+    return boots
+      .filter(
+        (b) =>
+          b.sport === boot.sport &&
+          b.gender === boot.gender &&
+          !(b.brand === boot.brand && b.model === boot.model),
+      )
+      .map((b) => ({ boot: b, score: computeFitScore(b, adjustedLength, adjustedWidth, ownedShoes).score }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 6);
+  }, [boot, adjustedLength, adjustedWidth, ownedShoes]);
 
   if (!boot) {
     return (
@@ -240,6 +305,31 @@ export default function BootDetailScreen() {
               {total}% FIT
             </Text>
           </View>
+          <Pressable
+            onPress={() =>
+              Share.share({
+                message: `${boot.brand} ${boot.model} — ${total}% fit for my feet, size UK ${suggestedSize.uk}. ${boot.purchaseUrl}`,
+              })
+            }
+            style={({ pressed }) => ({
+              position: 'absolute',
+              top: 14,
+              left: 14,
+              width: 34,
+              height: 34,
+              borderRadius: 17,
+              backgroundColor: '#fff',
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: pressed ? 0.7 : 1,
+              shadowColor: '#000',
+              shadowOpacity: 0.15,
+              shadowRadius: 4,
+              shadowOffset: { width: 0, height: 1 },
+            })}
+          >
+            <MaterialCommunityIcons name="share-variant" size={16} color="#111" />
+          </Pressable>
         </Animated.View>
 
         <View style={{ padding: 20 }}>
@@ -380,6 +470,41 @@ export default function BootDetailScreen() {
               Total: {total} / 100
             </Text>
           </View>
+
+          {similar.length > 0 && (
+            <View style={{ marginTop: 24 }}>
+              <SectionLabel>SIMILAR FITS FOR YOUR FEET</SectionLabel>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ marginHorizontal: -20 }}
+                contentContainerStyle={{ paddingHorizontal: 20 }}
+              >
+                {similar.map(({ boot: b, score }) => (
+                  <MiniBootCard
+                    key={`${b.brand}-${b.model}-${b.gender}`}
+                    boot={b}
+                    score={score}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      router.push({
+                        pathname: '/screens/BootDetailScreen',
+                        params: {
+                          brand: b.brand,
+                          model: b.model,
+                          bootGender: b.gender,
+                          sport: b.sport,
+                          footLength: footLength ?? '',
+                          footWidth: footWidth ?? '',
+                          sockType: sockType ?? '',
+                        },
+                      });
+                    }}
+                  />
+                ))}
+              </ScrollView>
+            </View>
+          )}
         </View>
       </Animated.ScrollView>
 

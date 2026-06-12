@@ -99,17 +99,21 @@ const SURFACE_PAGES: {
   },
 ];
 
-function SurfaceCard({ title, desc, imageUrl, width, active }: {
+function SurfaceCard({ title, desc, imageUrl, width, active, onPress }: {
   title: string;
   desc: string;
   imageUrl: string;
   width: number;
   active: boolean;
+  onPress: () => void;
 }) {
   const p = usePalette();
   const [imageFailed, setImageFailed] = useState(false);
   return (
-    <View style={{ width, marginRight: 12 }}>
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => ({ width, marginRight: 12, transform: [{ scale: pressed ? 0.98 : 1 }] })}
+    >
       <View style={{
         height: 96,
         borderRadius: 12,
@@ -140,7 +144,7 @@ function SurfaceCard({ title, desc, imageUrl, width, active }: {
         {title}
       </Text>
       <Text style={{ fontSize: 12, color: p.muted }}>{desc}</Text>
-    </View>
+    </Pressable>
   );
 }
 
@@ -572,13 +576,23 @@ export default function ResultScreen() {
             const page = SURFACE_PAGES[Math.min(Math.max(i, 0), SURFACE_PAGES.length - 1)];
             setSurface(page.key);
           }}
-          renderItem={({ item: page }) => (
+          renderItem={({ item: page, index }) => (
             <SurfaceCard
               title={page.title}
               desc={page.desc}
               imageUrl={page.imageUrl}
               width={surfaceCardWidth}
               active={surface === page.key}
+              onPress={() => {
+                // Tap any card to select it and slide it into the centre —
+                // swiping still works the same way.
+                Haptics.selectionAsync();
+                setSurface(page.key);
+                surfaceListRef.current?.scrollToOffset({
+                  offset: index * (surfaceCardWidth + 12),
+                  animated: true,
+                });
+              }}
             />
           )}
         />
