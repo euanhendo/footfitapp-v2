@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
+import * as Haptics from 'expo-haptics';
 import {
   FlatList,
   Image,
@@ -199,9 +200,14 @@ export default function SockSelectionScreen() {
             }
             renderItem={({ item }) => {
               const selected = item.key === sockType;
+              // Thickness gauge: full bar = the thickest sock we carry (2.7 mm).
+              const gaugeRatio = Math.min(item.thickness / 2.7, 1);
               return (
                 <Pressable
-                  onPress={() => setSockType(item.key)}
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    setSockType(item.key);
+                  }}
                   style={{
                     padding: 10,
                     borderWidth: 1,
@@ -235,9 +241,27 @@ export default function SockSelectionScreen() {
                       {item.name}
                     </Text>
                   </View>
-                  <Text style={{ color: selected ? p.ctaText : p.muted, fontSize: 12 }}>
-                    +{item.thickness}mm
-                  </Text>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={{ color: selected ? p.ctaText : p.muted, fontSize: 12, marginBottom: 4 }}>
+                      +{item.thickness}mm
+                    </Text>
+                    <View style={{
+                      width: 52,
+                      height: 3,
+                      borderRadius: 2,
+                      backgroundColor: selected
+                        ? 'rgba(127,127,127,0.35)'
+                        : p.dark ? '#333' : '#e2e2e2',
+                      overflow: 'hidden',
+                    }}>
+                      <View style={{
+                        width: Math.round(52 * gaugeRatio),
+                        height: 3,
+                        borderRadius: 2,
+                        backgroundColor: selected ? p.ctaText : p.text,
+                      }} />
+                    </View>
+                  </View>
                 </Pressable>
               );
             }}
@@ -247,13 +271,14 @@ export default function SockSelectionScreen() {
         <Pressable
           onPress={handleNext}
           disabled={!sockType}
-          style={{
+          style={({ pressed }) => ({
             backgroundColor: sockType ? p.ctaBg : (p.dark ? '#333' : '#ccc'),
             padding: 14,
             borderRadius: 999,
             alignItems: 'center',
             marginTop: 10,
-          }}
+            transform: [{ scale: pressed ? 0.97 : 1 }],
+          })}
         >
           <Text style={{ color: sockType ? p.ctaText : '#fff', fontWeight: '700', fontSize: 16 }}>Next</Text>
         </Pressable>

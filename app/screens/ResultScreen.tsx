@@ -9,6 +9,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import * as SecureStore from 'expo-secure-store';
 import { applySocketAdjustment, Boot, effectiveSizeOffset, recommendSize, SockEntry } from '../../lib/fitting';
 import {
@@ -168,6 +169,7 @@ function BootImage({ uri, brand, model }: { uri: string; brand: string; model: s
 function BootCard({
   item,
   muted,
+  best,
   affinityBoost,
   adjustedLength,
   ownedShoes,
@@ -175,6 +177,7 @@ function BootCard({
 }: {
   item: ScoredBoot;
   muted?: boolean;
+  best?: boolean;
   affinityBoost: number;
   adjustedLength: number;
   ownedShoes: OwnedShoe[];
@@ -188,7 +191,7 @@ function BootCard({
   return (
     <Pressable
       onPress={onPress}
-      style={{
+      style={({ pressed }) => ({
         backgroundColor: p.card,
         borderRadius: 16,
         marginBottom: 14,
@@ -196,10 +199,30 @@ function BootCard({
         borderWidth: 1,
         borderColor: p.cardBorder,
         opacity: muted ? 0.85 : 1,
-      }}
+        transform: [{ scale: pressed ? 0.98 : 1 }],
+      })}
     >
       <View>
         <BootImage uri={boot.imageUrl} brand={boot.brand} model={boot.model} />
+        {best && (
+          <View style={{
+            position: 'absolute',
+            top: 10,
+            left: 10,
+            backgroundColor: '#fff',
+            borderRadius: 999,
+            paddingHorizontal: 10,
+            paddingVertical: 5,
+            shadowColor: '#000',
+            shadowOpacity: 0.15,
+            shadowRadius: 4,
+            shadowOffset: { width: 0, height: 1 },
+          }}>
+            <Text style={{ color: '#111', fontSize: 10, fontWeight: '800', letterSpacing: 1 }}>
+              BEST MATCH
+            </Text>
+          </View>
+        )}
         <View style={{
           position: 'absolute',
           top: 10,
@@ -400,7 +423,8 @@ export default function ResultScreen() {
       ? `No exact matches — ${nearMisses.length} close alternative${nearMisses.length === 1 ? '' : 's'} below`
       : 'No matches found';
 
-  const openBoot = (boot: Boot) =>
+  const openBoot = (boot: Boot) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push({
       pathname: '/screens/BootDetailScreen',
       params: {
@@ -413,6 +437,7 @@ export default function ResultScreen() {
         sockType: safeSockType,
       },
     });
+  };
 
   // Everything above the boot list scrolls away with it (Adidas-style), so
   // once the user starts browsing, the screen belongs to the boots.
@@ -606,9 +631,10 @@ export default function ResultScreen() {
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }}
         ListHeaderComponent={listHeader}
-        renderItem={({ item }) => (
+        renderItem={({ item, index }) => (
           <BootCard
             item={item.scored}
+            best={index === 0 && sort === 'score'}
             affinityBoost={item.boost}
             adjustedLength={adjustedLength}
             ownedShoes={ownedShoes}

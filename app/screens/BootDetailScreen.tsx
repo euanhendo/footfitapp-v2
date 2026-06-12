@@ -1,6 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Image, Linking, Pressable, ScrollView, Text, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import * as SecureStore from 'expo-secure-store';
 import {
   applySocketAdjustment,
@@ -38,6 +39,14 @@ const WIDTH_COLOUR: Record<string, string> = {
   narrow: '#1a6bb5',
   standard: '#2a8a3a',
   wide: '#b55a1a',
+};
+
+const SURFACE_LABEL: Record<string, string> = {
+  FG: 'FIRM GROUND',
+  SG: 'SOFT GROUND',
+  AG: 'ARTIFICIAL GRASS',
+  TF: 'TURF',
+  IC: 'INDOOR',
 };
 
 function isUsableImage(uri: string | undefined): boolean {
@@ -157,7 +166,7 @@ export default function BootDetailScreen() {
           <Text style={{ fontSize: 24, fontWeight: '800', color: p.text, marginBottom: 8 }}>
             {boot.model}
           </Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
             <Text style={{ fontSize: 20, fontWeight: '700', color: p.text }}>£{boot.price}</Text>
             <View style={{
               backgroundColor: WIDTH_COLOUR[boot.width] + '18',
@@ -170,6 +179,27 @@ export default function BootDetailScreen() {
               </Text>
             </View>
           </View>
+
+          {(boot.surfaces?.length ?? 0) > 0 && (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 18 }}>
+              {(boot.surfaces ?? []).map((s) => (
+                <View
+                  key={s}
+                  style={{
+                    borderWidth: 1,
+                    borderColor: p.chipBorder,
+                    borderRadius: 4,
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                  }}
+                >
+                  <Text style={{ fontSize: 9, fontWeight: '800', letterSpacing: 1, color: p.muted }}>
+                    {SURFACE_LABEL[s] ?? s}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
 
           <View style={{
             backgroundColor: p.heroBg,
@@ -273,13 +303,17 @@ export default function BootDetailScreen() {
         borderTopColor: p.hairline,
       }}>
         <Pressable
-          onPress={() => Linking.openURL(boot.purchaseUrl)}
-          style={{
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            Linking.openURL(boot.purchaseUrl);
+          }}
+          style={({ pressed }) => ({
             backgroundColor: p.ctaBg,
             borderRadius: 999,
             paddingVertical: 15,
             alignItems: 'center',
-          }}
+            transform: [{ scale: pressed ? 0.97 : 1 }],
+          })}
         >
           <Text style={{ color: p.ctaText, fontWeight: '700', fontSize: 15 }}>
             Buy — £{boot.price}

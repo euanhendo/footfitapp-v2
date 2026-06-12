@@ -2,6 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 import * as SecureStore from 'expo-secure-store';
 import { createFitProfileStore, FitProfile, StorageAdapter } from '../../lib/fitProfile';
 import { usePalette } from '../../lib/theme';
@@ -136,13 +137,14 @@ function SportBand({
   return (
     <Pressable
       onPress={onPress}
-      style={{
+      style={({ pressed }) => ({
         height: 110,
         borderRadius: 16,
         overflow: 'hidden',
         backgroundColor: '#1a1a1a',
         marginBottom: 12,
-      }}
+        transform: [{ scale: pressed ? 0.98 : 1 }],
+      })}
     >
       {srcB && (
         <Image
@@ -206,6 +208,7 @@ export default function HomeScreen() {
     scannedWidth > 0;
 
   const handleSportPress = (sport: Sport) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (scannedReady) {
       router.push({
         pathname: '/screens/SockSelectionScreen',
@@ -315,8 +318,11 @@ export default function HomeScreen() {
 
         {!scannedReady && (!savedProfile || savedProfile.source !== 'scanned') && (
           <Pressable
-            onPress={() => router.push('/screens/ScannerScreen')}
-            style={{
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/screens/ScannerScreen');
+            }}
+            style={({ pressed }) => ({
               backgroundColor: p.heroBg,
               borderWidth: 1,
               borderColor: p.heroBorder,
@@ -326,7 +332,8 @@ export default function HomeScreen() {
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'space-between',
-            }}
+              transform: [{ scale: pressed ? 0.98 : 1 }],
+            })}
           >
             <View>
               <Text style={{ fontSize: 12, fontWeight: '800', color: '#fff', letterSpacing: 1.5, marginBottom: 3 }}>
@@ -366,7 +373,14 @@ export default function HomeScreen() {
           <View style={{ marginBottom: 28 }}>
             <Pressable
               onPress={handleContinue}
-              style={{ backgroundColor: p.heroBg, borderWidth: 1, borderColor: p.heroBorder, borderRadius: 16, padding: 20 }}
+              style={({ pressed }) => ({
+                backgroundColor: p.heroBg,
+                borderWidth: 1,
+                borderColor: p.heroBorder,
+                borderRadius: 16,
+                padding: 20,
+                transform: [{ scale: pressed ? 0.98 : 1 }],
+              })}
             >
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                 <Text style={{ fontSize: 11, fontWeight: '800', color: '#888', letterSpacing: 1.5 }}>

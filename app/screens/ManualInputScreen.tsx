@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
+import * as Haptics from 'expo-haptics';
 
 import {
   Alert,
@@ -161,13 +162,14 @@ export default function ManualInputScreen() {
           <View style={{ padding: 20, flex: 1 }}>
 
             <Pressable
-              onPress={() =>
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 router.push({
                   pathname: '/screens/ScannerScreen',
                   params: { sport: sport ?? '', gender: gender ?? '' },
-                })
-              }
-              style={{
+                });
+              }}
+              style={({ pressed }) => ({
                 backgroundColor: p.heroBg,
                 borderWidth: 1,
                 borderColor: p.heroBorder,
@@ -177,7 +179,8 @@ export default function ManualInputScreen() {
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-              }}
+                transform: [{ scale: pressed ? 0.98 : 1 }],
+              })}
             >
               <View style={{ flex: 1, paddingRight: 10 }}>
                 <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800', letterSpacing: 1.5, marginBottom: 3 }}>
@@ -251,22 +254,22 @@ export default function ManualInputScreen() {
 
                     {estimatedLength > 0 && estimatedWidth > 0 && (
                       <View style={{
-                        backgroundColor: p.card,
+                        backgroundColor: p.heroBg,
                         borderWidth: 1,
-                        borderColor: p.cardBorder,
+                        borderColor: p.heroBorder,
                         borderRadius: 16,
-                        padding: 16,
+                        padding: 18,
                         marginTop: 8,
                         marginBottom: 8,
                       }}>
-                        <Text style={{ fontSize: 11, fontWeight: '800', color: p.faint, letterSpacing: 1.5, marginBottom: 6 }}>
+                        <Text style={{ fontSize: 11, fontWeight: '800', color: '#888', letterSpacing: 1.5, marginBottom: 6 }}>
                           YOUR ESTIMATED FEET
                         </Text>
-                        <Text style={{ fontSize: 24, fontWeight: '800', color: p.text, marginBottom: 4 }}>
+                        <Text style={{ fontSize: 28, fontWeight: '800', color: '#fff', marginBottom: 4 }}>
                           {estimatedLength} × {estimatedWidth}
-                          <Text style={{ fontSize: 14, fontWeight: '700', color: p.faint }}>  mm</Text>
+                          <Text style={{ fontSize: 14, fontWeight: '700', color: '#888' }}>  mm</Text>
                         </Text>
-                        <Text style={{ fontSize: 12, color: p.muted, lineHeight: 17 }}>
+                        <Text style={{ fontSize: 12, color: '#888', lineHeight: 17 }}>
                           Estimated from your shoe size — scan with your phone for exact numbers.
                         </Text>
                       </View>
@@ -327,7 +330,14 @@ export default function ManualInputScreen() {
             {showNext && (
               <Pressable
                 onPress={handleNext}
-                style={{ backgroundColor: p.ctaBg, borderRadius: 999, paddingVertical: 14, alignItems: 'center', marginTop: 8 }}
+                style={({ pressed }) => ({
+                  backgroundColor: p.ctaBg,
+                  borderRadius: 999,
+                  paddingVertical: 14,
+                  alignItems: 'center',
+                  marginTop: 8,
+                  transform: [{ scale: pressed ? 0.97 : 1 }],
+                })}
               >
                 <Text style={{ color: p.ctaText, fontSize: 15, fontWeight: '700' }}>Next</Text>
               </Pressable>

@@ -18,4 +18,5 @@ paths:
 - **Product cards** (Result): brand as uppercase eyebrow, model name bold below it, price first in the meta row, score badge as black pill on the image
 - **Photo bands** (Home sport picker): height 110, radius 16, remote boot-level action image with `rgba(0,0,0,0.32)` scrim, uppercase white label `fontWeight '900', letterSpacing 2.5`; `onError` falls back to plain `#1a1a1a` so labels survive offline
 - **No emojis in production UI** — type and photography carry the design
+- **Touch feel**: card-level and CTA Pressables use a style function with `transform: [{ scale: pressed ? 0.97–0.98 : 1 }]`; navigation-level taps fire `Haptics.impactAsync(Light)`, list selections `Haptics.selectionAsync()`, the buy action `Medium`. Small chips stay static — feedback on everything is noise.
 - Numbers shown to users get translated into plain human language wherever a judgement is implied (fit, room, snugness)
