@@ -133,3 +133,24 @@ median-resistant — production flow should burst-and-median like v2).
 - Then: burst capture + median, v3 trust threshold from real confidence
   values, and capture-condition guidance (hard floor beats carpet; ambient
   light helps the RGB-fused depth).
+
+## Post-session work (2026-06-13, no device)
+
+- **Shipped (safe, proven-direction):** persistent on-screen stance cue in
+  the user's own words + tilt gate tightened 12° → 8° (`STANCE_CUE`,
+  `FLAT_MAX_DEG` in `DepthDebugScreen`), plus burst capture (5 spaced frames
+  per tap, medianed). These make the proven straight-leg path the default UX.
+- **Ankle-saddle cut: attempted, then reverted — needs device data.** Coded
+  `findHeelByAnkleSaddle` (instep-peak → walk rear → heel valley → cut at the
+  leg rise) but a synthetic stress test exposed a real flaw: **a leaning shin
+  is capped at 120 mm, the instep is only ~70 mm, so "tallest bin = instep"
+  picks the leg.** Fixing it means separating leg from foot by floor-contact
+  *density* — exactly the threshold (`FOOT_LOW_POINT_FRACTION`) that
+  flip-flopped on device tonight. Conclusion: distinguishing a leaning leg
+  from the foot in a single frame is genuinely ambiguous (floor-blended edge
+  pixels along the shin are real low points), and the thresholds can't be
+  tuned blind. Deferred to a device session with captured frames. The
+  honest current state: **length is ruler-grade with a vertical shin
+  (coached); leaning still over-reads.** Stance coaching is the primary fix,
+  ankle-saddle the eventual safety net — build it WITH device frames, not
+  against synthetics.
