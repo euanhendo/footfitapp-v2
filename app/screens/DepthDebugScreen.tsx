@@ -27,7 +27,15 @@ type CaptureRow = {
 
 const HEIGHT_MIN_MM = 500;
 const HEIGHT_MAX_MM = 700;
-const FLAT_MAX_DEG = 12;
+// Device 2026-06-13: a 9° hold read 285.6, a 5° hold read 261.2 (truth 263).
+// Tightened from 12° — phone flatness keeps the depth geometry honest.
+const FLAT_MAX_DEG = 8;
+
+// Shin verticality is the dominant accuracy factor but can't be sensed live
+// (it needs the full pipeline on the foot), so it's a persistent instruction
+// rather than a gate. Wording is the user's own cue (2026-06-13): you can't
+// stand fully upright while aiming at your own foot, so bend the knee forward.
+const STANCE_CUE = 'Soft bend in the knee — push your knee forward over your ankle so your shin is vertical (leaning your body is fine).';
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -189,6 +197,25 @@ export default function DepthDebugScreen() {
               justifyContent: 'center',
             }}
           >
+            <Text
+              style={{
+                position: 'absolute',
+                top: 16,
+                left: 16,
+                right: 16,
+                color: '#fff',
+                fontSize: 13,
+                fontWeight: '700',
+                textAlign: 'center',
+                lineHeight: 18,
+                backgroundColor: 'rgba(0,0,0,0.6)',
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                borderRadius: 8,
+              }}
+            >
+              {STANCE_CUE}
+            </Text>
             <View
               style={{
                 width: preview.height * 0.62 * 0.43,
