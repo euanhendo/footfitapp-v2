@@ -110,6 +110,36 @@ median-resistant — production flow should burst-and-median like v2).
   your ankle — shin vertical, body leaning is fine.* Use this phrasing as
   the basis for the production stance coaching.
 
+## Frame export + first replayed real frame (2026-06-15)
+
+Added a **Save frame** button (`captureRawDepthFrameForExport` →
+`expo-file-system`/`expo-sharing` → AirDrop) so real captures replay offline
+through the exact decode path. First leaning-leg frame
+(`depthframe-2026-06-15T14-00-49Z`, pose tilt 4.8°, pipeline read
+358 × 111 vs the same session's straight-leg burst 265.8 × 110.3) decoded and
+profiled by y-bin (height + cross-foot width):
+
+- y 200–360: width ~100 mm — real foot body + toes (dense, full width)
+- y 160–190: width 23–52 mm, height ~119 mm — ankle / lower shin
+- y 0–130: width 1–12 mm, sparse — the leg's floor-blended occlusion fringe
+
+**Decisive finding (only real data could show this): a leaning capture
+corrupts the heel at capture time.** The true shin (>120 mm) is removed by
+the height cap, leaving a thin sparse smear behind the ankle instead of a
+rounded heel — the heel datum is simply *not in the data*. The forefoot is
+clean (~187 mm dense) but the heel is gone, so NO heel-cut/ankle-saddle
+heuristic can recover 263 from this frame. This vindicates abandoning the
+ankle-saddle approach.
+
+**Strategy flip — reject, don't repair (v2's trust-gate lesson again).**
+Leaning frames should be REJECTED so a burst median keeps only clean reads
+(the 298 median in-session was good+bad mixed; rejecting the bad ones yields
+~265). Tilt gate alone won't catch it (this frame was 4.8°, leg leaned with
+the phone flat). The reject signal that IS present: the contour's rear end is
+a thin tail (<~15 mm wide) instead of a heel (~60–70 mm wide). Implement a
+v3 trust gate on "rear-width is heel-shaped", validated against a small
+labelled set of saved frames — do NOT tune it on this single frame.
+
 ## Next session
 
 - ~~Fresh ground truth~~ **Done same night: right foot = 263 × 107 by
