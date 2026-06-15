@@ -1,11 +1,15 @@
 import { useCameraPermissions } from 'expo-camera';
+import { File, Paths } from 'expo-file-system';
 import { router } from 'expo-router';
+import * as Sharing from 'expo-sharing';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
   arkitDepthAdapter,
+  captureRawDepthFrameForExport,
+  decodeNativeDepthFrame,
   isDepthScanSupported,
 } from '../../lib/scanner/depth/arkitDepthAdapter';
 import {
@@ -77,6 +81,50 @@ export default function DepthDebugScreen() {
       setRows((prev) => [{ id, debug }, ...prev]);
     } catch (e) {
       setRows((prev) => [{ id, error: e instanceof Error ? e.message : String(e) }, ...prev]);
+    }
+  };
+
+  // Save a raw capture (compact base64 payload + the debug result the pipeline
+  // produced) to a JSON file and open the share sheet so it can be AirDropped
+  // to a Mac. Frames replay through decodeNativeDepthFrame in a test, letting
+  // the heel/length maths be tuned against real data offline. Tag with the
+  // live status so each file records the pose it was taken in.
+  const saveFrame = async () => {
+    setBusy(true);
+    try {
+      const raw = await captureRawDepthFrameForExport();
+      const frame = decodeNativeDepthFrame(raw);
+      const debug = frame ? measureFootFromDepthFrameDebug(frame) : null;
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const payload = {
+        savedAt: stamp,
+        pose: status
+          ? { heightMm: status.centerDepthMm, tiltDeg: status.flatTiltDeg }
+          : null,
+        debug: debug
+          ? { ...debug, metrics: debug.metrics }
+          : null,
+        raw,
+      };
+      const file = new File(Paths.document, `depthframe-${stamp}.json`);
+      file.write(JSON.stringify(payload));
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(file.uri, {
+          mimeType: 'application/json',
+          dialogTitle: 'Save depth frame',
+        });
+      }
+      setRows((prev) => [
+        { id: Date.now(), debug: debug ?? undefined, error: debug ? undefined : 'saved (no metrics)' },
+        ...prev,
+      ]);
+    } catch (e) {
+      setRows((prev) => [
+        { id: Date.now(), error: `save failed: ${e instanceof Error ? e.message : String(e)}` },
+        ...prev,
+      ]);
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -300,6 +348,23 @@ export default function DepthDebugScreen() {
             {busy
               ? `Capturing ${burstProgress} of ${BURST_SIZE} — hold steady…`
               : 'Capture burst (5 frames)'}
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={saveFrame}
+          disabled={busy}
+          style={{
+            backgroundColor: '#1a1a1a',
+            borderWidth: 1,
+            borderColor: '#1a6bb5',
+            borderRadius: 14,
+            paddingVertical: 14,
+            alignItems: 'center',
+            marginTop: 10,
+          }}
+        >
+          <Text style={{ color: '#6db3ff', fontSize: 14, fontWeight: '800' }}>
+            Save frame (AirDrop to Mac)
           </Text>
         </Pressable>
         {rows.length > 0 && (
