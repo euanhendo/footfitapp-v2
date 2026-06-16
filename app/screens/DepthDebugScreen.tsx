@@ -15,6 +15,7 @@ import {
 import {
   DepthMeasureDebug,
   measureFootFromDepthFrameDebug,
+  TRUST_MIN_CONFIDENCE_V3,
 } from '../../lib/scanner/depth/footFromDepth';
 import FootfitDepthView, { DepthStatus } from '../../modules/footfit-vision/depthView';
 
@@ -145,9 +146,14 @@ export default function DepthDebugScreen() {
     }
   };
 
-  const good = rows
+  // Reject, don't repair (v2's trust-gate lesson): only frames that clear the
+  // v3 confidence gate feed the median — leaning over-reads and forefoot-
+  // dropout under-reads are discarded rather than dragged into the average.
+  const measured = rows
     .map((r) => r.debug)
     .filter((d): d is DepthMeasureDebug => !!d && d.metrics.lengthMm > 0);
+  const good = measured.filter((d) => d.metrics.confidence >= TRUST_MIN_CONFIDENCE_V3);
+  const rejected = measured.length - good.length;
   const medianLength = good.length ? median(good.map((d) => d.metrics.lengthMm)) : 0;
   const medianWidth = good.length ? median(good.map((d) => d.metrics.widthMm)) : 0;
   const latest = rows[0];
@@ -312,7 +318,12 @@ export default function DepthDebugScreen() {
       <View style={{ backgroundColor: '#111', padding: 16 }}>
         {good.length >= 2 && (
           <Text style={{ color: '#7bff9f', fontSize: 13, fontWeight: '800', marginBottom: 6 }}>
-            MEDIAN ({good.length} good): {medianLength.toFixed(1)} × {medianWidth.toFixed(1)} mm
+            MEDIAN ({good.length} trusted): {medianLength.toFixed(1)} × {medianWidth.toFixed(1)} mm
+          </Text>
+        )}
+        {rejected > 0 && (
+          <Text style={{ color: '#ff9f7b', fontSize: 12, fontWeight: '700', marginBottom: 6 }}>
+            {rejected} frame{rejected > 1 ? 's' : ''} rejected (low trust){good.length < 2 ? ' — reshoot' : ''}
           </Text>
         )}
         {latest?.error && (
@@ -322,8 +333,10 @@ export default function DepthDebugScreen() {
           <Text style={{ color: '#ddd', fontSize: 12, lineHeight: 18, marginBottom: 8 }}>
             Last:{' '}
             {latest.debug.metrics.lengthMm > 0
-              ? `${latest.debug.metrics.lengthMm.toFixed(1)} × ${latest.debug.metrics.widthMm.toFixed(1)} mm · conf ${(latest.debug.metrics.confidence * 100).toFixed(0)}%`
+              ? `${latest.debug.metrics.lengthMm.toFixed(1)} × ${latest.debug.metrics.widthMm.toFixed(1)} mm · conf ${(latest.debug.metrics.confidence * 100).toFixed(0)}% ${latest.debug.metrics.confidence >= TRUST_MIN_CONFIDENCE_V3 ? '✓ TRUST' : '✗ REJECT'}`
               : 'no foot found'}
+            {'\n'}heel rear {latest.debug.rearHeelWidthMm.toFixed(0)} mm{' '}
+            {latest.debug.rearHeelWidthMm < 20 ? '(leg tail — leaning)' : '(heel ok)'}
             {'\n'}floor {(latest.debug.floorInlierRatio * 100).toFixed(0)}% · camera{' '}
             {latest.debug.cameraHeightMm.toFixed(0)} mm up · foot {latest.debug.footPoints}/
             {latest.debug.bandPoints} pts · cloud {latest.debug.cloudPoints} pts

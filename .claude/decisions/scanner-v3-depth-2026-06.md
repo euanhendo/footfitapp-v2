@@ -164,6 +164,50 @@ labelled set of saved frames — do NOT tune it on this single frame.
   values, and capture-condition guidance (hard floor beats carpet; ambient
   light helps the RGB-fused depth).
 
+## Trust gate built + a second failure mode found (2026-06-16, replay)
+
+User saved five fresh frames (right foot, truth 263 × 107; intended 2 vertical,
+2 leaning, 2 relaxed — one was deleted, so 1/2 vertical, 3/4 leaning, 5 relaxed
+by capture-time order). Replayed all five offline through the exact pipeline.
+**All five are bad captures** — a clean negative set, but no good frame among
+them, so the gate's *accept* path is still unconfirmed.
+
+**Two distinct failure modes, both now rejected by confidence:**
+
+1. **Leaning → thin-tail rear (frames 2, 5, and the 06-15 frame 0).** The
+   oriented contour's rear band is a sparse <16 mm tail, not a heel; reads
+   308–358. Exactly the predicted signal.
+2. **NEW — too much leg in frame / forefoot confidence-dropout (frames 1, 3,
+   4).** ASCII occupancy maps of the raw depth showed the shin (>120 mm) fills
+   the *entire right half* of every frame, and the forefoot sits in a band of
+   low-confidence pixels that the gate drops, *splitting* the foot — clustering
+   then keeps only the rear blob → stubby under-reads 157–196 (aspect 1.6–1.9).
+   A confidence sweep proved it isn't tunable: min-conf 0 explodes length to
+   600–740 mm (phantom depth), min-conf 2 drops more. The fix is capture-side
+   (aim coaching: less leg, foot centred), not math. User confirmed the whole
+   foot *was* inside the guide box — so the guide box does not correspond to the
+   usable depth/height-band region; that mismatch is the real culprit.
+
+**Shipped — heel-shape trust factor (`footFromDepth.ts`).** Confidence is now
+`floorScore × footScore × heelScore`, where `heelScore` ramps 0 (rear band
+<20 mm = leg tail) → 1 (≥45 mm = real heel), measured by `rearBandWidth` on the
+*oriented* contour (pre-anchor, so the anchor can't mask the tail). Thresholds
+are anatomical, not fitted — a real heel is never <20 mm and reliably >45 mm, so
+a clean foot scores 1 by construction. `TRUST_MIN_CONFIDENCE_V3 = 0.8` (v3's
+analogue of v2's 0.85). The two factors are complementary: leaning frames pass
+aspect but die on heel-shape; stubby frames pass heel-shape but die on aspect.
+`depthTrustGate.test.ts` loads the five real fixtures
+(`lib/__tests__/scanner/depth/fixtures/frame1–5.json`) and asserts each is
+rejected with the right mechanism. `DepthDebugScreen` now medians **only
+trusted frames** (rejects the rest, reshoot prompt) and shows the heel width +
+✓TRUST/✗REJECT verdict per capture.
+
+**NEXT (needs device):** (a) save 1–2 *good* frames — phone lower/more side-on
+so the shin is a minority of the frame, foot centred — to confirm the gate's
+accept path (currently validated on negatives only). (b) Fix the aim: shrink the
+live guide box / add an "aim down at the foot, keep the leg out" cue so the shin
+stops filling half the sensor. Do NOT tune thresholds against the negatives.
+
 ## Post-session work (2026-06-13, no device)
 
 - **Shipped (safe, proven-direction):** persistent on-screen stance cue in

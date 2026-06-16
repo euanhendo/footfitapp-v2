@@ -42,6 +42,31 @@ const ZERO: FootMetrics = { lengthMm: 0, widthMm: 0, confidence: 0 };
 const WIDTH_EDGE_EROSION_PX = 2.5;
 const LENGTH_EDGE_EROSION_PX = 1.2;
 
+// Heel-shape trust factor — the v3 analogue of v2's TRUST_MIN_CONFIDENCE gate,
+// fitted from real device negatives (saved frames 2026-06-16). A leaning shin
+// corrupts the heel AT CAPTURE TIME: the true shin (>120 mm) is removed by the
+// height cap, leaving a thin sparse smear behind the ankle instead of a rounded
+// heel — the heel datum is simply not in the data, so no heuristic recovers the
+// real length (replayed leaning frames read 308–358 vs a 263 mm foot). The note
+// from the first replayed frame (2026-06-15) was decisive: reject, don't repair.
+// The reject signal that IS present: the oriented contour's rear band is a thin
+// tail (<~20 mm wide) for a leaning leg, vs a real heel (~55–70 mm). Thresholds
+// are anatomical, not tuned to the negatives: a foot heel is never < 20 mm and
+// reliably > 45 mm wide, so a good capture scores 1 by construction. Measured on
+// the ORIENTED contour (pre-anchor) — the anchor re-zeroes onto the wide heel
+// and would mask the tail.
+const HEEL_BAND_MM = 30;
+const TAIL_WIDTH_MM = 20;
+const HEEL_WIDTH_MM = 45;
+
+// A v3 capture below this confidence is rejected and reshot (the burst median
+// keeps only trusted frames), mirroring v2's TRUST_MIN_CONFIDENCE = 0.85. Set
+// at 0.8 from the real negatives: stubby forefoot-dropout frames score 0.43–0.62
+// on aspect alone, leaning frames score ~0 on heel-shape, and a clean foot
+// (heel ≥45 mm, aspect ~2.4) scores ~1. NOTE: validated against negatives only —
+// confirm the accept path against a clean saved frame before trusting it live.
+export const TRUST_MIN_CONFIDENCE_V3 = 0.8;
+
 // Everything 10–120 mm off the floor is "raised", but not all of it is the
 // aimed foot: the user's other foot, a trouser hem, furniture legs and
 // carpet-pile noise all qualify (first real captures, 2026-06-12: foot +
@@ -276,8 +301,35 @@ export function orientHeelAtOrigin<P extends Point>(points: P[]): P[] {
   return rotated;
 }
 
+/**
+ * Widest cross-foot span within HEEL_BAND_MM of the heel datum (y = 0) of an
+ * oriented contour. A real heel fills this band (~55–70 mm); a leaning leg's
+ * floor-blended occlusion smear leaves only a thin tail (<~20 mm). Max (not
+ * mean) so a sparse-but-present heel still registers; needs ≥3 points so a
+ * stray pixel can't fake a heel.
+ */
+export function rearBandWidth(points: Point[]): number {
+  let min = Infinity;
+  let max = -Infinity;
+  let n = 0;
+  for (const p of points) {
+    if (p.y > HEEL_BAND_MM) continue;
+    if (p.x < min) min = p.x;
+    if (p.x > max) max = p.x;
+    n++;
+  }
+  return n >= 3 ? max - min : 0;
+}
+
+/** 0 (tail, no heel datum) → 1 (full heel) from the rear-band span. */
+export function heelShapeScore(rearWidthMm: number): number {
+  return Math.max(0, Math.min(1, (rearWidthMm - TAIL_WIDTH_MM) / (HEEL_WIDTH_MM - TAIL_WIDTH_MM)));
+}
+
 export type DepthMeasureDebug = {
   metrics: FootMetrics;
+  /** Cross-foot span of the oriented contour's rear band — heel vs leg-tail. */
+  rearHeelWidthMm: number;
   /** Unprojected cloud size — zero means the depth map was empty/invalid. */
   cloudPoints: number;
   /** Raised points everywhere in frame (pre-clustering). */
@@ -334,6 +386,7 @@ export function measureFootFromDepthFrameDebug(
   if (!plane) {
     return {
       metrics: ZERO,
+      rearHeelWidthMm: 0,
       bandPoints: 0,
       footPoints: 0,
       floorInlierRatio: 0,
@@ -345,6 +398,7 @@ export function measureFootFromDepthFrameDebug(
   }
 
   const partial = {
+    rearHeelWidthMm: 0,
     cloudPoints: points.length,
     floorInlierRatio: plane.inlierRatio,
     cameraHeightMm: plane.dMm,
@@ -383,9 +437,12 @@ export function measureFootFromDepthFrameDebug(
     return { ...partial, metrics: ZERO, bandPoints: band.length, footPoints: trimmed.length };
   }
   const oriented = orientHeelAtOrigin(trimmed);
+  // Heel-shape trust signal, read off the oriented contour before the anchor
+  // re-zeroes onto the wide heel (which would hide a leaning leg's thin tail).
+  const rearHeelWidthMm = rearBandWidth(oriented);
   const anchored = anchorToFloorContact(oriented);
   if (anchored.length < MIN_FOOT_POINTS) {
-    return { ...partial, metrics: ZERO, bandPoints: band.length, footPoints: anchored.length };
+    return { ...partial, rearHeelWidthMm, metrics: ZERO, bandPoints: band.length, footPoints: anchored.length };
   }
   let lengthMm = 0;
   for (const p of anchored) {
@@ -393,7 +450,7 @@ export function measureFootFromDepthFrameDebug(
   }
   let widthMm = widthAcrossFootBand(anchored, lengthMm);
   if (lengthMm <= 0 || widthMm <= 0) {
-    return { ...partial, metrics: ZERO, bandPoints: band.length, footPoints: foot.length };
+    return { ...partial, rearHeelWidthMm, metrics: ZERO, bandPoints: band.length, footPoints: foot.length };
   }
   if (calibrate) {
     const pixelPitchMm = plane.dMm / frame.intrinsics.fx;
@@ -401,12 +458,19 @@ export function measureFootFromDepthFrameDebug(
     widthMm += WIDTH_EDGE_EROSION_PX * pixelPitchMm;
   }
 
+  // Confidence is the product of three independent trust signals, each a soft
+  // 0–1 ramp: a real floor (inlier ratio), a foot-shaped aspect, and a real
+  // heel (not a leaning leg's tail). A frame must look right on all three —
+  // the leaning over-reads pass aspect but die on heel-shape, the forefoot-
+  // dropout under-reads pass heel-shape but die on aspect.
   const aspect = lengthMm / Math.max(widthMm, 1);
   const floorScore = rangeScore(plane.inlierRatio, FLOOR_INLIER_GOOD_MIN, 1);
   const footScore = rangeScore(aspect, ASPECT_MIN, ASPECT_MAX);
-  const confidence = Math.max(0, Math.min(1, floorScore * footScore));
+  const heelScore = heelShapeScore(rearHeelWidthMm);
+  const confidence = Math.max(0, Math.min(1, floorScore * footScore * heelScore));
   return {
     ...partial,
+    rearHeelWidthMm,
     metrics: { lengthMm, widthMm, confidence },
     bandPoints: band.length,
     footPoints: trimmed.length,
