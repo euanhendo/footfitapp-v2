@@ -208,6 +208,33 @@ accept path (currently validated on negatives only). (b) Fix the aim: shrink the
 live guide box / add an "aim down at the foot, keep the leg out" cue so the shin
 stops filling half the sensor. Do NOT tune thresholds against the negatives.
 
+## Aim-down coaching cue + pipeline re-review (2026-06-17, no device)
+
+Re-reviewed the whole depth pipeline against the user's goal of "narrow the
+numbers to shippable today." **Finding: there is no math bug left to fix.** All
+five saved fixtures are bad captures and the trust gate REJECTS every one
+(leaning → heel-shape; leg-in-frame → aspect). The pipeline is not producing
+wrong numbers — it is correctly refusing bad input; the math is ruler-grade on a
+clean frame (261 × 109 vs 263). So the remaining blocker is not code, it is
+**empirical: zero confirmed *good* frames exist, so the gate's accept path has
+never fired.** That can only be produced on-device — synthesising it or tuning
+thresholds against the negatives is exactly the trap to avoid.
+
+The one code lever that increases the odds of a good frame is capture coaching,
+and the live `DepthDebugScreen` coached stance/height/tilt but never said to keep
+the leg out of frame — the precise cause of failure mode #2. **Shipped
+(`787e389`):** an `AIM_CUE` ("Aim straight down at your foot, not along your leg —
+keep your shin out of frame and the whole foot inside the guide") as the leading
+top-banner line, with `STANCE_CUE` demoted to a secondary line. tsc/lint clean,
+302 tests pass (lib-only suite, unaffected by the screen edit). The guide-box /
+depth-FOV shrink stays deferred — it can't be calibrated blind, so do it with the
+device in hand.
+
+**NEXT (device, user's move):** save 1–2 clean frames (phone aimed down, leg out
+of frame, foot centred, shin vertical, 50–70 cm, tilt < 8°) and AirDrop them;
+replay offline and confirm ~263 × 107 clears `TRUST_MIN_CONFIDENCE_V3`. That
+confirmation — not more code — is the gate to shippable.
+
 ## Post-session work (2026-06-13, no device)
 
 - **Shipped (safe, proven-direction):** persistent on-screen stance cue in
