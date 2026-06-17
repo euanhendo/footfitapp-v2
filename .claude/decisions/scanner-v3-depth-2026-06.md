@@ -230,10 +230,25 @@ top-banner line, with `STANCE_CUE` demoted to a secondary line. tsc/lint clean,
 depth-FOV shrink stays deferred — it can't be calibrated blind, so do it with the
 device in hand.
 
-**NEXT (device, user's move):** save 1–2 clean frames (phone aimed down, leg out
-of frame, foot centred, shin vertical, 50–70 cm, tilt < 8°) and AirDrop them;
-replay offline and confirm ~263 × 107 clears `TRUST_MIN_CONFIDENCE_V3`. That
-confirmation — not more code — is the gate to shippable.
+**Capture gates tightened (`02b0b7f`).** User asked me to dictate the pose and
+cut the slack in the green window. Separated the two levers honestly: **tilt is
+the accuracy lever** (5° → 261.2, 9° → 285.6 vs 263; length inflates with tilt as
+the floor plane skews) so `FLAT_MAX_DEG` 8 → 5; **height is a consistency/framing
+lever, not accuracy** (unprojection is distance-invariant — height doesn't bias
+the mm; it only changes point density and whether the leg is in frame) so the
+window tightened 500–700 (200 mm) → 525–585 (60 mm), lower-centred (~555) for
+denser points and a smaller FOV footprint. Did NOT go to the literal 3 cm the
+user floated — hand-hold jitter is ±1–2 cm, a 3 cm window would flicker red/green
+and never catch; 6 cm is the catchable/precise balance. No measurement math
+changed — capture-pose gates only. **The Save-frame payload records each
+capture's height+tilt, so the first good frame gives us the proven pose and we
+re-centre the window tightly on it — data-driven, not a blind guess.**
+
+**NEXT (device, user's move):** save 1–2 clean frames (phone flat/lens straight
+down, foot centred in the guide with the leg out of the near edge, shin vertical,
+green height ~52–58 cm, tilt < 5°) and AirDrop them; replay offline and confirm
+~263 × 107 clears `TRUST_MIN_CONFIDENCE_V3`. That confirmation — not more code —
+is the gate to shippable.
 
 ## Post-session work (2026-06-13, no device)
 
