@@ -46,6 +46,24 @@ const HEIGHT_MAX_MM = 585;
 // proven-accurate pose; this is the measurement-quality gate that matters most.
 const FLAT_MAX_DEG = 5;
 
+// On-screen target hints, derived from the gate constants so the printed
+// guidance can never drift from the actual green window.
+const HEIGHT_HINT = `${Math.round(HEIGHT_MIN_MM / 10)}–${Math.round(HEIGHT_MAX_MM / 10)} cm`;
+const TILT_HINT = `under ${FLAT_MAX_DEG}°`;
+
+// Full capture recipe, shown as an on-screen card so the user can read it while
+// taking the photo instead of switching apps. The moment-to-moment cues (aim,
+// stance, green height/tilt) live on the live view; this is the static setup.
+const CAPTURE_STEPS = [
+  'Hard flat floor, plain & bright. Bare foot.',
+  'Toes pointing away, heel nearest you.',
+  'Shin vertical — push your knee forward over your ankle.',
+  'Phone flat, lens straight down — not angled along your leg.',
+  'Centre the foot in the box; let your leg fall off the bottom edge.',
+  `Chase the green: about ${HEIGHT_HINT} high, tilt ${TILT_HINT}.`,
+  'Hold steady → Capture burst. Save a clean one.',
+];
+
 // Shin verticality is the dominant accuracy factor but can't be sensed live
 // (it needs the full pipeline on the foot), so it's a persistent instruction
 // rather than a gate. Wording is the user's own cue (2026-06-13): you can't
@@ -86,6 +104,7 @@ export default function DepthDebugScreen() {
   const [burstProgress, setBurstProgress] = useState(0);
   const [status, setStatus] = useState<DepthStatus | null>(null);
   const [preview, setPreview] = useState<{ width: number; height: number } | null>(null);
+  const [showGuide, setShowGuide] = useState(true);
   const supported = isDepthScanSupported();
 
   const captureOne = async () => {
@@ -336,6 +355,8 @@ export default function DepthDebugScreen() {
                   fontSize: 12,
                   fontWeight: '700',
                   marginTop: 6,
+                  textAlign: 'center',
+                  lineHeight: 17,
                   backgroundColor: 'rgba(0,0,0,0.55)',
                   paddingHorizontal: 10,
                   paddingVertical: 4,
@@ -343,9 +364,79 @@ export default function DepthDebugScreen() {
                 }}
               >
                 height {(status.centerDepthMm / 10).toFixed(0)} cm · tilt{' '}
-                {status.flatTiltDeg.toFixed(0)}°
+                {status.flatTiltDeg.toFixed(0)}°{'\n'}aim {HEIGHT_HINT} · tilt {TILT_HINT}
               </Text>
             )}
+          </View>
+        )}
+
+        {/* Toggle pill — always tappable, re-opens the recipe any time */}
+        <Pressable
+          onPress={() => setShowGuide((v) => !v)}
+          style={{
+            position: 'absolute',
+            top: 12,
+            right: 12,
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            borderRadius: 20,
+            paddingHorizontal: 12,
+            paddingVertical: 7,
+          }}
+        >
+          <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800' }}>
+            {showGuide ? '✕ Hide' : 'ⓘ How to'}
+          </Text>
+        </Pressable>
+
+        {showGuide && (
+          <View
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0,0,0,0.82)',
+              paddingHorizontal: 22,
+              paddingTop: 52,
+              justifyContent: 'center',
+            }}
+          >
+            <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800', marginBottom: 14 }}>
+              How to capture
+            </Text>
+            {CAPTURE_STEPS.map((line, i) => (
+              <View key={i} style={{ flexDirection: 'row', marginBottom: 11 }}>
+                <Text style={{ color: '#7bff9f', fontSize: 14, fontWeight: '800', width: 22 }}>
+                  {i + 1}
+                </Text>
+                <Text
+                  style={{
+                    color: '#eee',
+                    fontSize: 14,
+                    fontWeight: '600',
+                    lineHeight: 20,
+                    flex: 1,
+                  }}
+                >
+                  {line}
+                </Text>
+              </View>
+            ))}
+            <Pressable
+              onPress={() => setShowGuide(false)}
+              style={{
+                backgroundColor: '#7bff9f',
+                borderRadius: 14,
+                paddingVertical: 14,
+                alignItems: 'center',
+                marginTop: 16,
+              }}
+            >
+              <Text style={{ color: '#111', fontSize: 15, fontWeight: '800' }}>
+                Got it — let me aim
+              </Text>
+            </Pressable>
           </View>
         )}
       </View>
