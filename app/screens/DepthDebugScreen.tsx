@@ -30,11 +30,21 @@ type CaptureRow = {
   error?: string;
 };
 
-const HEIGHT_MIN_MM = 500;
-const HEIGHT_MAX_MM = 700;
-// Device 2026-06-13: a 9° hold read 285.6, a 5° hold read 261.2 (truth 263).
-// Tightened from 12° — phone flatness keeps the depth geometry honest.
-const FLAT_MAX_DEG = 8;
+// Capture height: tightened 2026-06-17 from a loose 500–700 (200 mm) window to
+// 525–585 (60 mm). Height does NOT bias the unprojected mm — the pipeline turns
+// depth into mm via the camera intrinsics regardless of distance — but a
+// tighter, lower hold packs more LiDAR points onto the foot (smoother contour,
+// less per-frame noise) and shrinks the FOV footprint so the leg falls outside
+// the frame. Centre ~555 mm frames a 263 mm foot with margin while staying well
+// above the ~250 mm LiDAR minimum. Re-centre tightly once a good frame's saved
+// pose tells us the proven height — don't guess the centre blind.
+const HEIGHT_MIN_MM = 525;
+const HEIGHT_MAX_MM = 585;
+// Tilt IS an accuracy lever (unlike height): 2026-06-13 device data — a 5° hold
+// read 261.2, a 9° hold read 285.6 (truth 263), length inflating with tilt as
+// the floor-plane geometry skews. Tightened 8° → 5° to admit only the
+// proven-accurate pose; this is the measurement-quality gate that matters most.
+const FLAT_MAX_DEG = 5;
 
 // Shin verticality is the dominant accuracy factor but can't be sensed live
 // (it needs the full pipeline on the foot), so it's a persistent instruction
