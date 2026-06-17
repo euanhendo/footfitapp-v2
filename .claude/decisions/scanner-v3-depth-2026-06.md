@@ -244,6 +244,44 @@ changed — capture-pose gates only. **The Save-frame payload records each
 capture's height+tilt, so the first good frame gives us the proven pose and we
 re-centre the window tightly on it — data-driven, not a blind guess.**
 
+## Good-pose SET of 5 — accept path fires, but LENGTH is the real open problem (2026-06-17)
+
+User then AirDropped five more, all the "same picture" (committed as
+`goodpose-*.json` fixtures + `goodPoseSet.test.ts`, suite 306). Replayed as a set
+— this is the most important data yet and it resets the honest status:
+
+| frame | pose | length | width | conf | heel |
+|---|---|---|---|---|---|
+| 11:59:28 | 583/1.9° | 221 | 106 | **100% ✓** | 75 |
+| 12:00:12 | 608/2.1° | 190 | 105 | 78% | 79 |
+| 12:00:19 | 611/1.4° | 241 | 108 | **100% ✓** | 53 |
+| 12:00:44 | 610/2.7° | 274 | 112 | 61% | 35 |
+| 12:00:53 | 604/2.6° | 229 | 111 | 33% | 28 |
+
+- **Accept path CONFIRMED** — two frames clear the 0.8 gate (first time ever). The
+  gate isn't broken-shut.
+- **WIDTH is genuinely solved** — 105–112 vs truth 107 on every frame, regardless
+  of confidence. Shippable.
+- **LENGTH is NOT** — 190/221/241/274/229 vs truth 263; the two *accepted* frames
+  read 221 and 241, both well short. Pose was perfect and consistent every time
+  (tilt 1.4–2.7°), so this is NOT a capture problem the user can fix.
+- **Root cause (y-bin profiles):** the dense ball of the foot is captured cleanly
+  (hence width), but the point count COLLAPSES past the ball — on the 221 frame,
+  137 pts/slice at y150 → 18 at y165 → 4 at y180, then only strays. **The toes
+  (and sometimes the heel) are thin, near-floor, depth-discontinuity regions that
+  return low confidence and get filtered out.** Length is measured tip-to-tip, so
+  it truncates short and swings with how many stray extremity points survive.
+
+**This supersedes the frame6 heel-only framing and the optimistic "ruler-grade
+261×109" note** (that was a lucky single frame in a burst): the real, dominant v3
+problem is **length under-read from extremity (toe + heel) confidence dropout**,
+not stance, not occlusion, not the heel alone. **FIX = confidence-aware extremity
+recovery:** region-grow the foot from its high-confidence core to admit
+*contiguous* low-confidence points at both ends, bounded so distant floor noise
+(which exploded length to 608 at minConf 0) can't re-enter. Build it against the
+six committed good-pose frames; it's a real algorithm, not a dial — design it,
+don't hack it. Width could ship now; length is the gate to a shippable scan.
+
 ## First GOOD-POSE frame — heel eroded by the confidence filter (2026-06-17, replay)
 
 User AirDropped one frame before starting work (`depthframe-2026-06-17T11-15-22Z`,
