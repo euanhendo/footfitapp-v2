@@ -244,6 +244,36 @@ changed — capture-pose gates only. **The Save-frame payload records each
 capture's height+tilt, so the first good frame gives us the proven pose and we
 re-centre the window tightly on it — data-driven, not a blind guess.**
 
+## First GOOD-POSE frame — heel eroded by the confidence filter (2026-06-17, replay)
+
+User AirDropped one frame before starting work (`depthframe-2026-06-17T11-15-22Z`,
+committed as fixture `frame6-goodpose.json`). **It's the first good-pose capture:
+phone flat (tilt 2.5°), height 624 mm, foot body cleanly captured** — yet it's
+rejected (confidence 5%, length 248 vs truth 263). Profiled the contour by y-bin
+and the cause is decisive and NEW (not pose, not occlusion, not a lifted heel):
+
+- The foot body is textbook (width 83–96 mm, smooth instep→toe height slope).
+- The rear is a thin **~12 mm-wide, floor-level (h 6–14 mm) tail** for 45 mm →
+  `rearBandWidth` 21 mm → heel-shape score ~0.05 → confidence tanked. Length
+  under-reads because the rounded heel is missing.
+- **Confidence sweep is the smoking gun:** at the production medium+ filter
+  (`minConf 1`) the heel reads 21 mm; **drop the filter to keep-all (`minConf 0`)
+  and a full 63 mm heel reappears in the same data.** The heel's floor-contact
+  pixels are simply LOW confidence — the sharp heel-to-floor depth cliff is hard
+  for the RGB-fused LiDAR to resolve — so the filter erases them. (Can't just
+  lower the global floor: `minConf 0` also re-admits distant floor noise and
+  explodes length to 608 mm, exactly as the earlier negatives showed.)
+
+**Conclusion:** the user's capture was good; the pipeline is eroding a real heel.
+The fix is **confidence-aware heel recovery** — region-grow the foot from its
+high-confidence points to admit *contiguous* low-confidence pixels (the heel)
+without re-admitting distant floor noise. This is the heel-maths the decision
+note always said to build WITH device frames, and frame6 is the first such frame.
+**Do NOT build it against this single frame** (the n=1 trap): need 2–3 more
+repeat good-pose frames first. Captured as a characterization test
+(`frame6Heel.test.ts`, 304 suite) that pins the current eroded behaviour and the
+low-conf-heel-exists proof — it will flip to asserting recovery once the fix lands.
+
 **Height window raised for a flat hold (`b38f15a`).** User reported the low
 525–585 hold forced a ~90° knee bend, and reaching for it makes you tilt — the
 one thing that wrecks accuracy. Since height is accuracy-neutral (unprojection is
