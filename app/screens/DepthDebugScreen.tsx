@@ -42,6 +42,14 @@ const FLAT_MAX_DEG = 8;
 // stand fully upright while aiming at your own foot, so bend the knee forward.
 const STANCE_CUE = 'Soft bend in the knee — push your knee forward over your ankle so your shin is vertical (leaning your body is fine).';
 
+// Failure mode #2 (2026-06-16 replay): the shin filled the right half of every
+// saved frame, the forefoot dropped to low confidence, and the foot split — so
+// the read came back stubby and the gate rejected it. Not tunable by math (the
+// decision note proves a confidence sweep can't recover it); the fix is to aim
+// the phone down at the foot so the leg leaves the frame. This cue addresses
+// that directly — it is the missing half of the capture coaching.
+const AIM_CUE = 'Aim straight down at your foot, not along your leg — keep your shin out of frame and the whole foot inside the guide.';
+
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function median(values: number[]): number {
@@ -251,25 +259,42 @@ export default function DepthDebugScreen() {
               justifyContent: 'center',
             }}
           >
-            <Text
+            <View
               style={{
                 position: 'absolute',
                 top: 16,
                 left: 16,
                 right: 16,
-                color: '#fff',
-                fontSize: 13,
-                fontWeight: '700',
-                textAlign: 'center',
-                lineHeight: 18,
                 backgroundColor: 'rgba(0,0,0,0.6)',
                 paddingHorizontal: 12,
                 paddingVertical: 8,
                 borderRadius: 8,
               }}
             >
-              {STANCE_CUE}
-            </Text>
+              <Text
+                style={{
+                  color: '#fff',
+                  fontSize: 13,
+                  fontWeight: '700',
+                  textAlign: 'center',
+                  lineHeight: 18,
+                }}
+              >
+                {AIM_CUE}
+              </Text>
+              <Text
+                style={{
+                  color: '#cfcfcf',
+                  fontSize: 12,
+                  fontWeight: '600',
+                  textAlign: 'center',
+                  lineHeight: 17,
+                  marginTop: 6,
+                }}
+              >
+                {STANCE_CUE}
+              </Text>
+            </View>
             <View
               style={{
                 width: preview.height * 0.62 * 0.43,
