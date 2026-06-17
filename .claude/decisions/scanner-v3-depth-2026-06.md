@@ -244,6 +244,12 @@ changed — capture-pose gates only. **The Save-frame payload records each
 capture's height+tilt, so the first good frame gives us the proven pose and we
 re-centre the window tightly on it — data-driven, not a blind guess.**
 
+**On-screen recipe card (`2b81f94`).** The full 7-step capture recipe now lives
+on `DepthDebugScreen` as a dismissible card (open on entry, "Got it" collapses,
+toggle pill re-opens) so the user reads it while shooting instead of switching
+apps; the live readout also prints the target window. Card + readout derive their
+numbers from the gate constants so they can't drift.
+
 **NEXT (device, user's move):** save 1–2 clean frames (phone flat/lens straight
 down, foot centred in the guide with the leg out of the near edge, shin vertical,
 green height ~52–58 cm, tilt < 5°) and AirDrop them; replay offline and confirm
