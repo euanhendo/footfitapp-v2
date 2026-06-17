@@ -244,6 +244,17 @@ changed — capture-pose gates only. **The Save-frame payload records each
 capture's height+tilt, so the first good frame gives us the proven pose and we
 re-centre the window tightly on it — data-driven, not a blind guess.**
 
+**Height window raised for a flat hold (`b38f15a`).** User reported the low
+525–585 hold forced a ~90° knee bend, and reaching for it makes you tilt — the
+one thing that wrecks accuracy. Since height is accuracy-neutral (unprojection is
+distance-invariant) it's the gate to spend on ergonomics, so raised it to
+560–720 mm, biased high; tilt stays the strict 5° gate. Also confirmed from the
+Swift bridge (`.gravity` world alignment, `flatTiltDeg` = camera-axis vs
+straight-down): the measurement is **orientation-agnostic**, so flipping the
+phone 180° flat (camera-end toward the leg) is fine and still passes the gate;
+only a shin-angled tilt is rejected. The paper-scanner's any-angle freedom does
+NOT transfer — it relies on the A4 homography, depth has no such reference.
+
 **On-screen recipe card (`2b81f94`).** The full 7-step capture recipe now lives
 on `DepthDebugScreen` as a dismissible card (open on entry, "Got it" collapses,
 toggle pill re-opens) so the user reads it while shooting instead of switching
