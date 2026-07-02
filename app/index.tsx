@@ -19,15 +19,15 @@ const LETTERS = ['F', 'O', 'O', 'T', 'F', 'I', 'T'];
 const WAVE_COLORS = ['#ffffff', '#1a6bb5', '#2a8a3a', '#b55a1a', '#ffffff'];
 const LETTER_STAGGER_MS = 140;
 const WAVE_CYCLE_MS = 1600;
-const SPLASH_MIN_MS = 5200;
+const SPLASH_MIN_MS = 2000;
 const EXIT_FADE_MS = 350;
 
 // The loading bar is the sports themselves: boot → runner → rugby → ball,
 // igniting left to right.
 const LOADER_ICONS = ['shoe-cleat', 'shoe-sneaker', 'rugby', 'soccer'] as const;
-const LOADER_START_MS = 400;
-const LOADER_STEP_MS = 1100;
-const LOADER_POP_MS = 500;
+const LOADER_START_MS = 250;
+const LOADER_STEP_MS = 380;
+const LOADER_POP_MS = 420;
 
 function LoaderIcon({ name, index }: { name: (typeof LOADER_ICONS)[number]; index: number }) {
   const lit = useRef(new Animated.Value(0)).current;
