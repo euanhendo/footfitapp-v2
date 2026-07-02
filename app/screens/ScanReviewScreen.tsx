@@ -124,7 +124,7 @@ export default function ScanReviewScreen() {
           <View
             style={{
               backgroundColor: p.card,
-              borderRadius: 14,
+              borderRadius: 16,
               borderWidth: 1,
               borderColor: p.cardBorder,
               padding: 16,
@@ -190,15 +190,15 @@ export default function ScanReviewScreen() {
         {lowConfidence && (
           <View
             style={{
-              backgroundColor: '#fff4ec',
+              backgroundColor: p.card,
               borderRadius: 12,
               borderWidth: 1,
-              borderColor: '#f2d3b0',
+              borderColor: p.cardBorder,
               padding: 12,
               marginBottom: 12,
             }}
           >
-            <Text style={{ fontSize: 13, color: '#8a4a1a', lineHeight: 18 }}>
+            <Text style={{ fontSize: 13, color: p.muted, lineHeight: 18 }}>
               Scan looks low-confidence. Edit the numbers manually or re-scan with the reference
               object fully visible.
             </Text>
@@ -211,13 +211,13 @@ export default function ScanReviewScreen() {
             disabled={!valid}
             style={{
               backgroundColor: valid ? p.ctaBg : (p.dark ? '#333' : '#ccc'),
-              borderRadius: 14,
+              borderRadius: 999,
               paddingVertical: 16,
               alignItems: 'center',
               marginBottom: 10,
             }}
           >
-            <Text style={{ color: valid ? p.ctaText : '#fff', fontSize: 15, fontWeight: '700' }}>
+            <Text style={{ color: valid ? p.ctaText : '#fff', fontSize: 15, fontWeight: '800', letterSpacing: 1.5, textTransform: 'uppercase' }}>
               {onboarding ? 'Continue without scan' : 'Edit measurements'}
             </Text>
           </Pressable>
@@ -227,13 +227,13 @@ export default function ScanReviewScreen() {
             disabled={!valid}
             style={{
               backgroundColor: valid ? p.ctaBg : (p.dark ? '#333' : '#ccc'),
-              borderRadius: 14,
+              borderRadius: 999,
               paddingVertical: 16,
               alignItems: 'center',
               marginBottom: 10,
             }}
           >
-            <Text style={{ color: valid ? p.ctaText : '#fff', fontSize: 15, fontWeight: '700' }}>
+            <Text style={{ color: valid ? p.ctaText : '#fff', fontSize: 15, fontWeight: '800', letterSpacing: 1.5, textTransform: 'uppercase' }}>
               Use these measurements
             </Text>
           </Pressable>
@@ -250,7 +250,7 @@ export default function ScanReviewScreen() {
             alignItems: 'center',
           }}
         >
-          <Text style={{ color: p.text, fontSize: 15, fontWeight: '700' }}>Re-scan</Text>
+          <Text style={{ color: p.text, fontSize: 15, fontWeight: '800', letterSpacing: 1.5, textTransform: 'uppercase' }}>Re-scan</Text>
         </Pressable>
 
         {__DEV__ && valid && (

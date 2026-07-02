@@ -1,3 +1,4 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import * as Haptics from 'expo-haptics';
@@ -87,6 +88,10 @@ export default function ManualInputScreen() {
   const [manualLength, setManualLength] = useState(prefilledLength);
   const [manualWidth, setManualWidth] = useState(prefilledWidth);
 
+  const [sizeFocused, setSizeFocused] = useState(false);
+  const [lengthFocused, setLengthFocused] = useState(false);
+  const [widthFocused, setWidthFocused] = useState(false);
+
   const estimatedLength = useMemo(() => {
     if (inputMode !== 'size' || !sizeSystem) return 0;
     return getEstimatedLengthMm(sizeSystem, shoeSize, gender === 'kids');
@@ -175,6 +180,8 @@ export default function ManualInputScreen() {
                   params: { sport: sport ?? '', gender: gender ?? '' },
                 });
               }}
+              accessibilityRole="button"
+              accessibilityLabel="Scan your feet"
               style={({ pressed }) => ({
                 backgroundColor: p.heroBg,
                 borderWidth: 1,
@@ -196,7 +203,7 @@ export default function ManualInputScreen() {
                   Phone camera + a sheet of A4 — accurate to the millimetre
                 </Text>
               </View>
-              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>→</Text>
+              <MaterialCommunityIcons name="arrow-right" size={18} color="#fff" />
             </Pressable>
 
             <StepLabel p={p}>OR ENTER IT YOURSELF</StepLabel>
@@ -205,6 +212,12 @@ export default function ManualInputScreen() {
               <Chip p={p} label="SHOE SIZE" active={inputMode === 'size'} onPress={() => setInputMode('size')} />
               <Chip p={p} label="EXACT MM" active={inputMode === 'manual'} onPress={() => setInputMode('manual')} />
             </View>
+
+            <Pressable onPress={() => router.push('/screens/MeasureGuideScreen')} style={{ alignSelf: 'flex-start', marginTop: 6 }}>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: p.faint }}>
+                How to measure by hand
+              </Text>
+            </Pressable>
 
             {inputMode === 'size' && (
               <>
@@ -231,11 +244,13 @@ export default function ManualInputScreen() {
                       keyboardType="decimal-pad"
                       returnKeyType="done"
                       onSubmitEditing={Keyboard.dismiss}
+                      onFocus={() => setSizeFocused(true)}
+                      onBlur={() => setSizeFocused(false)}
                       placeholderTextColor={p.faint}
                       style={{
                         color: p.text,
                         borderWidth: 1,
-                        borderColor: p.chipBorder,
+                        borderColor: sizeFocused ? p.text : p.chipBorder,
                         backgroundColor: p.card,
                         borderRadius: 4,
                         padding: 14,
@@ -294,12 +309,14 @@ export default function ManualInputScreen() {
                   keyboardType="numeric"
                   returnKeyType="done"
                   onSubmitEditing={Keyboard.dismiss}
+                  onFocus={() => setLengthFocused(true)}
+                  onBlur={() => setLengthFocused(false)}
                   placeholderTextColor={p.faint}
                   placeholder="e.g. 260"
                   style={{
                     color: p.text,
                     borderWidth: 1,
-                    borderColor: p.chipBorder,
+                    borderColor: lengthFocused ? p.text : p.chipBorder,
                     backgroundColor: p.card,
                     borderRadius: 4,
                     padding: 14,
@@ -316,12 +333,14 @@ export default function ManualInputScreen() {
                   keyboardType="numeric"
                   returnKeyType="done"
                   onSubmitEditing={Keyboard.dismiss}
+                  onFocus={() => setWidthFocused(true)}
+                  onBlur={() => setWidthFocused(false)}
                   placeholderTextColor={p.faint}
                   placeholder="e.g. 95"
                   style={{
                     color: p.text,
                     borderWidth: 1,
-                    borderColor: p.chipBorder,
+                    borderColor: widthFocused ? p.text : p.chipBorder,
                     backgroundColor: p.card,
                     borderRadius: 4,
                     padding: 14,
@@ -345,7 +364,7 @@ export default function ManualInputScreen() {
                   transform: [{ scale: pressed ? 0.97 : 1 }],
                 })}
               >
-                <Text style={{ color: p.ctaText, fontSize: 15, fontWeight: '700' }}>Next</Text>
+                <Text style={{ color: p.ctaText, fontSize: 15, fontWeight: '800', letterSpacing: 1.5 }}>NEXT</Text>
               </Pressable>
             )}
 

@@ -2,6 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Image, Linking, Pressable, ScrollView, Share, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import * as SecureStore from 'expo-secure-store';
 import {
@@ -172,6 +173,7 @@ function ScoreBar({ value, max }: { value: number; max: number }) {
 
 export default function BootDetailScreen() {
   const p = usePalette();
+  const insets = useSafeAreaInsets();
   const { brand, model, bootGender, sport, footLength, footWidth, sockType } =
     useLocalSearchParams<{
       brand: string;
@@ -311,6 +313,8 @@ export default function BootDetailScreen() {
                 message: `${boot.brand} ${boot.model} — ${total}% fit for my feet, size UK ${suggestedSize.uk}. ${boot.purchaseUrl}`,
               })
             }
+            accessibilityRole="button"
+            accessibilityLabel={`Share ${boot.brand} ${boot.model}`}
             style={({ pressed }) => ({
               position: 'absolute',
               top: 14,
@@ -343,7 +347,7 @@ export default function BootDetailScreen() {
             <Text style={{ fontSize: 20, fontWeight: '700', color: p.text }}>£{boot.price}</Text>
             <View style={{
               backgroundColor: WIDTH_COLOUR[boot.width] + '18',
-              borderRadius: 6,
+              borderRadius: 4,
               paddingHorizontal: 8,
               paddingVertical: 3,
             }}>
@@ -413,7 +417,7 @@ export default function BootDetailScreen() {
           {matchedShoe && (
             <View style={{
               backgroundColor: '#2a8a3a18',
-              borderRadius: 6,
+              borderRadius: 4,
               paddingHorizontal: 10,
               paddingVertical: 6,
               alignSelf: 'flex-start',
@@ -514,7 +518,7 @@ export default function BootDetailScreen() {
         right: 0,
         bottom: 0,
         padding: 16,
-        paddingBottom: 28,
+        paddingBottom: insets.bottom + 16,
         backgroundColor: p.bg,
         borderTopWidth: 1,
         borderTopColor: p.hairline,
@@ -539,8 +543,8 @@ export default function BootDetailScreen() {
             transform: [{ scale: pressed ? 0.97 : 1 }],
           })}
         >
-          <Text style={{ color: p.ctaText, fontWeight: '700', fontSize: 15 }}>
-            Buy — £{boot.price}
+          <Text style={{ color: p.ctaText, fontWeight: '800', fontSize: 15, letterSpacing: 1.5 }}>
+            BUY — £{boot.price}
           </Text>
         </Pressable>
       </View>

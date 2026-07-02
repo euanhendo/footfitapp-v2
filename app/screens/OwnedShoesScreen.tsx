@@ -25,6 +25,7 @@ export default function OwnedShoesScreen() {
   const [owned, setOwned] = useState<OwnedShoe[]>([]);
   const [query, setQuery] = useState('');
   const [adding, setAdding] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
 
   useEffect(() => {
     ownedStore.load().then(setOwned);
@@ -180,12 +181,14 @@ export default function OwnedShoesScreen() {
               onChangeText={setQuery}
               placeholder="Search by brand or model"
               placeholderTextColor={p.faint}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
               style={{
                 backgroundColor: p.card,
                 borderWidth: 1,
-                borderColor: p.hairline,
+                borderColor: searchFocused ? p.text : p.hairline,
                 color: p.text,
-                borderRadius: 10,
+                borderRadius: 4,
                 paddingHorizontal: 12,
                 paddingVertical: 10,
                 fontSize: 15,

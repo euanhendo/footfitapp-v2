@@ -88,6 +88,7 @@ export default function SockSelectionScreen() {
   const [sockType, setSockType] = useState('');
   const [query, setQuery] = useState('');
   const [activeBrand, setActiveBrand] = useState(ALL_BRANDS);
+  const [searchFocused, setSearchFocused] = useState(false);
   const { footLength, footWidth, sport, gender, widthProfile, measureSource } =
     useLocalSearchParams<{
       footLength: string;
@@ -149,12 +150,14 @@ export default function SockSelectionScreen() {
           autoCapitalize="none"
           returnKeyType="search"
           onSubmitEditing={Keyboard.dismiss}
+          onFocus={() => setSearchFocused(true)}
+          onBlur={() => setSearchFocused(false)}
           style={{
             borderWidth: 1,
-            borderColor: p.hairline,
+            borderColor: searchFocused ? p.text : p.hairline,
             backgroundColor: p.card,
             color: p.text,
-            borderRadius: 10,
+            borderRadius: 4,
             padding: 12,
             marginBottom: 14,
             fontSize: 16,
@@ -285,7 +288,7 @@ export default function SockSelectionScreen() {
             transform: [{ scale: pressed ? 0.97 : 1 }],
           })}
         >
-          <Text style={{ color: sockType ? p.ctaText : '#fff', fontWeight: '700', fontSize: 16 }}>Next</Text>
+          <Text style={{ color: sockType ? p.ctaText : '#fff', fontWeight: '800', fontSize: 16, letterSpacing: 1.5 }}>NEXT</Text>
         </Pressable>
       </View>
     </KeyboardAvoidingView>

@@ -8,6 +8,7 @@ import { assessGuideFit, GuideFitStatus } from '../../lib/scanner/guideFit';
 import { isTrustedCapture, medianMetrics } from '../../lib/scanner/multiCapture';
 import { FootMetrics } from '../../lib/scanner/types';
 import { visionKitAdapter } from '../../lib/scanner/visionKitAdapter';
+import { usePalette } from '../../lib/theme';
 
 type Sport = 'football' | 'running' | 'rugby';
 type Gender = 'mens' | 'womens' | 'unisex';
@@ -22,6 +23,7 @@ const COACHING: Record<GuideFitStatus, string> = {
 };
 
 export default function ScannerScreen() {
+  const p = usePalette();
   const { sport, gender } = useLocalSearchParams<{ sport: Sport; gender: Gender }>();
   const [permission, requestPermission] = useCameraPermissions();
   const [status, setStatus] = useState('Looking for the paper…');
@@ -126,7 +128,7 @@ export default function ScannerScreen() {
 
   if (!permission) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#f9f9f9', justifyContent: 'center' }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: p.bg, justifyContent: 'center' }}>
         <ActivityIndicator />
       </SafeAreaView>
     );
@@ -134,41 +136,41 @@ export default function ScannerScreen() {
 
   if (!permission.granted) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#f9f9f9' }} edges={['bottom']}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: p.bg }} edges={['bottom']}>
         <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 32 }}>
-          <Text style={{ fontSize: 24, fontWeight: '800', color: '#111', marginBottom: 6 }}>
+          <Text style={{ fontSize: 24, fontWeight: '800', color: p.text, marginBottom: 6 }}>
             Camera permission needed
           </Text>
-          <Text style={{ fontSize: 14, color: '#666', marginBottom: 20, lineHeight: 20 }}>
+          <Text style={{ fontSize: 14, color: p.muted, marginBottom: 20, lineHeight: 20 }}>
             FootFit uses the camera to scan your foot on a sheet of A4 paper so we can measure
             length and width in millimetres.
           </Text>
           <Pressable
             onPress={requestPermission}
             style={{
-              backgroundColor: '#111',
+              backgroundColor: p.ctaBg,
               borderRadius: 14,
               paddingVertical: 16,
               alignItems: 'center',
               marginBottom: 10,
             }}
           >
-            <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>
+            <Text style={{ color: p.ctaText, fontSize: 15, fontWeight: '700' }}>
               Grant camera access
             </Text>
           </Pressable>
           <Pressable
             onPress={() => router.back()}
             style={{
-              backgroundColor: '#fff',
+              backgroundColor: p.card,
               borderRadius: 14,
               borderWidth: 2,
-              borderColor: '#e8e8e8',
+              borderColor: p.hairline,
               paddingVertical: 16,
               alignItems: 'center',
             }}
           >
-            <Text style={{ color: '#111', fontSize: 15, fontWeight: '700' }}>Cancel</Text>
+            <Text style={{ color: p.text, fontSize: 15, fontWeight: '700' }}>Cancel</Text>
           </Pressable>
         </ScrollView>
       </SafeAreaView>

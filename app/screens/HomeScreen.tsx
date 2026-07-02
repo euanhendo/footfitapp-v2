@@ -1,3 +1,4 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Image, Pressable, ScrollView, Text, View } from 'react-native';
@@ -43,10 +44,10 @@ const SPORTS: { id: Sport; label: string; imageUrls: string[] }[] = [
 const BAND_ROTATE_MS = 4500;
 const BAND_CROSSFADE_MS = 900;
 
-const GENDER_TABS: { id: Gender; label: string; enabled: boolean }[] = [
-  { id: 'mens', label: 'MEN', enabled: true },
-  { id: 'womens', label: 'WOMEN', enabled: true },
-  { id: 'kids', label: 'KIDS', enabled: true },
+const GENDER_TABS: { id: Gender; label: string }[] = [
+  { id: 'mens', label: 'MEN' },
+  { id: 'womens', label: 'WOMEN' },
+  { id: 'kids', label: 'KIDS' },
 ];
 
 const storage: StorageAdapter = {
@@ -141,6 +142,8 @@ function SportBand({
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Choose ${label}`}
       style={({ pressed }) => ({
         height,
         borderRadius: 16,
@@ -180,7 +183,7 @@ function SportBand({
         }}>
           {label}
         </Text>
-        <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800' }}>→</Text>
+        <MaterialCommunityIcons name="arrow-right" size={18} color="#fff" />
       </View>
     </Pressable>
   );
@@ -288,12 +291,11 @@ export default function HomeScreen() {
           marginBottom: 24,
         }}>
           {GENDER_TABS.map((tab) => {
-            const active = tab.enabled && genderTab === tab.id;
-            const disabledColor = p.dark ? '#555' : '#ccc';
+            const active = genderTab === tab.id;
             return (
               <Pressable
                 key={tab.id}
-                onPress={() => tab.enabled && setGenderTab(tab.id as Gender)}
+                onPress={() => setGenderTab(tab.id as Gender)}
                 style={{
                   paddingBottom: 10,
                   borderBottomWidth: 2,
@@ -306,15 +308,10 @@ export default function HomeScreen() {
                   fontSize: 13,
                   fontWeight: '800',
                   letterSpacing: 1.5,
-                  color: !tab.enabled ? disabledColor : active ? p.text : p.faint,
+                  color: active ? p.text : p.faint,
                 }}>
                   {tab.label}
                 </Text>
-                {!tab.enabled && (
-                  <Text style={{ fontSize: 8, fontWeight: '800', letterSpacing: 1, color: disabledColor, marginLeft: 3 }}>
-                    SOON
-                  </Text>
-                )}
               </Pressable>
             );
           })}
@@ -326,6 +323,8 @@ export default function HomeScreen() {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               router.push('/screens/ScannerScreen');
             }}
+            accessibilityRole="button"
+            accessibilityLabel="Scan your feet"
             style={({ pressed }) => ({
               backgroundColor: p.heroBg,
               borderWidth: 1,
@@ -347,7 +346,7 @@ export default function HomeScreen() {
                 Phone camera + a sheet of A4 — accurate to the millimetre
               </Text>
             </View>
-            <Text style={{ fontSize: 16, fontWeight: '800', color: '#fff' }}>→</Text>
+            <MaterialCommunityIcons name="arrow-right" size={18} color="#fff" />
           </Pressable>
         )}
 
@@ -360,9 +359,12 @@ export default function HomeScreen() {
             padding: 16,
             marginBottom: 24,
           }}>
-            <Text style={{ fontSize: 11, fontWeight: '800', color: '#2a8a3a', letterSpacing: 1.5, marginBottom: 4 }}>
-              ✓ FEET MEASURED
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+              <MaterialCommunityIcons name="check" size={12} color="#2a8a3a" />
+              <Text style={{ fontSize: 11, fontWeight: '800', color: '#2a8a3a', letterSpacing: 1.5, marginLeft: 4 }}>
+                FEET MEASURED
+              </Text>
+            </View>
             <Text style={{ fontSize: 20, fontWeight: '800', color: p.text, marginBottom: 4 }}>
               {scannedLength} × {scannedWidth}
               <Text style={{ fontSize: 13, fontWeight: '700', color: p.faint }}>  mm</Text>
@@ -377,6 +379,8 @@ export default function HomeScreen() {
           <View style={{ marginBottom: 28 }}>
             <Pressable
               onPress={handleContinue}
+              accessibilityRole="button"
+              accessibilityLabel="Shop your fit"
               style={({ pressed }) => ({
                 backgroundColor: p.heroBg,
                 borderWidth: 1,
@@ -416,7 +420,7 @@ export default function HomeScreen() {
                 <Text style={{ fontSize: 13, fontWeight: '800', color: '#fff', letterSpacing: 1.5 }}>
                   SHOP YOUR FIT
                 </Text>
-                <Text style={{ fontSize: 16, fontWeight: '800', color: '#fff' }}>→</Text>
+                <MaterialCommunityIcons name="arrow-right" size={18} color="#fff" />
               </View>
             </Pressable>
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>

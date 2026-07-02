@@ -309,7 +309,7 @@ function BootCard({
           </Text>
           <View style={{
             backgroundColor: WIDTH_COLOUR[boot.width] + '18',
-            borderRadius: 6,
+            borderRadius: 4,
             paddingHorizontal: 8,
             paddingVertical: 3,
           }}>
@@ -511,7 +511,7 @@ export default function ResultScreen() {
         paddingHorizontal: 16,
         marginTop: 12,
         marginBottom: 12,
-        borderRadius: 14,
+        borderRadius: 16,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',

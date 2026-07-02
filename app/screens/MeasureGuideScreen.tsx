@@ -80,7 +80,7 @@ export default function MeasureGuideScreen() {
             alignItems: 'center',
           }}
         >
-          <Text style={{ color: p.ctaText, fontSize: 15, fontWeight: '700' }}>Got it</Text>
+          <Text style={{ color: p.ctaText, fontSize: 15, fontWeight: '800', letterSpacing: 1.5 }}>GOT IT</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>
