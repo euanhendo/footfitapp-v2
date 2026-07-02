@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "footfitapp-v2",
+    "name": "FootFit",
     "slug": "footfitapp-v2",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -8,9 +8,6 @@
     "scheme": "footfitappv2",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "assetBundlePatterns": [
-      "assets/models/*"
-    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.euanhendo.footfitappv2",
@@ -28,9 +25,9 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO",
-        "android.permission.CAMERA",
+        "android.permission.CAMERA"
+      ],
+      "blockedPermissions": [
         "android.permission.RECORD_AUDIO"
       ],
       "package": "com.euanhendo.footfitappv2"
@@ -57,10 +54,10 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "FootFit uses the camera to scan your foot alongside a reference object (A4 paper, card) to measure length and width."
+          "cameraPermission": "FootFit uses the camera to scan your foot alongside a reference object (A4 paper, card) to measure length and width.",
+          "microphonePermission": false
         }
-      ],
-      "react-native-fast-tflite"
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
