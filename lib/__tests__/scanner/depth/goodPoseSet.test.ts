@@ -6,14 +6,16 @@ import { DepthFrame } from '../../../scanner/depth/types';
 
 // Five good-pose device frames (2026-06-17, user's right foot, truth 263 × 107,
 // all phone-flat 1.4–2.7° at 583–611 mm — the user shot "the same picture" each
-// time). They establish the two halves of the v3 status:
-//   WIDTH IS SOLVED — every frame reads 105–112 mm vs truth 107.
-//   LENGTH IS NOT — reads 190, 221, 241, 274, 229 vs truth 263. The dense ball
-//   of the foot is captured (hence width), but the thin near-floor extremities
-//   (toes especially, heel sometimes) come back low-confidence and are filtered
-//   out, so length is short and unstable. Fix = confidence-aware extremity
-//   recovery, to be built against this set; these assertions will tighten when
-//   it lands. See .claude/decisions/scanner-v3-depth-2026-06.md.
+// time). Status after confidence-aware extremity recovery shipped:
+//   WIDTH IS SOLVED — every frame reads 105–112 mm vs truth 107 (untouched by
+//   recovery, which only adds points beyond the 30–95% width band).
+//   LENGTH UNDER-READ IS REDUCED — recovery region-grows the eroded near-floor
+//   heel/toe back in, lifting the worst frame from 190 → 224 (raw cores were
+//   190/221/241/274/229; floor now ≥ ~221). It is bounded, so nothing over-reads.
+//   RESIDUAL: two frames whose whole forefoot dropped to low-confidence have no
+//   toe in the depth data beyond the core (only a wide floor-fan, correctly
+//   rejected by the width envelope), so they still read ~221/241 — a CAPTURE
+//   limit (aim coaching), not a math one. See .claude/decisions/scanner-v3-depth-2026-06.md.
 const FILES = [
   'goodpose-11-59-28-960.json',
   'goodpose-12-00-12-046.json',
@@ -56,11 +58,13 @@ describe('good-pose set — width solved, length not yet', () => {
     }
   });
 
-  it('length is currently unreliable — short and wide-spread (truth 263 mm)', () => {
-    // Documents the open length bug: the extremities drop out, so length
-    // under-reads and swings. When extremity recovery lands these will cluster
-    // near 263 and this characterization should be replaced with a tolerance.
-    expect(Math.min(...lengths)).toBeLessThan(210);
-    expect(Math.max(...lengths) - Math.min(...lengths)).toBeGreaterThan(50);
+  it('extremity recovery lifts the under-read floor without over-reading (truth 263 mm)', () => {
+    // Before recovery the worst frame read 190 mm (heel/forefoot eroded). The
+    // recovery walks the contiguous near-floor extremity back in, so no good-pose
+    // frame now reads catastrophically short...
+    expect(Math.min(...lengths)).toBeGreaterThan(215);
+    // ...and the per-end cap + width envelope keep it bounded — nothing inflates
+    // past the foot (a runaway would re-admit floor noise, as minConf 0 does).
+    expect(Math.max(...lengths)).toBeLessThan(285);
   });
 });

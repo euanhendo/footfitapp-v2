@@ -14,14 +14,16 @@ import {
 import { DepthFrame } from '../../../scanner/depth/types';
 
 // frame6 (2026-06-17): the first GOOD-POSE device frame — phone flat (tilt
-// 2.5°), height 624 mm, foot body cleanly captured. It is rejected anyway, and
-// NOT because of pose: the heel's floor-contact pixels return at LOW confidence
-// (the sharp heel-to-floor depth cliff), so the medium+ filter erodes the
-// rounded ~63 mm heel down to a ~21 mm sliver → heel-shape score ~0 → rejected,
-// and length under-reads (244 vs truth 263). Proof below: drop the confidence
-// floor and the full heel reappears in the same sensor data. The fix is
-// confidence-aware heel recovery (contiguous low-conf points only, no global
-// floor), to be built against a small set of these — see the decision note.
+// 2.5°), height 624 mm, foot body cleanly captured. Its heel floor-contact
+// pixels return at LOW confidence (the sharp heel-to-floor depth cliff), so the
+// medium+ filter eroded the rounded heel to a ~21 mm sliver and length
+// truncated to 248 vs truth 263. Confidence-aware extremity recovery now
+// region-grows those contiguous near-floor heel points back in: LENGTH is
+// recovered to ~263 and the heel is reconstructed from a sliver toward its real
+// width. (Heel-shape *trust* stays conservative — the reconstructed heel is too
+// close to a leaning frame's to auto-trust this single capture; the burst keeps
+// the cleaner frames. See the decision note.) The proof that the heel is in the
+// data, just low-confidence, is unchanged below and is what makes recovery sound.
 function loadFixture(name: string): DepthFrame {
   const raw = JSON.parse(
     fs.readFileSync(path.join(__dirname, 'fixtures', name), 'utf8'),
@@ -60,13 +62,19 @@ function heelRearBand(frame: DepthFrame, minConf: number): number {
   return rearBandWidth(orientHeelAtOrigin(pickAimedCluster(band, target)));
 }
 
-describe('frame6 — good pose rejected by heel confidence-erosion', () => {
+describe('frame6 — heel confidence-erosion recovered', () => {
   const frame = loadFixture('frame6-goodpose.json');
 
-  it('is currently rejected, with the heel eroded to a thin sliver', () => {
+  it('recovers length to ~263 and reconstructs the eroded heel', () => {
     const dbg = measureFootFromDepthFrameDebug(frame);
+    // Length was 248 (heel truncated); recovery lifts it onto truth 263 ± ~10.
+    expect(dbg.metrics.lengthMm).toBeGreaterThan(255);
+    expect(dbg.metrics.lengthMm).toBeLessThan(272);
+    // The heel grows back from the ~21 mm sliver toward its real width.
+    expect(dbg.rearHeelWidthMm).toBeGreaterThan(33);
+    // Heel-shape trust stays conservative on this single eroded capture (a
+    // leaning frame's heel reads similarly), so it is not auto-trusted alone.
     expect(dbg.metrics.confidence).toBeLessThan(TRUST_MIN_CONFIDENCE_V3);
-    expect(dbg.rearHeelWidthMm).toBeLessThan(25);
   });
 
   it('proves the heel IS in the data, just low-confidence', () => {

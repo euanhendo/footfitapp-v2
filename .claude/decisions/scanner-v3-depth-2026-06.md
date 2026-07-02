@@ -355,3 +355,67 @@ is the gate to shippable.
   (coached); leaning still over-reads.** Stance coaching is the primary fix,
   ankle-saddle the eventual safety net — build it WITH device frames, not
   against synthetics.
+
+## Confidence-aware extremity recovery BUILT (2026-06-17, replay-validated)
+
+Built the recovery the prior sections called for, designed against all 6 good-pose
+frames + the 5 negatives (not n=1, not blind-tuned). New code, all pure
+`lib/scanner/depth/*`: `depthFrameLowConfPoints` (pointCloud.ts — the complement of
+the medium+ filter) + `recoverExtremities` (footFromDepth.ts), inserted right after
+`pickAimedCluster`; everything downstream (orient → trim → anchor) is unchanged.
+
+**Algorithm.** Region-grow the foot OUT from its high-confidence core, admitting
+only low-confidence points that are (a) **near the floor** (`hMm ≤ 25` — toe tip
+~15, heel pad ~25; the leg hovers above), (b) **inside the foot's width envelope**
+(perp within the core's p5–p95 half-width + 15 mm of the ball centre), and (c)
+**contiguous** with the core (8 mm bins walked outward, stop at a ≥16 mm gap or a
+40 mm per-end cap, require ≥12 points). Two passes separate **length** from
+**width**: the ball-centred candidates set the reach frontier (the wide floor-fan
+that opens up beyond the toe is offset from the ball centre and excluded, so it
+can't extend length); a fill re-centred on the *local* core perp at that end (the
+foot curves, so an eroded heel sits off the ball centre) then restores the heel's
+full width *within* that frontier, feeding the heel-shape trust signal without
+pushing length out. Every bound is anatomical, not fitted to 263.
+
+**Validated replay (right foot, truth 263 × 107):**
+
+| frame | before | after | width | note |
+|---|---|---|---|---|
+| frame6 (heel-eroded) | 248 | **263** | 105 | length fixed; heel 21→37 mm |
+| goodpose-12 | 190 | **224** ✓PASS | 111 | recovered into the trusted set |
+| goodpose-28 | 221 ✓ | 221 ✓ | 106 | toe-dropout: no toe in data, left alone |
+| goodpose-19 | 241 ✓ | 241 ✓ | 108 | toe-dropout: left alone |
+| goodpose-44 | 274 | 274 | 112 | leaning core: unchanged, still rejected |
+| goodpose-53 | 229 | 229 | 111 | heel 28, conservative reject |
+| frame1–5 (negatives) | — | **byte-identical, all still REJECTED** | | referee green |
+
+**Honest outcome — what's fixed and what isn't.**
+- **WIDTH** — solved, untouched (recovery only adds points outside the 30–95% band).
+- **HEEL-erosion LENGTH** — fixed. frame6 (the canonical documented case) 248→263;
+  goodpose-12 190→224 and now clears the trust gate. The under-read *floor* across
+  the good-pose set rose from 190 to ≥221.
+- **TOE-dropout (goodpose-28/19)** — NOT recoverable, and recovery correctly does
+  nothing: beyond the core the only low-conf points are a wide hollow floor-fan
+  (perpRel ±60–120, no centred toe), so the toe is genuinely absent from the depth
+  data. This is a **capture limit** (the aim-down cue already shipped targets it),
+  not a math bug. These frames pass the gate but read ~221/241.
+- **frame6 / goodpose-53 still conservatively REJECTED.** Their reconstructed heel
+  (~37/28 mm) is too close to leaning goodpose-44's (35 mm) for the heel-shape gate
+  to separate — trusting them would also trust a leaning frame. So length-recovery
+  deliberately does **not** loosen the trust gate; the burst keeps the cleaner
+  frames. The stated "all 6 cluster at 263 ±12" is therefore **not** achievable from
+  this data set: heel-erosion is recoverable, toe-dropout and leg-contamination are
+  not — exactly the single-frame ambiguity this note has hit since 2026-06-13.
+
+**Referee + tests.** `depthTrustGate.test.ts` (the 5 negatives) passes UNCHANGED —
+the gate was not weakened. `goodPoseSet.test.ts` and `frame6Heel.test.ts` flipped
+from pinning the broken behaviour to asserting the fix (width unchanged; under-read
+floor lifted ≥215 and bounded <285; frame6 length 255–272 + heel >33, with an
+explicit assert that its trust stays conservative). 306 tests green, tsc + lint clean.
+
+**NEXT (device, user's move):** the remaining gap is capture quality, not code —
+save good-pose frames where the **whole foot incl. toe** is inside the depth FOV
+(aim straight down, leg out, foot centred), AirDrop, replay. With the toe present,
+recovery + the existing pipeline should land ~263 on a *trusted* frame. Do NOT keep
+tuning recovery thresholds against this set — heel-erosion is solved; toe presence
+is now a capture problem.

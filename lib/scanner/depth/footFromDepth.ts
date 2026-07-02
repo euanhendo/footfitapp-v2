@@ -1,6 +1,6 @@
 import { rangeScore, widthAcrossFootBand } from '../footMetrics';
 import { FootMetrics, Point } from '../types';
-import { depthFrameToPoints, unprojectPixel } from './pointCloud';
+import { depthFrameLowConfPoints, depthFrameToPoints, unprojectPixel } from './pointCloud';
 import {
   fitFloorPlane,
   heightAboveFloorMm,
@@ -173,6 +173,174 @@ const FOOT_LOW_POINT_FRACTION = 0.2;
 const LOW_POINT_MAX_HEIGHT_MM = 45;
 const LOW_ANCHOR_BIN_MM = 10;
 const LOW_ANCHOR_MIN_POINTS = 4;
+
+// --- Confidence-aware extremity recovery -------------------------------------
+// The dense ball of the foot returns at medium/high confidence and forms a
+// reliable core, but the thin near-floor extremities — toe tips (~15 mm) and
+// the heel pad (~25 mm) — sit on a sharp depth cliff down to the floor that the
+// RGB-fused LiDAR resolves only at LOW confidence, so depthFrameToPoints drops
+// them and length truncates tip-to-tip (good-pose device set 2026-06-17: cores
+// read 185–248 vs a 263 mm foot, width unaffected). The global confidence floor
+// CANNOT be lowered — that re-admits distant invented floor depth and explodes
+// length to ~600 mm. Instead we region-grow the foot OUT from its high-conf core
+// and admit only the low-confidence points that are (a) NEAR THE FLOOR — the
+// sole contact, not the hovering occlusion shadow behind a leaning heel,
+// (b) INSIDE the core's own width envelope — so a leaning leg / ankle lobe can't
+// re-enter sideways (width is already solved), and (c) spatially CONTIGUOUS with
+// the core out to a bounded per-end reach — so the smear leading off to distant
+// floor noise is cut at the gap. Anatomically grounded, not fitted to 263: a
+// real heel/toe is a dense run that fades within a few cm of the ball; a lean
+// shadow or floor smear is either out of the width envelope, sparse near-floor,
+// or never fades, and is rejected by (a)/(b)/(c).
+const RECOVERY_NEAR_FLOOR_MM = 25; // toe tip ~15, heel pad ~25 touch the floor; the leg hovers above
+const RECOVERY_PERP_MARGIN_MM = 15; // edge pixels blend a little past the core
+const RECOVERY_BIN_MM = 8; // contiguity granularity along the long axis
+const RECOVERY_GAP_BINS = 2; // ≥16 mm of empty bins ends the extremity (the gap)
+const RECOVERY_BIN_MIN_POINTS = 2; // a bin below this is "empty" for the gap test
+const RECOVERY_END_CAP_MM = 40; // a toe/heel adds at most this beyond the ball
+const RECOVERY_MIN_END_POINTS = 12; // sparse smears never reach this — recover nothing
+const RECOVERY_LOCAL_END_MM = 40; // core depth used to re-centre the width fill
+
+function percentile(sorted: number[], q: number): number {
+  if (sorted.length === 0) return 0;
+  const idx = Math.max(0, Math.min(sorted.length - 1, Math.round(q * (sorted.length - 1))));
+  return sorted[idx];
+}
+
+function median(values: number[]): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.floor(sorted.length / 2)];
+}
+
+// How far the foot reaches past a core end, in mm, or null if there is no real
+// extremity there. `cands` is pre-filtered to near-floor, in-envelope points;
+// we bin them by reach past the edge, walk outward, and stop at the first ≥16 mm
+// gap (foot → distant floor) or the per-end cap. A real extremity is a
+// contiguous run; a sparse smear never clears RECOVERY_MIN_END_POINTS → null.
+function reachFrontier(
+  edgeS: number,
+  dir: number,
+  cands: { s: number; pt: FootSample }[],
+): number | null {
+  const nb = Math.ceil(RECOVERY_END_CAP_MM / RECOVERY_BIN_MM);
+  const binReaches: number[][] = Array.from({ length: nb }, () => []);
+  for (const c of cands) {
+    const reach = dir * (c.s - edgeS);
+    if (reach <= 0 || reach > RECOVERY_END_CAP_MM) continue;
+    binReaches[Math.min(nb - 1, Math.floor(reach / RECOVERY_BIN_MM))].push(reach);
+  }
+  let lastSolid = -1;
+  let emptyRun = 0;
+  for (let b = 0; b < nb; b++) {
+    if (binReaches[b].length >= RECOVERY_BIN_MIN_POINTS) {
+      lastSolid = b;
+      emptyRun = 0;
+    } else if (++emptyRun >= RECOVERY_GAP_BINS) {
+      break;
+    }
+  }
+  if (lastSolid < 0) return null;
+  let total = 0;
+  let frontier = 0;
+  for (let b = 0; b <= lastSolid; b++) {
+    total += binReaches[b].length;
+    for (const r of binReaches[b]) if (r > frontier) frontier = r;
+  }
+  return total >= RECOVERY_MIN_END_POINTS ? frontier : null;
+}
+
+/**
+ * Augment the high-confidence core with the trustworthy low-confidence points
+ * at its two ends (heel + toe), so length stops truncating at the eroded
+ * extremities. Returns points in the input floor-mm frame, so the existing
+ * orient → trim → anchor pipeline runs unchanged. See the block comment above
+ * for the bounds and why each is anatomical rather than tuned.
+ */
+export function recoverExtremities(core: FootSample[], lowConf: FootSample[]): FootSample[] {
+  if (core.length < MIN_FOOT_POINTS || lowConf.length === 0) return core;
+
+  // Core PCA long axis, in floor-mm. s = along the foot, perp = across it.
+  let mx = 0;
+  let my = 0;
+  for (const p of core) {
+    mx += p.x;
+    my += p.y;
+  }
+  mx /= core.length;
+  my /= core.length;
+  let sxx = 0;
+  let syy = 0;
+  let sxy = 0;
+  for (const p of core) {
+    const dx = p.x - mx;
+    const dy = p.y - my;
+    sxx += dx * dx;
+    syy += dy * dy;
+    sxy += dx * dy;
+  }
+  const theta = 0.5 * Math.atan2(2 * sxy, sxx - syy);
+  const cos = Math.cos(theta);
+  const sin = Math.sin(theta);
+  const along = (p: FootSample) => (p.x - mx) * cos + (p.y - my) * sin;
+  const perp = (p: FootSample) => -(p.x - mx) * sin + (p.y - my) * cos;
+
+  // Core along-axis extent, and a robust foot half-width from the perp spread.
+  // p5–p95 ignores stray outliers (an ankle lobe can't inflate the gate that
+  // keeps the leg out) but spans the ball — the foot's widest part — so the
+  // heel/toe, always narrower, fit inside it.
+  let sMin = Infinity;
+  let sMax = -Infinity;
+  const perpAll: number[] = [];
+  for (const p of core) {
+    const s = along(p);
+    if (s < sMin) sMin = s;
+    if (s > sMax) sMax = s;
+    perpAll.push(perp(p));
+  }
+  const perpSorted = [...perpAll].sort((a, b) => a - b);
+  const perpMid = (percentile(perpSorted, 0.05) + percentile(perpSorted, 0.95)) / 2;
+  const halfWidth = (percentile(perpSorted, 0.95) - percentile(perpSorted, 0.05)) / 2 + RECOVERY_PERP_MARGIN_MM;
+
+  // Candidate low-conf points: near the floor (the sole contact, not the leg,
+  // which hovers above RECOVERY_NEAR_FLOOR_MM) and inside the foot's width
+  // envelope centred on the BALL (perpMid). The wide floor-fan that opens up
+  // beyond the toe is offset from this centre and excluded — so it can't push
+  // the length frontier out.
+  const cands: { s: number; pt: FootSample }[] = [];
+  for (const p of lowConf) {
+    if (p.hMm > RECOVERY_NEAR_FLOOR_MM) continue;
+    if (Math.abs(perp(p) - perpMid) > halfWidth) continue;
+    cands.push({ s: along(p), pt: p });
+  }
+  if (cands.length === 0) return core;
+
+  // Recover each end in two passes that separate LENGTH from WIDTH. (1) The
+  // ball-centred candidates above set the reach frontier — how far the extremity
+  // extends — keeping the floor-fan out so length can't run away. (2) A fill
+  // re-centred on the LOCAL core perp at that end (the foot curves, so an eroded
+  // heel sits off the ball's centre) admits near-floor points only WITHIN the
+  // frontier, restoring the heel's full width for the heel-shape trust signal
+  // without pushing length past where the centred run actually reached.
+  const recovered: FootSample[] = [...core];
+  for (const [edgeS, dir] of [[sMax, 1], [sMin, -1]] as const) {
+    const frontier = reachFrontier(edgeS, dir, cands);
+    if (frontier === null) continue;
+    const localPerps: number[] = [];
+    for (const p of core) {
+      const reachIn = dir * (along(p) - edgeS);
+      if (reachIn <= 0 && reachIn >= -RECOVERY_LOCAL_END_MM) localPerps.push(perp(p));
+    }
+    const centre = localPerps.length >= 3 ? median(localPerps) : perpMid;
+    for (const p of lowConf) {
+      if (p.hMm > RECOVERY_NEAR_FLOOR_MM) continue;
+      if (Math.abs(perp(p) - centre) > halfWidth) continue;
+      const reach = dir * (along(p) - edgeS);
+      if (reach > 0 && reach <= frontier) recovered.push(p);
+    }
+  }
+  return recovered;
+}
 
 export function anchorToFloorContact(points: FootSample[]): FootSample[] {
   if (points.length === 0) return points;
@@ -424,10 +592,15 @@ export function measureFootFromDepthFrameDebug(
           ),
         )
       : { x: 0, y: 0 };
-  const foot = pickAimedCluster(band, target);
-  if (foot.length < MIN_FOOT_POINTS) {
-    return { ...partial, metrics: ZERO, bandPoints: band.length, footPoints: foot.length };
+  const aimed = pickAimedCluster(band, target);
+  if (aimed.length < MIN_FOOT_POINTS) {
+    return { ...partial, metrics: ZERO, bandPoints: band.length, footPoints: aimed.length };
   }
+  // Recover the eroded near-floor extremities (toe tips + heel pad) that the
+  // confidence filter dropped, so length stops truncating short. Bounded so the
+  // leg and distant floor noise can't re-enter — see recoverExtremities.
+  const lowBand = segmentFootPoints(depthFrameLowConfPoints(frame, stride), plane);
+  const foot = recoverExtremities(aimed, lowBand);
 
   // Orient, amputate the leg's occlusion shadow off the rear, then re-orient:
   // the shin skews the first PCA axis, so the axis is re-derived from the
