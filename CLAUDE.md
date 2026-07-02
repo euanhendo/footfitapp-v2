@@ -10,7 +10,7 @@ Three rules are load-bearing enough to inline here:
 
 - **Route params are strings.** Parse with `Number()` on the receiving screen. Never type a param as `number`. Scanner outputs (`lengthMm`, `widthMm`, `confidence`) follow the same rule on the way out of `ScannerScreen`.
 - **Persistence goes through `StorageAdapter`.** Components and screens never import `expo-secure-store` directly — inject the adapter so tests can swap it.
-- **Vision goes through `VisionAdapter`.** Scanner screens never import native vision/ML modules directly — `ScannerScreen` talks to `visionKitAdapter`; only `lib/scanner/visionKitAdapter.ts` may import `modules/footfit-vision`, and only `lib/scanner/tfliteVisionAdapter.ts` (legacy) may import `react-native-fast-tflite`. Math in `lib/scanner/*` stays pure. (`ScannerDebugScreen` deliberately pokes the raw pipeline — it is the one exception.)
+- **Vision goes through `VisionAdapter`.** Scanner screens never import native vision/ML modules directly — `ScannerScreen` talks to `visionKitAdapter`; only `lib/scanner/visionKitAdapter.ts` may import `modules/footfit-vision`. Math in `lib/scanner/*` stays pure. (`ScannerDebugScreen` deliberately pokes the raw pipeline — it is the one exception.)
 
 ## Slash commands
 
@@ -43,7 +43,7 @@ Or just run `/verify` to fire all three checks in parallel and get a summary.
 
 ### Dev client (required — native modules present)
 
-Native modules are linked into the app (`modules/footfit-vision` for the live scanner; `react-native-fast-tflite` is legacy from the abandoned ML spike). Expo Go cannot load them. Use a local dev client:
+Native modules are linked into the app (`modules/footfit-vision` for the live scanner). Expo Go cannot load them. Use a local dev client:
 
 ```bash
 npm run ios            # npx expo run:ios (simulator)
@@ -54,7 +54,7 @@ npx expo run:ios --device   # plugged-in iPhone, free Apple ID signing OK
 
 **Shipped 2026-06-11: classical-CV scanner v2** — Nike-style A4-reference flow on Apple Vision (`VNDetectRectanglesRequest` + dual-polarity `VNDetectContoursRequest` + a redness-map contour pass for bare skin) via the native `modules/footfit-vision` bridge. **Validated against ruler-and-tape ground truth (final gate 2026-06-12)**: length 265 mm vs ruler 263, width 110 mm vs tape 110. The mechanisms that made it accurate: hands-free auto-capture that only fires when the paper fills the on-screen guide (`assessGuideFit`), a trust gate (`TRUST_MIN_CONFIDENCE = 0.85`) that rejects shadow-inflated captures and reshoots, and homography rectification of the foot contour into paper-mm coordinates (kills perspective error). Flow: ManualInput → "Scan with your phone" → ScannerScreen (auto) → ScanReview → SockSelection.
 
-The ML route stays dead — the 2026-04-20 TFLite op-resolver failure is documented in [.claude/decisions/roadmap-2026-04.md](.claude/decisions/roadmap-2026-04.md); do not attempt segmentation models again. `lib/scanner/tfliteVisionAdapter.ts` is legacy and unused by screens. **Do not re-tune scanner optics or thresholds without a new pen-measured ground truth.** Scanner v3 (LiDAR paperless) is in progress on branch `worktree-scanner-v3-depth` (dev-only `DepthDebugScreen`, no production flow): width is solved; length is gated on device captures with the whole foot incl. toe inside the depth FOV — see `.claude/decisions/scanner-v3-depth-2026-06.md`. Do not tune v3 thresholds against the existing fixture set.
+The ML route stays dead — the 2026-04-20 TFLite op-resolver failure is documented in [.claude/decisions/roadmap-2026-04.md](.claude/decisions/roadmap-2026-04.md); do not attempt segmentation models again. The legacy TFLite adapter, `react-native-fast-tflite` dependency, and bundled models were removed 2026-07-02 during App Store prep. **Do not re-tune scanner optics or thresholds without a new pen-measured ground truth.** Scanner v3 (LiDAR paperless) is in progress on branch `worktree-scanner-v3-depth` (dev-only `DepthDebugScreen`, no production flow): width is solved; length is gated on device captures with the whole foot incl. toe inside the depth FOV — see `.claude/decisions/scanner-v3-depth-2026-06.md`. Do not tune v3 thresholds against the existing fixture set.
 
 ## Key Files
 
@@ -68,8 +68,6 @@ The ML route stays dead — the 2026-04-20 TFLite op-resolver failure is documen
 | `lib/scanner/*` | Foot-scan CV math (pure): contour picking, foot metrics, homography rectification, guide-fit lock, trust gate, reference objects |
 | `lib/scanner/visionKitAdapter.ts` | Concrete `VisionAdapter` over Apple Vision — only file allowed to import `modules/footfit-vision`; exposes `detectQuad` (probe) + `measureFoot` (full pipeline) |
 | `modules/footfit-vision/` | Native Expo module (Swift): `VNDetectRectanglesRequest` candidates + brightness, dual-polarity + redness-map contours, EXIF-upright dims |
-| `lib/scanner/tfliteVisionAdapter.ts` | Legacy `VisionAdapter` from the dead ML spike — only file allowed to import `react-native-fast-tflite`; unused by screens |
-| `assets/models/` | Bundled `.tflite` weights (gitignored — legacy, see scanner status) |
 | `lib/__tests__/` | Unit tests (Jest + ts-jest) |
 | `bootDatabase.json` | Boot inventory (mm) — use `/add-boot` |
 | `sockDatabase.json` | Sock thickness map (mm, with `sport`) — use `/add-sock` |
@@ -87,7 +85,7 @@ _Prune during `/retro` when entries become stale or internalised._
 - Run all 3 verify checks before reporting done: `npm test`, `npx tsc --noEmit`, `npm run lint` (or `/verify`)
 - SockSelection renders dynamically via `getSocksForSport()` — never hardcode Picker.Item
 - For persistence, inject a `StorageAdapter` in tests — don't mock native modules directly
-- For vision, inject a `VisionAdapter` in tests — no `react-native-fast-tflite` or `expo-camera` imports inside `lib/scanner/*`
+- For vision, inject a `VisionAdapter` in tests — no `expo-camera` or native ML imports inside `lib/scanner/*`
 - Scanner math (`lib/scanner/*`) is pure TypeScript — if you need RN or native APIs in there, you're on the wrong side of the boundary
-- Native modules (`modules/footfit-vision`, legacy `react-native-fast-tflite`) break Expo Go — use `npm run ios` / `expo run:ios --device`, not Expo Go
+- Native modules (`modules/footfit-vision`) break Expo Go — use `npm run ios` / `expo run:ios --device`, not Expo Go
 - Installing native Expo modules hits `~/.expo/native-modules-cache/` (outside sandbox) — expect `EPERM`, retry with sandbox disabled

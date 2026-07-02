@@ -50,3 +50,4 @@ app-example
 
 # Bundled TFLite models (downloaded — see assets/models/README.md)
 assets/models/*.tflite
+.claude/worktrees/
