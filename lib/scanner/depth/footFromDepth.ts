@@ -201,6 +201,44 @@ const RECOVERY_END_CAP_MM = 40; // a toe/heel adds at most this beyond the ball
 const RECOVERY_MIN_END_POINTS = 12; // sparse smears never reach this — recover nothing
 const RECOVERY_LOCAL_END_MM = 40; // core depth used to re-centre the width fill
 
+// Toe tips press flat against the floor. Device frames 2026-07-23 (shin-brace
+// capture, truth 263): real toe-tip points sat at 3–5 mm — BELOW the
+// segmentation band's 6 mm floor — at HIGH confidence, so neither the band nor
+// the low-confidence complement ever showed them to recovery and length
+// truncated at the ball. This sub-band slice (2 mm keeps flat-floor noise out)
+// exists only as recovery INPUT — recovery's contiguity/envelope/cap bounds
+// still decide what gets in; nothing below FOOT_MIN_HEIGHT_MM joins the core
+// any other way.
+const RECOVERY_SUB_BAND_MIN_MM = 2;
+// Sub-band points are floor-adjacent, and some floors (negative frame4) throw a
+// dense 2–5 mm blended apron that can fake a whole heel. So they may only vote
+// as TOE TIPS: a short reach past the core, in a narrow tip-shaped run — never
+// a wide slab, never the width fill. Device anatomy: burst#2's real tips sat
+// 0–10 mm past the core in a ~30 mm-wide cluster; frame4's apron is 90+ mm wide.
+const SUB_BAND_REACH_CAP_MM = 12;
+const SUB_BAND_MAX_WIDTH_MM = 45;
+const SUB_BAND_MIN_END_POINTS = 6;
+
+// Toe-presence trust signal: the front TOE_BAND_MM of the oriented contour
+// must contain at least one point near the floor — a touching toe tip (device
+// 2026-07-23: 3–5 mm; June good-pose set: ≤10 mm). A forefoot-dropout frame's
+// front band is the hovering dorsum (~20 mm+), which scores 0 and rejects the
+// confidently-short read. Ramp matches rangeScore: 1 through 12 mm, 0 by 18.
+const TOE_BAND_MM = 15;
+const TOE_TIP_MAX_HEIGHT_MM = 12;
+
+/** Near-floor samples below the segmentation band, as extremity-recovery input. */
+export function subBandFloorSamples(points: Vec3[], plane: FloorPlane): FootSample[] {
+  const basis = planeBasis(plane.normal);
+  const out: FootSample[] = [];
+  for (const p of points) {
+    const h = heightAboveFloorMm(plane, p);
+    if (h < RECOVERY_SUB_BAND_MIN_MM || h >= FOOT_MIN_HEIGHT_MM) continue;
+    out.push({ ...projectToFloorMm(plane, basis, p), hMm: h });
+  }
+  return out;
+}
+
 function percentile(sorted: number[], q: number): number {
   if (sorted.length === 0) return 0;
   const idx = Math.max(0, Math.min(sorted.length - 1, Math.round(q * (sorted.length - 1))));
@@ -222,6 +260,7 @@ function reachFrontier(
   edgeS: number,
   dir: number,
   cands: { s: number; pt: FootSample }[],
+  subCands: { s: number; perp: number }[] = [],
 ): number | null {
   const nb = Math.ceil(RECOVERY_END_CAP_MM / RECOVERY_BIN_MM);
   const binReaches: number[][] = Array.from({ length: nb }, () => []);
@@ -230,10 +269,24 @@ function reachFrontier(
     if (reach <= 0 || reach > RECOVERY_END_CAP_MM) continue;
     binReaches[Math.min(nb - 1, Math.floor(reach / RECOVERY_BIN_MM))].push(reach);
   }
+  // Sub-band (below the segmentation floor) bins are tracked separately and
+  // count as solid only under the toe-tip shape rules — see SUB_BAND_* above.
+  const subReaches: number[][] = Array.from({ length: nb }, () => []);
+  const subPerps: number[][] = Array.from({ length: nb }, () => []);
+  for (const c of subCands) {
+    const reach = dir * (c.s - edgeS);
+    if (reach <= 0 || reach > SUB_BAND_REACH_CAP_MM) continue;
+    const b = Math.min(nb - 1, Math.floor(reach / RECOVERY_BIN_MM));
+    subReaches[b].push(reach);
+    subPerps[b].push(c.perp);
+  }
+  const subSolid = (b: number) =>
+    subReaches[b].length >= RECOVERY_BIN_MIN_POINTS &&
+    Math.max(...subPerps[b]) - Math.min(...subPerps[b]) <= SUB_BAND_MAX_WIDTH_MM;
   let lastSolid = -1;
   let emptyRun = 0;
   for (let b = 0; b < nb; b++) {
-    if (binReaches[b].length >= RECOVERY_BIN_MIN_POINTS) {
+    if (binReaches[b].length >= RECOVERY_BIN_MIN_POINTS || subSolid(b)) {
       lastSolid = b;
       emptyRun = 0;
     } else if (++emptyRun >= RECOVERY_GAP_BINS) {
@@ -242,12 +295,21 @@ function reachFrontier(
   }
   if (lastSolid < 0) return null;
   let total = 0;
+  let subTotal = 0;
   let frontier = 0;
   for (let b = 0; b <= lastSolid; b++) {
     total += binReaches[b].length;
     for (const r of binReaches[b]) if (r > frontier) frontier = r;
+    if (subSolid(b)) {
+      subTotal += subReaches[b].length;
+      for (const r of subReaches[b]) if (r > frontier) frontier = r;
+    }
   }
-  return total >= RECOVERY_MIN_END_POINTS ? frontier : null;
+  if (total >= RECOVERY_MIN_END_POINTS) return frontier;
+  // A tips-only extremity: enough sub-band points in a short, narrow run.
+  if (subTotal >= SUB_BAND_MIN_END_POINTS && frontier <= SUB_BAND_REACH_CAP_MM)
+    return frontier;
+  return null;
 }
 
 /**
@@ -257,8 +319,13 @@ function reachFrontier(
  * orient → trim → anchor pipeline runs unchanged. See the block comment above
  * for the bounds and why each is anatomical rather than tuned.
  */
-export function recoverExtremities(core: FootSample[], lowConf: FootSample[]): FootSample[] {
-  if (core.length < MIN_FOOT_POINTS || lowConf.length === 0) return core;
+export function recoverExtremities(
+  core: FootSample[],
+  lowConf: FootSample[],
+  subBand: FootSample[] = [],
+): FootSample[] {
+  if (core.length < MIN_FOOT_POINTS || (lowConf.length === 0 && subBand.length === 0))
+    return core;
 
   // Core PCA long axis, in floor-mm. s = along the foot, perp = across it.
   let mx = 0;
@@ -313,7 +380,14 @@ export function recoverExtremities(core: FootSample[], lowConf: FootSample[]): F
     if (Math.abs(perp(p) - perpMid) > halfWidth) continue;
     cands.push({ s: along(p), pt: p });
   }
-  if (cands.length === 0) return core;
+  // Sub-band candidates keep their perp so reachFrontier can apply the
+  // tip-shape width rule; the envelope gate is the same ball-centred one.
+  const subCands: { s: number; perp: number; pt: FootSample }[] = [];
+  for (const p of subBand) {
+    if (Math.abs(perp(p) - perpMid) > halfWidth) continue;
+    subCands.push({ s: along(p), perp: perp(p), pt: p });
+  }
+  if (cands.length === 0 && subCands.length === 0) return core;
 
   // Recover each end in two passes that separate LENGTH from WIDTH. (1) The
   // ball-centred candidates above set the reach frontier — how far the extremity
@@ -324,7 +398,7 @@ export function recoverExtremities(core: FootSample[], lowConf: FootSample[]): F
   // without pushing length past where the centred run actually reached.
   const recovered: FootSample[] = [...core];
   for (const [edgeS, dir] of [[sMax, 1], [sMin, -1]] as const) {
-    const frontier = reachFrontier(edgeS, dir, cands);
+    const frontier = reachFrontier(edgeS, dir, cands, subCands);
     if (frontier === null) continue;
     const localPerps: number[] = [];
     for (const p of core) {
@@ -337,6 +411,15 @@ export function recoverExtremities(core: FootSample[], lowConf: FootSample[]): F
       if (Math.abs(perp(p) - centre) > halfWidth) continue;
       const reach = dir * (along(p) - edgeS);
       if (reach > 0 && reach <= frontier) recovered.push(p);
+    }
+    // Sub-band tips join only within their own short reach and a tip-narrow
+    // corridor about the local centre — they extend length, never width.
+    for (const c of subCands) {
+      if (Math.abs(c.perp - centre) > SUB_BAND_MAX_WIDTH_MM / 2 + RECOVERY_PERP_MARGIN_MM)
+        continue;
+      const reach = dir * (c.s - edgeS);
+      if (reach > 0 && reach <= Math.min(frontier, SUB_BAND_REACH_CAP_MM))
+        recovered.push(c.pt);
     }
   }
   return recovered;
@@ -385,13 +468,37 @@ export function trimLegShadow(points: FootSample[]): FootSample[] {
   const bins = Math.max(1, Math.ceil(maxY / TRIM_SLICE_MM));
   const total = new Array<number>(bins).fill(0);
   const low = new Array<number>(bins).fill(0);
+  const minX = new Array<number>(bins).fill(Infinity);
+  const maxX = new Array<number>(bins).fill(-Infinity);
+  const sub = new Array<number>(bins).fill(0);
   for (const p of points) {
     const bin = Math.min(bins - 1, Math.floor(p.y / TRIM_SLICE_MM));
     total[bin]++;
     if (p.hMm <= LEG_ONLY_MIN_HEIGHT_MM) low[bin]++;
+    if (p.hMm <= LOW_POINT_MAX_HEIGHT_MM) sub[bin]++;
+    if (p.x < minX[bin]) minX[bin] = p.x;
+    if (p.x > maxX[bin]) maxX[bin] = p.x;
   }
+  // A rear slice is kept despite failing the low-point quorum ONLY when it is
+  // simultaneously heel-wide AND a meaningful FRACTION of it sits below
+  // LOW_POINT_MAX_HEIGHT_MM — the visible sides of an occluded heel.
+  // Shin-brace capture 2026-07-23: the camera parked over the ankle hides the
+  // rear heel pad's floor contact, so those slices fail the quorum yet span
+  // ~90 mm with half their points at 20–45 mm. The two impostors both fail:
+  // a shin lying across the frame is wide but HOVERS (near-zero sub-ankle
+  // points), and a crisp-light shin's floor-blended halo is only ~10% of a
+  // slice — below the fraction bar.
+  const heelLike = (bin: number) =>
+    total[bin] >= 3 &&
+    maxX[bin] - minX[bin] >= HEEL_WIDTH_MM &&
+    sub[bin] >= Math.max(3, Math.ceil(total[bin] * 0.25));
   let cut = 0;
-  while (cut < bins && low[cut] < Math.max(2, total[cut] * FOOT_LOW_POINT_FRACTION)) cut++;
+  while (
+    cut < bins &&
+    low[cut] < Math.max(2, total[cut] * FOOT_LOW_POINT_FRACTION) &&
+    !heelLike(cut)
+  )
+    cut++;
   if (cut === 0) return points;
   const yCut = cut * TRIM_SLICE_MM;
   return points.filter((p) => p.y >= yCut).map((p) => ({ ...p, y: p.y - yCut }));
@@ -598,9 +705,16 @@ export function measureFootFromDepthFrameDebug(
   }
   // Recover the eroded near-floor extremities (toe tips + heel pad) that the
   // confidence filter dropped, so length stops truncating short. Bounded so the
-  // leg and distant floor noise can't re-enter — see recoverExtremities.
-  const lowBand = segmentFootPoints(depthFrameLowConfPoints(frame, stride), plane);
-  const foot = recoverExtremities(aimed, lowBand);
+  // leg and distant floor noise can't re-enter — see recoverExtremities. The
+  // recovery input also includes sub-band points from BOTH confidence classes:
+  // flat toe tips sit at 3–5 mm, below the segmentation floor, and are dropped
+  // by height — not confidence — so the low-conf complement alone misses them.
+  const lowPts = depthFrameLowConfPoints(frame, stride);
+  const lowBand = segmentFootPoints(lowPts, plane);
+  const subBand = subBandFloorSamples(points, plane).concat(
+    subBandFloorSamples(lowPts, plane),
+  );
+  const foot = recoverExtremities(aimed, lowBand, subBand);
 
   // Orient, amputate the leg's occlusion shadow off the rear, then re-orient:
   // the shin skews the first PCA axis, so the axis is re-derived from the
@@ -621,6 +735,15 @@ export function measureFootFromDepthFrameDebug(
   for (const p of anchored) {
     if (p.y > lengthMm) lengthMm = p.y;
   }
+  // Toe-presence trust signal: real toe tips touch down near the floor at the
+  // very front of the contour. When the forefoot drops out (June's goodpose-28/
+  // 19 pattern) the front-most band is the hovering dorsum instead, and the
+  // frame under-reads while sailing through the other gates — the exact
+  // confidently-short failure a burst median must not swallow.
+  let toeTipMinHMm = Infinity;
+  for (const p of anchored) {
+    if (p.y >= lengthMm - TOE_BAND_MM && p.hMm < toeTipMinHMm) toeTipMinHMm = p.hMm;
+  }
   let widthMm = widthAcrossFootBand(anchored, lengthMm);
   if (lengthMm <= 0 || widthMm <= 0) {
     return { ...partial, rearHeelWidthMm, metrics: ZERO, bandPoints: band.length, footPoints: foot.length };
@@ -640,7 +763,11 @@ export function measureFootFromDepthFrameDebug(
   const floorScore = rangeScore(plane.inlierRatio, FLOOR_INLIER_GOOD_MIN, 1);
   const footScore = rangeScore(aspect, ASPECT_MIN, ASPECT_MAX);
   const heelScore = heelShapeScore(rearHeelWidthMm);
-  const confidence = Math.max(0, Math.min(1, floorScore * footScore * heelScore));
+  const toeScore = rangeScore(toeTipMinHMm, 0, TOE_TIP_MAX_HEIGHT_MM);
+  const confidence = Math.max(
+    0,
+    Math.min(1, floorScore * footScore * heelScore * toeScore),
+  );
   return {
     ...partial,
     rearHeelWidthMm,
