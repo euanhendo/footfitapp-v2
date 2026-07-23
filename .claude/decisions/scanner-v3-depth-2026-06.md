@@ -419,3 +419,51 @@ save good-pose frames where the **whole foot incl. toe** is inside the depth FOV
 recovery + the existing pipeline should land ~263 on a *trusted* frame. Do NOT keep
 tuning recovery thresholds against this set — heel-erosion is solved; toe presence
 is now a capture problem.
+
+## 2026-07-23 — shin-brace capture + toe recovery + toe-presence gate
+
+**Capture protocol found (user-invented, validated):** seated, foot flat and
+weighted, top edge of the phone braced against the shin — the camera sits in
+front of the shin so the leg physically cannot enter the frame, the pose is
+rock-steady (tilt ~1.3°), and the heel lands wide (~97 mm) in the rear band.
+First protocol ever to produce TRUSTED frames. Freehand-over-midfoot was
+retested head-to-head the same day: unstable (169–513 mm across one burst),
+still loses to the brace. Fixtures: `shinbrace-16-48-{1,2}.json` (+
+`shinBraceSet.test.ts`).
+
+**Probe finding that redirected the work:** the trusted frames' toe tips WERE
+in the depth bytes — 9–10 HIGH-confidence points at 3–5 mm — below the 6 mm
+segmentation floor. June's "toe genuinely absent" conclusion was correct for
+June's aim-along-leg captures but wrong for brace captures; the filter that
+dropped these tips was height, not confidence.
+
+**Pipeline changes (all pure, `footFromDepth.ts`):**
+1. `subBandFloorSamples` — 2–6 mm points from BOTH confidence classes feed
+   `recoverExtremities` as a third input, admitted only as toe TIPS: reach
+   ≤ 12 mm, run ≤ 45 mm wide, ≥ 6 points, never the width fill. Floor-apron
+   guard: negative frame4's floor throws a dense 2–5 mm blended apron that
+   faked a 99 mm heel in the first unconstrained attempt — the tip-shape
+   rules exist because of it, not aesthetics.
+2. `trimLegShadow` keeps a rear slice that fails the low-point quorum only if
+   heel-wide (≥45 mm) AND ≥25% of it sits below 45 mm (occluded heel's
+   visible sides). Width alone re-admitted frame4's lying-across shin; the
+   fraction bar is what kept all 5 negatives rejected.
+3. Toe-presence trust signal: `toeScore = rangeScore(min h in front 15 mm,
+   0, 12)` multiplied into confidence. Catches a front band that hovers
+   (forefoot dropout). KNOWN LIMIT: June's trusted-short frames (221–232)
+   still pass — their truncated front edge has blended low pixels. A
+   front-band-width discriminator was considered and postponed: the egg-foot
+   synthetic (widest at toe end) would need remodelling first.
+4. Synthetic scenes got realistic soles (taper to 3 mm edge, fixed-point
+   ray intersection) — the toe gate demands anatomy the old slabs lacked.
+   Three synthetic tolerances widened (tapered edges cost a few mm at coarse
+   pixel pitch); real-frame fixtures are the accuracy referee.
+
+**Result:** shin-brace frames 244→248.9 / 249→253.5, trusted, width 104–106.
+309 tests green. **Honest residual vs 263:** (a) the camera parked over the
+ankle occludes the last ~10 mm of rear heel pad — probed, zero data there;
+(b) sub-2 mm toe-tip edges are below LiDAR's floor. Next cheap experiment:
+brace the phone a few cm further down the shin / toward the toes so the
+camera sits just FORWARD of the ankle — un-occludes the heel rear while
+keeping the brace geometry. Do NOT close the residual by inflating
+LENGTH_EDGE_EROSION_PX against n=1 foot.
