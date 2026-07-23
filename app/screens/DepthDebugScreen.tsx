@@ -166,9 +166,58 @@ export default function DepthDebugScreen() {
     }
   };
 
+  const BURST_SIZE = 5;
+
+  // Save a whole burst as ONE file — five spaced raw captures in a single
+  // payload, so one AirDrop carries the full session instead of a lone frame.
+  const saveBurst = async () => {
+    setBusy(true);
+    try {
+      const frames: { debug: DepthMeasureDebug | null; raw: unknown }[] = [];
+      for (let i = 1; i <= BURST_SIZE; i++) {
+        setBurstProgress(i);
+        const raw = await captureRawDepthFrameForExport();
+        const frame = decodeNativeDepthFrame(raw);
+        frames.push({ debug: frame ? measureFootFromDepthFrameDebug(frame) : null, raw });
+        if (i < BURST_SIZE) await delay(400);
+      }
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const payload = {
+        savedAt: stamp,
+        pose: status
+          ? { heightMm: status.centerDepthMm, tiltDeg: status.flatTiltDeg }
+          : null,
+        frames,
+      };
+      const file = new File(Paths.document, `depthburst-${stamp}.json`);
+      file.write(JSON.stringify(payload));
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(file.uri, {
+          mimeType: 'application/json',
+          dialogTitle: 'Save depth burst',
+        });
+      }
+      setRows((prev) => [
+        ...frames.map((f, idx) => ({
+          id: Date.now() + idx,
+          debug: f.debug ?? undefined,
+          error: f.debug ? undefined : 'saved (no metrics)',
+        })),
+        ...prev,
+      ]);
+    } catch (e) {
+      setRows((prev) => [
+        { id: Date.now(), error: `save burst failed: ${e instanceof Error ? e.message : String(e)}` },
+        ...prev,
+      ]);
+    } finally {
+      setBurstProgress(0);
+      setBusy(false);
+    }
+  };
+
   // Production pattern (mirrors v2's trusted burst): several spaced frames,
   // medianed — single dud frames can't drag the session.
-  const BURST_SIZE = 5;
   const captureBurst = async () => {
     setBusy(true);
     try {
@@ -504,6 +553,25 @@ export default function DepthDebugScreen() {
         >
           <Text style={{ color: '#6db3ff', fontSize: 14, fontWeight: '800' }}>
             Save frame (AirDrop to Mac)
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={saveBurst}
+          disabled={busy}
+          style={{
+            backgroundColor: '#1a1a1a',
+            borderWidth: 1,
+            borderColor: '#2a8a3a',
+            borderRadius: 14,
+            paddingVertical: 14,
+            alignItems: 'center',
+            marginTop: 10,
+          }}
+        >
+          <Text style={{ color: '#7bff9f', fontSize: 14, fontWeight: '800' }}>
+            {busy && burstProgress > 0
+              ? `Saving ${burstProgress} of ${BURST_SIZE} — hold steady…`
+              : 'Save burst (5 frames → one file)'}
           </Text>
         </Pressable>
         {rows.length > 0 && (
