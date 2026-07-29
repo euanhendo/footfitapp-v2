@@ -467,3 +467,44 @@ brace the phone a few cm further down the shin / toward the toes so the
 camera sits just FORWARD of the ankle — un-occludes the heel rear while
 keeping the brace geometry. Do NOT close the residual by inflating
 LENGTH_EDGE_EROSION_PX against n=1 foot.
+
+## 2026-07-29 — forward-brace falsified; anatomical trust envelopes shipped
+
+Height-ladder session (user live, 15 bursts: heel-angle shots, straight-down
+forward positions at 56/60/61/65/70 cm, POV screenshot). Verdict on June's
+"brace forward of the ankle" idea: **falsified — it makes occlusion worse.**
+
+**Geometry (now understood):** the ankle shadow scales with the camera's
+forward offset. Over the ankle (July protocol) the heel loses ~10 mm; a few
+cm forward, the shin lies IN frame along the foot axis (user's screenshot
+shows the heel fully buried) and the loss grows to ~50 mm. Failure modes by
+height, all replayed offline: 56 cm → shin merges lengthwise (333–494 mm
+reads); 60–61 cm → trusted-shorts at 196–224 with a REAL-looking 85 mm rear
+(the leg-trim cut edge — heel-shape gate can't tell a truncated heel from a
+round one); 65–70 cm → phantom floor-level streak 40–80 mm behind the heel
+(edge flare off the leg) inflating reads to 296–336, twice landing within
+1 mm of truth (263.2, 264.1) — treat any lucky-length rear-tail frame as
+this artifact. One frame (15:01 f2) genuinely saw sparse heel pad past the
+ankle (9 pts, 87–91 mm slices) with the contour ORIENTATION FLIPPED (leg
+mid-contour defeats heel-at-origin); not reproducible in follow-ups.
+
+**Shipped (both device-motivated, anatomy-principled, NOT fixture-tuned):**
+- `b8f558a` widthScore: anatomical width envelope 70–130 mm — kills
+  foot+leg blobs that keep a foot-like aspect at double scale (trusted
+  322–462 × 167–218 before the fix).
+- `f6595ff` lengthScore: anatomical length envelope 140–330 mm — kills
+  lengthwise shin merges with normal width (trusted 361 × 121 before).
+All 313 tests green; the 5 negative fixtures and every previously-trusted
+frame replay byte-identically.
+
+**Standing conclusions:** (1) July over-ankle shin-brace stays the capture
+protocol; its ~10 mm heel residual is a physical sensor limit, not worth
+more camera-position experiments. (2) Dominant accuracy bug is now
+trusted-shorts — BOTH variants: toe-truncated (June 221–232) and the new
+heel-truncated (206–224 passing heelScore via the wide trim edge). Next
+code work: egg-foot synthetic remodel, then end-truncation discriminators.
+(3) DepthDebugScreen coach gap: "Good — hold steady" checks height/tilt
+only; the shin-out-of-frame cue is unenforced (and physically impossible
+from the seated forward position). (4) Replay harness pattern: temp jest
+test decoding `~/Downloads/depthburst-*.json` (see 2026-07-23 crib);
+today's bursts kept in Downloads as the trusted-short real-failure set.
