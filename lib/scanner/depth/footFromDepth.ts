@@ -24,6 +24,11 @@ const ORIENT_MIN_POINTS_PER_BIN = 2;
 // Matches EXPECTED_ASPECT_MIN/MAX in footMetrics — a foot is 2–3.8× longer than wide.
 const ASPECT_MIN = 2.0;
 const ASPECT_MAX = 3.8;
+// Anatomical adult foot-width envelope. A cluster measuring wider than any
+// human foot has merged with the leg or the other foot — aspect alone misses
+// this because a scaled-up blob keeps a foot-like length/width ratio.
+const WIDTH_ANATOMICAL_MIN_MM = 70;
+const WIDTH_ANATOMICAL_MAX_MM = 130;
 // With a foot in frame the floor still owns ~2/3 of the cloud; below this the
 // "floor" the RANSAC found is suspect (cluttered scene, foot too close).
 const FLOOR_INLIER_GOOD_MIN = 0.35;
@@ -754,19 +759,22 @@ export function measureFootFromDepthFrameDebug(
     widthMm += WIDTH_EDGE_EROSION_PX * pixelPitchMm;
   }
 
-  // Confidence is the product of three independent trust signals, each a soft
-  // 0–1 ramp: a real floor (inlier ratio), a foot-shaped aspect, and a real
-  // heel (not a leaning leg's tail). A frame must look right on all three —
+  // Confidence is the product of independent trust signals, each a soft 0–1
+  // ramp: a real floor (inlier ratio), a foot-shaped aspect, a real heel (not
+  // a leaning leg's tail), toe tips touching down at the front, and an
+  // anatomically possible width. A frame must look right on all of them —
   // the leaning over-reads pass aspect but die on heel-shape, the forefoot-
-  // dropout under-reads pass heel-shape but die on aspect.
+  // dropout under-reads pass heel-shape but die on aspect, and a foot+leg
+  // blob that keeps a foot-like aspect at double scale dies on width.
   const aspect = lengthMm / Math.max(widthMm, 1);
   const floorScore = rangeScore(plane.inlierRatio, FLOOR_INLIER_GOOD_MIN, 1);
   const footScore = rangeScore(aspect, ASPECT_MIN, ASPECT_MAX);
   const heelScore = heelShapeScore(rearHeelWidthMm);
   const toeScore = rangeScore(toeTipMinHMm, 0, TOE_TIP_MAX_HEIGHT_MM);
+  const widthScore = rangeScore(widthMm, WIDTH_ANATOMICAL_MIN_MM, WIDTH_ANATOMICAL_MAX_MM);
   const confidence = Math.max(
     0,
-    Math.min(1, floorScore * footScore * heelScore * toeScore),
+    Math.min(1, floorScore * footScore * heelScore * toeScore * widthScore),
   );
   return {
     ...partial,

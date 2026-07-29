@@ -263,6 +263,24 @@ describe('measureFootFromDepthFrame', () => {
     expect(Math.abs(debug.metrics.widthMm - 110)).toBeLessThanOrEqual(6);
   });
 
+  it('rejects a foot-proportioned blob wider than any human foot', () => {
+    // Foot+leg merged into one cluster at roughly double scale (the angled
+    // shin-brace captures of 2026-07-29 read 322–462 × 167–218 mm at full
+    // confidence): aspect stays foot-like, so only the anatomical width
+    // envelope can catch it.
+    const giantBlob: Shape = {
+      heightMm: 35,
+      contains: (x, y) => (x / 255) ** 2 + (y / 110) ** 2 <= 1,
+      heightAt: (x, y) => {
+        const e = Math.sqrt((x / 255) ** 2 + (y / 110) ** 2);
+        return Math.max(3, 35 * Math.min(1, (1 - e) / 0.05));
+      },
+    };
+    const metrics = measureFootFromDepthFrame(makeScene([giantBlob], 180), OPTS);
+    expect(metrics.widthMm).toBeGreaterThan(130);
+    expect(metrics.confidence).toBeLessThan(0.5);
+  });
+
   it('amputates the leg occlusion shadow but keeps the heel', () => {
     // Bare shin leaning into frame: a high (105 mm) slab joined to the heel,
     // hovering off the floor — the real capture that read 353 mm median
