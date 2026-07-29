@@ -29,6 +29,12 @@ const ASPECT_MAX = 3.8;
 // this because a scaled-up blob keeps a foot-like length/width ratio.
 const WIDTH_ANATOMICAL_MIN_MM = 70;
 const WIDTH_ANATOMICAL_MAX_MM = 130;
+// Anatomical foot-length envelope (EU 50 ≈ 320 mm). A leg lying along the
+// foot axis can stretch the cluster lengthwise while keeping a normal width,
+// which slips past both the aspect and width gates (device 2026-07-29:
+// trusted 361 × 121 at a 56 cm brace height).
+const LENGTH_ANATOMICAL_MIN_MM = 140;
+const LENGTH_ANATOMICAL_MAX_MM = 330;
 // With a foot in frame the floor still owns ~2/3 of the cloud; below this the
 // "floor" the RANSAC found is suspect (cluttered scene, foot too close).
 const FLOOR_INLIER_GOOD_MIN = 0.35;
@@ -762,19 +768,21 @@ export function measureFootFromDepthFrameDebug(
   // Confidence is the product of independent trust signals, each a soft 0–1
   // ramp: a real floor (inlier ratio), a foot-shaped aspect, a real heel (not
   // a leaning leg's tail), toe tips touching down at the front, and an
-  // anatomically possible width. A frame must look right on all of them —
-  // the leaning over-reads pass aspect but die on heel-shape, the forefoot-
-  // dropout under-reads pass heel-shape but die on aspect, and a foot+leg
-  // blob that keeps a foot-like aspect at double scale dies on width.
+  // anatomically possible width and length. A frame must look right on all of
+  // them — the leaning over-reads pass aspect but die on heel-shape, the
+  // forefoot-dropout under-reads pass heel-shape but die on aspect, a foot+leg
+  // blob that keeps a foot-like aspect at double scale dies on width, and a
+  // lengthwise leg merge with a normal width dies on length.
   const aspect = lengthMm / Math.max(widthMm, 1);
   const floorScore = rangeScore(plane.inlierRatio, FLOOR_INLIER_GOOD_MIN, 1);
   const footScore = rangeScore(aspect, ASPECT_MIN, ASPECT_MAX);
   const heelScore = heelShapeScore(rearHeelWidthMm);
   const toeScore = rangeScore(toeTipMinHMm, 0, TOE_TIP_MAX_HEIGHT_MM);
   const widthScore = rangeScore(widthMm, WIDTH_ANATOMICAL_MIN_MM, WIDTH_ANATOMICAL_MAX_MM);
+  const lengthScore = rangeScore(lengthMm, LENGTH_ANATOMICAL_MIN_MM, LENGTH_ANATOMICAL_MAX_MM);
   const confidence = Math.max(
     0,
-    Math.min(1, floorScore * footScore * heelScore * toeScore * widthScore),
+    Math.min(1, floorScore * footScore * heelScore * toeScore * widthScore * lengthScore),
   );
   return {
     ...partial,

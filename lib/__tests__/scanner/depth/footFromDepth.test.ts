@@ -281,6 +281,25 @@ describe('measureFootFromDepthFrame', () => {
     expect(metrics.confidence).toBeLessThan(0.5);
   });
 
+  it('rejects a normal-width cluster longer than any human foot', () => {
+    // Leg lying along the foot axis: length stretches to 360 mm while width
+    // stays anatomical, so aspect and width both pass (device 2026-07-29:
+    // trusted 361 × 121 at the lowest brace height) — only the length
+    // envelope catches it.
+    const stretched: Shape = {
+      heightMm: 35,
+      contains: (x, y) => (x / 200) ** 2 + (y / 57.5) ** 2 <= 1,
+      heightAt: (x, y) => {
+        const e = Math.sqrt((x / 200) ** 2 + (y / 57.5) ** 2);
+        return Math.max(3, 35 * Math.min(1, (1 - e) / 0.05));
+      },
+    };
+    const metrics = measureFootFromDepthFrame(makeScene([stretched], 180), OPTS);
+    expect(metrics.lengthMm).toBeGreaterThan(330);
+    expect(metrics.widthMm).toBeLessThan(130);
+    expect(metrics.confidence).toBeLessThan(0.8);
+  });
+
   it('amputates the leg occlusion shadow but keeps the heel', () => {
     // Bare shin leaning into frame: a high (105 mm) slab joined to the heel,
     // hovering off the floor — the real capture that read 353 mm median
