@@ -70,6 +70,27 @@ const HEEL_BAND_MM = 30;
 const TAIL_WIDTH_MM = 20;
 const HEEL_WIDTH_MM = 45;
 
+// End-truncation bands: a foot ends in a curve, so the extreme END_TIP_BAND_MM
+// of the anchored contour is markedly narrower than the body just behind it
+// (END_REF bands); a truncation cut edge stays near full width to the end.
+// NOTE (2026-07-29 replay): only the FRONT end carries a usable signal. The
+// rear of a legitimately ankle-occluded heel (shin-brace protocol) is locally
+// indistinguishable from a capture-truncated one — the good fixtures show the
+// same wide-blunt (92 mm) and sparse-tip (5 mm) rear signatures as the
+// heel-truncated shorts, with matching fill and trim behaviour — so there is
+// deliberately NO rear-end truncation gate; that variant is bounded
+// capture-side by the over-ankle protocol (~10 mm residual).
+const END_TIP_BAND_MM = 10;
+const END_REF_FROM_MM = 15;
+const END_REF_TO_MM = 45;
+// Anatomy for the two toe-end scores below: the extreme front of a foot is
+// staggered rounded toes — never ≥ 80% of ball width (a cut edge is), never
+// narrower than a lone big toe (~20 mm; a phantom smear is).
+const TOE_TIP_BALL_FRACTION_MAX = 0.6;
+const TOE_TIP_BALL_FRACTION_CUT = 0.8;
+const TOE_TIP_MIN_SPAN_MM = 20;
+const TOE_TIP_SPARSE_SPAN_MM = 10;
+
 // A v3 capture below this confidence is rejected and reshot (the burst median
 // keeps only trusted frames), mirroring v2's TRUST_MIN_CONFIDENCE = 0.85. Set
 // at 0.8 from the real negatives: stubby forefoot-dropout frames score 0.43–0.62
@@ -612,10 +633,73 @@ export function heelShapeScore(rearWidthMm: number): number {
   return Math.max(0, Math.min(1, (rearWidthMm - TAIL_WIDTH_MM) / (HEEL_WIDTH_MM - TAIL_WIDTH_MM)));
 }
 
+/** Widest cross-foot span of points with y in [from, to]; 0 unless ≥3 points. */
+export function endBandWidth(points: Point[], from: number, to: number): number {
+  let min = Infinity;
+  let max = -Infinity;
+  let n = 0;
+  for (const p of points) {
+    if (p.y < from || p.y > to) continue;
+    if (p.x < min) min = p.x;
+    if (p.x > max) max = p.x;
+    n++;
+  }
+  return n >= 3 ? max - min : 0;
+}
+
+/**
+ * Front-end truncation discriminator, half 1: the front END_TIP_BAND_MM of a
+ * real foot is toe tips — individually rounded toes at staggered lengths whose
+ * chord never spans more than ~2/3 of the ball width. A contour truncated at
+ * or near the ball (June's toe-dropout shorts; device 2026-07-29: trusted
+ * 213–234 mm with 87–99 mm front tips) ends in a cut edge at 80–90% of the
+ * ball width. Thresholds are anatomy: no foot's extreme front approaches its
+ * ball width, so a good capture scores 1 by construction (device good frames
+ * sit at 23–37%).
+ */
+export function toeTaperScore(frontTipWidthMm: number, widthMm: number): number {
+  if (widthMm <= 0) return 0;
+  const ratio = frontTipWidthMm / widthMm;
+  return Math.max(
+    0,
+    Math.min(
+      1,
+      (TOE_TIP_BALL_FRACTION_CUT - ratio) / (TOE_TIP_BALL_FRACTION_CUT - TOE_TIP_BALL_FRACTION_MAX),
+    ),
+  );
+}
+
+/**
+ * Front-end truncation discriminator, half 2: the frontier must be toes, not a
+ * stray smear. At least the big toe (~20 mm wide) reaches the front tip band of
+ * any real foot; a frontier spanning under ~10 mm is a phantom — an edge-flare
+ * streak or noise spike that recovery admitted — and the length it sets is
+ * fiction (device 2026-07-29: a floor-level streak read 321 mm at full
+ * confidence with an 8 mm front tip; June's trusted toe-dropout frames rode
+ * 6–7 mm frontiers to 224–232).
+ */
+export function toeSpanScore(frontTipWidthMm: number): number {
+  return Math.max(
+    0,
+    Math.min(
+      1,
+      (frontTipWidthMm - TOE_TIP_SPARSE_SPAN_MM) / (TOE_TIP_MIN_SPAN_MM - TOE_TIP_SPARSE_SPAN_MM),
+    ),
+  );
+}
+
 export type DepthMeasureDebug = {
   metrics: FootMetrics;
   /** Cross-foot span of the oriented contour's rear band — heel vs leg-tail. */
   rearHeelWidthMm: number;
+  /** Span of the anchored contour's extreme rear 10 mm — rounded heel vs cut edge. */
+  rearTipWidthMm: number;
+  /** Span 15–45 mm ahead of the rear datum — the heel body behind the tip. */
+  rearRefWidthMm: number;
+  /** Span of the extreme front 10 mm — tapering toes vs cut edge. */
+  frontTipWidthMm: number;
+  /** Span 15–45 mm behind the front tip — the forefoot body. */
+  frontRefWidthMm: number;
   /** Unprojected cloud size — zero means the depth map was empty/invalid. */
   cloudPoints: number;
   /** Raised points everywhere in frame (pre-clustering). */
@@ -673,6 +757,10 @@ export function measureFootFromDepthFrameDebug(
     return {
       metrics: ZERO,
       rearHeelWidthMm: 0,
+      rearTipWidthMm: 0,
+      rearRefWidthMm: 0,
+      frontTipWidthMm: 0,
+      frontRefWidthMm: 0,
       bandPoints: 0,
       footPoints: 0,
       floorInlierRatio: 0,
@@ -685,6 +773,10 @@ export function measureFootFromDepthFrameDebug(
 
   const partial = {
     rearHeelWidthMm: 0,
+    rearTipWidthMm: 0,
+    rearRefWidthMm: 0,
+    frontTipWidthMm: 0,
+    frontRefWidthMm: 0,
     cloudPoints: points.length,
     floorInlierRatio: plane.inlierRatio,
     cameraHeightMm: plane.dMm,
@@ -746,6 +838,14 @@ export function measureFootFromDepthFrameDebug(
   for (const p of anchored) {
     if (p.y > lengthMm) lengthMm = p.y;
   }
+  const rearTipWidthMm = endBandWidth(anchored, 0, END_TIP_BAND_MM);
+  const rearRefWidthMm = endBandWidth(anchored, END_REF_FROM_MM, END_REF_TO_MM);
+  const frontTipWidthMm = endBandWidth(anchored, lengthMm - END_TIP_BAND_MM, lengthMm);
+  const frontRefWidthMm = endBandWidth(
+    anchored,
+    lengthMm - END_REF_TO_MM,
+    lengthMm - END_REF_FROM_MM,
+  );
   // Toe-presence trust signal: real toe tips touch down near the floor at the
   // very front of the contour. When the forefoot drops out (June's goodpose-28/
   // 19 pattern) the front-most band is the hovering dorsum instead, and the
@@ -759,6 +859,7 @@ export function measureFootFromDepthFrameDebug(
   if (lengthMm <= 0 || widthMm <= 0) {
     return { ...partial, rearHeelWidthMm, metrics: ZERO, bandPoints: band.length, footPoints: foot.length };
   }
+  const endBands = { rearTipWidthMm, rearRefWidthMm, frontTipWidthMm, frontRefWidthMm };
   if (calibrate) {
     const pixelPitchMm = plane.dMm / frame.intrinsics.fx;
     lengthMm += LENGTH_EDGE_EROSION_PX * pixelPitchMm;
@@ -767,12 +868,14 @@ export function measureFootFromDepthFrameDebug(
 
   // Confidence is the product of independent trust signals, each a soft 0–1
   // ramp: a real floor (inlier ratio), a foot-shaped aspect, a real heel (not
-  // a leaning leg's tail), toe tips touching down at the front, and an
-  // anatomically possible width and length. A frame must look right on all of
-  // them — the leaning over-reads pass aspect but die on heel-shape, the
-  // forefoot-dropout under-reads pass heel-shape but die on aspect, a foot+leg
-  // blob that keeps a foot-like aspect at double scale dies on width, and a
-  // lengthwise leg merge with a normal width dies on length.
+  // a leaning leg's tail), toe tips touching down at the front, an
+  // anatomically possible width and length, and a toe-shaped front end. A
+  // frame must look right on all of them — the leaning over-reads pass aspect
+  // but die on heel-shape, the forefoot-dropout under-reads pass heel-shape
+  // but die on aspect, a foot+leg blob that keeps a foot-like aspect at double
+  // scale dies on width, a lengthwise leg merge with a normal width dies on
+  // length, a ball-truncated contour dies on toe-taper, and a phantom frontier
+  // (edge-flare streak, toe-dropout tail) dies on toe-span.
   const aspect = lengthMm / Math.max(widthMm, 1);
   const floorScore = rangeScore(plane.inlierRatio, FLOOR_INLIER_GOOD_MIN, 1);
   const footScore = rangeScore(aspect, ASPECT_MIN, ASPECT_MAX);
@@ -782,11 +885,22 @@ export function measureFootFromDepthFrameDebug(
   const lengthScore = rangeScore(lengthMm, LENGTH_ANATOMICAL_MIN_MM, LENGTH_ANATOMICAL_MAX_MM);
   const confidence = Math.max(
     0,
-    Math.min(1, floorScore * footScore * heelScore * toeScore * widthScore * lengthScore),
+    Math.min(
+      1,
+      floorScore *
+        footScore *
+        heelScore *
+        toeScore *
+        widthScore *
+        lengthScore *
+        toeTaperScore(frontTipWidthMm, widthMm) *
+        toeSpanScore(frontTipWidthMm),
+    ),
   );
   return {
     ...partial,
     rearHeelWidthMm,
+    ...endBands,
     metrics: { lengthMm, widthMm, confidence },
     bandPoints: band.length,
     footPoints: trimmed.length,

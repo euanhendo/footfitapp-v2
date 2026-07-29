@@ -67,44 +67,72 @@ function makeScene(shapes: Shape[], fx = 500, width = 256, height = 192): DepthF
   return { width, height, depthMm, intrinsics };
 }
 
-// A 255 × 110 mm foot as an ellipse lying along the x-axis (the wide image
+// Anatomical egg-foot, 255 × 110 mm, lying along the x-axis (the wide image
 // axis — the depth frame is landscape, a foot capture fills it lengthwise).
-const ellipseFoot: Shape = {
-  heightMm: 35,
-  contains: (x, y) => (x / 127.5) ** 2 + (y / 55) ** 2 <= 1,
-  // Dome profile: full height inside, tapering to the floor over the outer
-  // 5% of the radius — toe tips and heel-pad edge land at 2–5 mm like a
-  // real foot (device captures 2026-07-23), which the toe-presence trust
-  // signal requires.
-  heightAt: (x, y) => {
-    const e = Math.sqrt((x / 127.5) ** 2 + (y / 55) ** 2);
-    return Math.max(3, 35 * Math.min(1, (1 - e) / 0.05));
-  },
-};
+// Rounded heel (30 mm circle), smoothly widening midfoot, and the widest
+// slice — the ball — at 70% of length before an elliptical toe cap. Replaced
+// the old symmetric ellipse 2026-07-29: a real foot is end-asymmetric, which
+// orientation, ball-centred recovery and the front-end truncation
+// discriminators all depend on. Dome height with the same outer-5% floor
+// taper as before — toe tips and heel-pad edge land at 2–5 mm like a real
+// foot (device captures 2026-07-23), which the toe-presence signal requires.
+const FOOT_LEN = 255;
+const BALL_S = 0.7 * FOOT_LEN;
+const BALL_HALF_W = 55;
+const HEEL_R = 30;
 
-// Egg-shaped foot: narrow heel, wide ball — for heel/toe disambiguation.
+function eggHalfWidth(s: number): number {
+  if (s <= 0 || s >= FOOT_LEN) return 0;
+  if (s <= HEEL_R) return Math.sqrt(HEEL_R ** 2 - (HEEL_R - s) ** 2);
+  if (s >= BALL_S)
+    return BALL_HALF_W * Math.sqrt(1 - ((s - BALL_S) / (FOOT_LEN - BALL_S)) ** 2);
+  const t = (s - HEEL_R) / (BALL_S - HEEL_R);
+  return HEEL_R + (BALL_HALF_W - HEEL_R) * t * t * (3 - 2 * t);
+}
+
+// Side profile: the heel pad rises from a 3 mm rear edge over the heel cap,
+// the midfoot holds full instep height, and the dorsum descends from the ball
+// to 3 mm toe tips. Gentle end slopes matter twice over: a real foot has them
+// (no vertical walls, so no self-occlusion under the pinhole renderer), and
+// the toe tips land at 3–6 mm — below the 6 mm segmentation floor, exactly
+// like device captures (2026-07-23) — so the egg exercises the sub-band toe
+// recovery path for real. Cross-wise the outer 5% still tapers to the floor.
+function eggHeight(s: number, y: number): number {
+  const hw = eggHalfWidth(s);
+  if (hw <= 0) return 3;
+  const cross = 35 * Math.min(1, (1 - Math.abs(y) / hw) / 0.05);
+  const end =
+    s <= HEEL_R
+      ? 3 + 32 * (s / HEEL_R)
+      : s >= BALL_S
+        ? 3 + 32 * ((FOOT_LEN - s) / (FOOT_LEN - BALL_S))
+        : 35;
+  return Math.max(3, Math.min(cross, end));
+}
+
 function eggFoot(toeTowardPositiveX: boolean): Shape {
-  const halfWidthAt = (along: number) => 55 * (0.55 + (0.45 * (along + 127.5)) / 255);
   return {
     heightMm: 35,
     contains: (x, y) => {
-      const along = toeTowardPositiveX ? x : -x;
-      if (along < -127.5 || along > 127.5) return false;
-      return Math.abs(y) <= halfWidthAt(along);
+      const s = (toeTowardPositiveX ? x : -x) + FOOT_LEN / 2;
+      return s > 0 && s < FOOT_LEN && Math.abs(y) <= eggHalfWidth(s);
     },
     heightAt: (x, y) => {
-      const along = toeTowardPositiveX ? x : -x;
-      const edge = Math.max(Math.abs(along) / 127.5, Math.abs(y) / halfWidthAt(along));
-      return Math.max(3, 35 * Math.min(1, (1 - edge) / 0.05));
+      const s = (toeTowardPositiveX ? x : -x) + FOOT_LEN / 2;
+      return eggHeight(s, y);
     },
   };
 }
+
+// Canonical synthetic foot for the scenes below: heel at x = −127.5, toes
+// toward +x.
+const foot = eggFoot(true);
 
 // Ankle/lower-leg lobe near the heel, taller than the foot and bulging
 // sideways past the true outline — the contamination that broke v2 width.
 const ankleLobe: Shape = {
   heightMm: 90,
-  contains: (x, y) => (x + 85) ** 2 + (y - 35) ** 2 <= 35 ** 2,
+  contains: (x, y) => (x + 85) ** 2 + (y - 45) ** 2 <= 40 ** 2,
 };
 
 // Synthetic frames have perfect edges, so geometry tests disable the
@@ -188,9 +216,12 @@ describe('anchorToFloorContact', () => {
 
 describe('measureFootFromDepthFrame', () => {
   it('measures a clean foot to within a few mm', () => {
-    const metrics = measureFootFromDepthFrame(makeScene([ellipseFoot]), OPTS);
+    // Width tolerance is 5 (was 4 for the ellipse): the egg's ball is a single
+    // widest slice rather than a flat middle, so cross-edge erosion bites a
+    // fraction deeper. Real-frame fixtures referee true accuracy.
+    const metrics = measureFootFromDepthFrame(makeScene([foot]), OPTS);
     expect(Math.abs(metrics.lengthMm - 255)).toBeLessThanOrEqual(5);
-    expect(Math.abs(metrics.widthMm - 110)).toBeLessThanOrEqual(4);
+    expect(Math.abs(metrics.widthMm - 110)).toBeLessThanOrEqual(5);
     expect(metrics.confidence).toBeGreaterThanOrEqual(0.7);
   });
 
@@ -200,7 +231,7 @@ describe('measureFootFromDepthFrame', () => {
   });
 
   it('keeps true width when the ankle lobe contaminates the contour', () => {
-    const scene = makeScene([ellipseFoot, ankleLobe]);
+    const scene = makeScene([foot, ankleLobe]);
 
     // Prove the lobe really is in the segmented contour: the raw cross-axis
     // span exceeds the true 110 mm width…
@@ -215,14 +246,15 @@ describe('measureFootFromDepthFrame', () => {
     }
     expect(maxX - minX).toBeGreaterThan(112);
 
-    // …yet the band width stays anatomical, as on paper.
+    // …yet the band width stays anatomical, as on paper. Length gives up a
+    // couple of extra mm to the trim walking into lobe-shadowed heel slices.
     const metrics = measureFootFromDepthFrame(scene, OPTS);
-    expect(Math.abs(metrics.widthMm - 110)).toBeLessThanOrEqual(4);
-    expect(Math.abs(metrics.lengthMm - 255)).toBeLessThanOrEqual(6);
+    expect(Math.abs(metrics.widthMm - 110)).toBeLessThanOrEqual(5);
+    expect(Math.abs(metrics.lengthMm - 255)).toBeLessThanOrEqual(8);
   });
 
   it('compensates edge erosion in proportion to pixel pitch', () => {
-    const scene = makeScene([ellipseFoot]);
+    const scene = makeScene([foot]);
     const raw = measureFootFromDepthFrame(scene, OPTS);
     const calibrated = measureFootFromDepthFrame(scene, { seed: 42, iterations: 60 });
     // Pixel pitch here: 600 mm floor / fx 500 = 1.2 mm per pixel.
@@ -231,7 +263,7 @@ describe('measureFootFromDepthFrame', () => {
   });
 
   it('exposes pipeline internals through the debug variant', () => {
-    const scene = makeScene([ellipseFoot]);
+    const scene = makeScene([foot]);
     const debug = measureFootFromDepthFrameDebug(scene, OPTS);
     expect(debug.metrics).toEqual(measureFootFromDepthFrame(scene, OPTS));
     expect(debug.cloudPoints).toBe(256 * 192);
@@ -252,7 +284,7 @@ describe('measureFootFromDepthFrame', () => {
       heightMm: 15,
       contains: (x, y) => Math.hypot(x - nx, y + 180 + i * 25) <= 20,
     }));
-    const scene = makeScene([ellipseFoot, secondFoot, ...noiseBumps], 180);
+    const scene = makeScene([foot, secondFoot, ...noiseBumps], 180);
     const debug = measureFootFromDepthFrameDebug(scene, OPTS);
     expect(debug.bandPoints).toBeGreaterThan(debug.footPoints);
     // Tapered-edge feet (realistic soles, added with the toe-presence signal)
@@ -260,7 +292,7 @@ describe('measureFootFromDepthFrame', () => {
     // at this wide FOV — a discretization cost, not a pipeline error; the
     // real-frame fixtures are the accuracy referee.
     expect(Math.abs(debug.metrics.lengthMm - 255)).toBeLessThanOrEqual(10);
-    expect(Math.abs(debug.metrics.widthMm - 110)).toBeLessThanOrEqual(6);
+    expect(Math.abs(debug.metrics.widthMm - 110)).toBeLessThanOrEqual(7);
   });
 
   it('rejects a foot-proportioned blob wider than any human foot', () => {
@@ -308,13 +340,13 @@ describe('measureFootFromDepthFrame', () => {
       heightMm: 105,
       contains: (x, y) => x >= -215 && x <= -115 && Math.abs(y - 10) <= 40,
     };
-    const scene = makeScene([ellipseFoot, shinShadow], 180);
+    const scene = makeScene([foot, shinShadow], 180);
     const metrics = measureFootFromDepthFrame(scene, OPTS);
     // The trim walks a little further into a tapered heel edge than it did
     // into the old slab's cliff — the shadow-adjacent slices thin out
     // gradually now. Real heel behaviour is pinned by the device fixtures.
     expect(Math.abs(metrics.lengthMm - 255)).toBeLessThanOrEqual(17);
-    expect(Math.abs(metrics.widthMm - 110)).toBeLessThanOrEqual(6);
+    expect(Math.abs(metrics.widthMm - 110)).toBeLessThanOrEqual(7);
   });
 
   it('measures the same foot whichever way the toes point', () => {
@@ -323,9 +355,46 @@ describe('measureFootFromDepthFrame', () => {
     expect(Math.abs(towardPositive.lengthMm - 255)).toBeLessThanOrEqual(6);
     expect(Math.abs(towardNegative.lengthMm - 255)).toBeLessThanOrEqual(6);
     expect(Math.abs(towardPositive.widthMm - towardNegative.widthMm)).toBeLessThanOrEqual(4);
-    // The widest slice the band can see is at 95% of the egg: ~108 mm. If the
-    // flip heuristic failed, the band would top out around 95 mm instead.
-    expect(towardPositive.widthMm).toBeGreaterThanOrEqual(102);
-    expect(towardNegative.widthMm).toBeGreaterThanOrEqual(102);
+    // The ball (110 mm, at 70% of length) sits inside the 30–95% width band
+    // either way ONLY if the flip heuristic put the heel at the origin — a
+    // failed flip leaves the band topping out on the narrower midfoot.
+    expect(towardPositive.widthMm).toBeGreaterThanOrEqual(105);
+    expect(towardNegative.widthMm).toBeGreaterThanOrEqual(105);
+  });
+
+  it('rejects a ball-truncated contour via the blunt front end', () => {
+    // The toe-truncated trusted-short variant (June 221–232; device
+    // 2026-07-29: trusted 213–234 with 87–99 mm front tips): the forefoot
+    // drops out and the contour ends in a cut edge near ball width. All the
+    // older gates pass — aspect is ~2.05, the heel is real, near-floor edge
+    // points sit in the front band — only the toe-taper signal sees the cut.
+    const cutS = 225;
+    const truncated: Shape = {
+      ...foot,
+      contains: (x, y) => x + FOOT_LEN / 2 <= cutS && foot.contains(x, y),
+    };
+    const debug = measureFootFromDepthFrameDebug(makeScene([truncated]), OPTS);
+    expect(debug.metrics.lengthMm).toBeLessThan(240);
+    expect(debug.metrics.lengthMm).toBeGreaterThan(200);
+    // The front tip band really is a cut edge: near the measured ball width.
+    expect(debug.frontTipWidthMm).toBeGreaterThan(0.8 * debug.metrics.widthMm);
+    expect(debug.metrics.confidence).toBeLessThan(0.5);
+  });
+
+  it('rejects a phantom frontier streak via the narrow front end', () => {
+    // The lucky-length artifact (device 2026-07-29): a thin floor-level
+    // streak beyond the toes — edge flare off the leg — extends length to a
+    // plausible or even truth-adjacent number at full confidence. The
+    // frontier the streak sets is ~10 mm wide; real toes are never that
+    // narrow, so the toe-span signal rejects what no other gate can.
+    const streak: Shape = {
+      heightMm: 8,
+      contains: (x, y) => x >= 120 && x <= 167 && Math.abs(y) <= 5,
+    };
+    // fx 400 widens the field of view so the streak's far end stays in frame.
+    const debug = measureFootFromDepthFrameDebug(makeScene([foot, streak], 400), OPTS);
+    expect(debug.metrics.lengthMm).toBeGreaterThan(280);
+    expect(debug.frontTipWidthMm).toBeLessThan(15);
+    expect(debug.metrics.confidence).toBeLessThan(0.5);
   });
 });

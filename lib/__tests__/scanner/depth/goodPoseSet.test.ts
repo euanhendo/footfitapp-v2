@@ -48,8 +48,9 @@ function loadFixture(name: string): DepthFrame {
 }
 
 describe('good-pose set — width solved, length not yet', () => {
-  const lengths = FILES.map((f) => measureFootFromDepthFrameDebug(loadFixture(f)).metrics.lengthMm);
-  const widths = FILES.map((f) => measureFootFromDepthFrameDebug(loadFixture(f)).metrics.widthMm);
+  const results = FILES.map((f) => measureFootFromDepthFrameDebug(loadFixture(f)));
+  const lengths = results.map((r) => r.metrics.lengthMm);
+  const widths = results.map((r) => r.metrics.widthMm);
 
   it('width is accurate on every good-pose frame (truth ~107 mm)', () => {
     for (const w of widths) {
@@ -66,5 +67,16 @@ describe('good-pose set — width solved, length not yet', () => {
     // ...and the per-end cap + width envelope keep it bounded — nothing inflates
     // past the foot (a runaway would re-admit floor noise, as minConf 0 does).
     expect(Math.max(...lengths)).toBeLessThan(285);
+  });
+
+  it('no toe-dropout frame is trusted — their frontiers are phantom tails', () => {
+    // Two frames used to clear the gate at 224/232 mm (truth 263): confidently
+    // short, the exact reads a burst median must not swallow. Their front tip
+    // bands span 6–7 mm — a sparse smear, not toes — so the toe-span signal
+    // (2026-07-29) now rejects the whole set; trusted length comes only from
+    // shin-brace-protocol frames (see shinBraceSet.test.ts).
+    for (const r of results) {
+      expect(r.metrics.confidence).toBeLessThan(0.8);
+    }
   });
 });

@@ -2,9 +2,12 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { base64ToBytes } from '../../../scanner/depth/base64';
 import {
+  endBandWidth,
   measureFootFromDepthFrameDebug,
   rearBandWidth,
   heelShapeScore,
+  toeSpanScore,
+  toeTaperScore,
   TRUST_MIN_CONFIDENCE_V3,
 } from '../../../scanner/depth/footFromDepth';
 import { DepthFrame } from '../../../scanner/depth/types';
@@ -65,6 +68,34 @@ describe('rearBandWidth + heelShapeScore (pure)', () => {
     expect(heelShapeScore(20)).toBe(0);
     expect(heelShapeScore(45)).toBe(1);
     expect(heelShapeScore(32.5)).toBeCloseTo(0.5, 1);
+  });
+});
+
+describe('front-end truncation scores (pure)', () => {
+  it('endBandWidth spans only the requested band and needs ≥3 points', () => {
+    const pts = [
+      { x: -20, y: 2 },
+      { x: 25, y: 8 },
+      { x: 0, y: 5 },
+      { x: -60, y: 40 }, // outside the band
+    ];
+    expect(endBandWidth(pts, 0, 10)).toBe(45);
+    expect(endBandWidth(pts, 0, 4)).toBe(0); // only one point left
+  });
+
+  it('toeTaperScore passes toes and zeroes a ball-wide cut edge', () => {
+    // Device good frames: front tip 23–37% of ball width.
+    expect(toeTaperScore(38, 104)).toBe(1);
+    // Device toe-truncated shorts: 79–90%.
+    expect(toeTaperScore(99, 110)).toBe(0);
+    expect(toeTaperScore(77, 110)).toBeCloseTo(0.5, 1); // 70% — mid-ramp
+    expect(toeTaperScore(30, 0)).toBe(0); // degenerate width
+  });
+
+  it('toeSpanScore passes real toes and zeroes a phantom frontier', () => {
+    expect(toeSpanScore(27)).toBe(1); // narrowest device good frame
+    expect(toeSpanScore(8)).toBe(0); // the 321 mm streak frontier
+    expect(toeSpanScore(15)).toBeCloseTo(0.5, 1);
   });
 });
 
