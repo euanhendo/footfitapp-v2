@@ -508,3 +508,48 @@ only; the shin-out-of-frame cue is unenforced (and physically impossible
 from the seated forward position). (4) Replay harness pattern: temp jest
 test decoding `~/Downloads/depthburst-*.json` (see 2026-07-23 crib);
 today's bursts kept in Downloads as the trusted-short real-failure set.
+
+### Evening — egg-foot remodel + toe-end truncation discriminators shipped
+
+Replayed the day's 13 bursts and every committed fixture with end-band
+instrumentation (extreme-10 mm tip width vs a 15–45 mm reference band, both
+ends). Findings, in falsification order:
+
+- **The FRONT end separates cleanly and anatomically.** Good frames' front
+  tips span 27–38 mm at 23–37% of ball width. Toe-truncated shorts end in a
+  cut edge at 87–99 mm — 79–90% of ball width. Phantom frontiers (the
+  edge-flare streak behind 321.1; June's toe-dropout tails at 224/232) span
+  4–8 mm. Shipped two multiplicative trust signals in `footFromDepth.ts`:
+  `toeTaperScore` (front tip ≥ 80% of ball width → 0; no real foot's last
+  10 mm approaches its ball width) and `toeSpanScore` (frontier narrower
+  than a lone big toe, ramp 20 → 10 mm, → 0; a narrower frontier is a smear,
+  not toes).
+- **The REAR end carries no in-frame signal — measured, and twice
+  falsified.** An ankle-occluded good heel shows the same rear signatures as
+  a capture-truncated one: wide-blunt (shinbrace-1: 92 mm) and sparse-tip
+  (shinbrace-2: 5 mm) both mirror the heel-truncated shorts (85–88 / 4 mm).
+  Candidate discriminators tested and rejected: trim-cut coupling (the GOOD
+  frame had cut=20, the truncated shorts cut=0 — the heel loss happens at
+  capture, not at the trim) and tip-band occupancy (good side-arcs fill
+  0.31 vs truncated slabs 0.42–0.46 — wrong direction). **No rear gate
+  shipped, deliberately**; a rear-blunt gate would kill the settled
+  protocol's good frames first. The heel-truncated variant stays bounded
+  capture-side by the over-ankle protocol (~10 mm residual).
+- **Replay scoreboard:** 6 of 11 trusted-bad frames now rejected at conf 0
+  (toe-truncated 213.7/223.6/234.0, the 321.1 phantom trusted-long, June's
+  trusted 224.3/232.0). The three good frames (14-27-49 f0 at 251.0, both
+  shinbrace) keep conf 1.00 byte-identically. 5 heel-truncated shorts
+  (206.6–217.4) remain trusted — all from the falsified forward-brace
+  positions, in-frame indistinguishable.
+- **Synthetic remodel:** the canonical test foot is now an anatomical egg —
+  rounded 30 mm heel, ball (widest, 110 mm) at 70% of length, elliptical toe
+  cap, and a real side profile (heel-pad rise, dorsum descent to 3 mm tips),
+  so synthetic toe tips sit below the 6 mm segmentation floor and exercise
+  sub-band recovery exactly like device captures. The symmetric ellipse and
+  the linear wedge are gone. New synthetic negatives pin both discriminators
+  (a ball-truncated cut and a phantom frontier streak). `goodPoseSet` now
+  asserts NO June frame is trusted — trusted length comes only from
+  shin-brace-protocol frames.
+
+Mitigation path for the remaining heel-truncated variant is the
+DepthDebugScreen coach (item 3 above), not more gate work.
